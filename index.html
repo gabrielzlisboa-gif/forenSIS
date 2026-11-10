@@ -97,7 +97,7 @@ footer { font-size:12px; color:var(--text-muted); text-align:center; }
 
 <script>
 'use strict';
-const VERSION = '0.0.1';
+const VERSION = '0.0.2';
 const SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const API = 'https://www.googleapis.com/drive/v3';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
@@ -140,37 +140,67 @@ function waitGis(ms) {
   });
 }
 
-function requestToken(prompt) {
-  return new Promise(async (resolve, reject) => {
-    try { await waitGis(8000); } catch (e) { return reject(e); }
-    if (!/\.apps\.googleusercontent\.com$/.test(getClientId())) return reject(new Error('Informe o ID do cliente no passo 1.'));
-    tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: getClientId(),
-      scope: SCOPE,
-      callback: r => {
-        if (r.error) return reject(new Error(r.error_description || r.error));
-        if (!google.accounts.oauth2.hasGrantedAllScopes(r, SCOPE)) return reject(new Error('A permissão de arquivos do Drive não foi concedida.'));
-        token = r.access_token;
-        tokenExp = Date.now() + (Number(r.expires_in) || 3600) * 1000;
-        resolve();
-      },
-      error_callback: e => reject(new Error(e && e.type === 'popup_closed' ? 'A janela de login foi fechada.' : (e && e.message) || 'Falha no login.')),
-    });
-    tokenClient.requestAccessToken({ prompt });
-  });
+// No Android, o Google às vezes avisa "janela fechada" ANTES de entregar a
+// autorização, que chega logo em seguida. Por isso o aviso de janela fechada
+// só vale se nada chegar em alguns segundos, e uma autorização que chegue
+// atrasada é aceita normalmente.
+function loginFail(msg) {
+  clear('outLogin');
+  log('outLogin', '✗ ' + msg, 'err-t');
+  $('btnLogin').disabled = false;
 }
 
-$('btnLogin').addEventListener('click', async () => {
-  clear('outLogin');
+async function afterLogin() {
   try {
-    await requestToken(token ? '' : 'consent');
     const about = await api('GET', API + '/about?fields=user(displayName,emailAddress)');
+    clear('outLogin');
     log('outLogin', '✓ Conectado como ' + about.user.emailAddress, 'ok-t');
     log('outLogin', 'Permissão válida por cerca de ' + Math.round((tokenExp - Date.now()) / 60000) + ' min.');
     stepOk('s2');
     $('btnFolders').disabled = false;
-  } catch (e) { log('outLogin', '✗ ' + e.message, 'err-t'); }
-});
+  } catch (e) { loginFail(e.message); }
+  $('btnLogin').disabled = false;
+}
+
+async function startLogin() {
+  clear('outLogin');
+  if (/; wv\)/.test(navigator.userAgent)) {
+    log('outLogin', '! Esta página está aberta dentro de outro app. Para o login funcionar, abra o endereço direto no Chrome.', 'warn-t');
+  }
+  if (!/\.apps\.googleusercontent\.com$/.test(getClientId())) return loginFail('Informe o ID do cliente no passo 1.');
+  try { await waitGis(8000); } catch (e) { return loginFail(e.message); }
+  log('outLogin', 'Abrindo o login do Google…');
+  $('btnLogin').disabled = true;
+  let answered = false;
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: getClientId(),
+    scope: SCOPE,
+    callback: r => {
+      answered = true;
+      if (r.error) return loginFail(r.error_description || r.error);
+      if (!google.accounts.oauth2.hasGrantedAllScopes(r, SCOPE)) return loginFail('A permissão de arquivos do Drive não foi concedida. Marque a caixa do Google Drive na tela de autorização.');
+      token = r.access_token;
+      tokenExp = Date.now() + (Number(r.expires_in) || 3600) * 1000;
+      afterLogin();
+    },
+    error_callback: e => {
+      const type = e && e.type;
+      if (type === 'popup_failed_to_open') return loginFail('O navegador bloqueou a janela de login. Permita pop-ups para este site e tente de novo.');
+      if (type === 'popup_closed') {
+        log('outLogin', 'Aguardando a resposta do Google…');
+        setTimeout(() => {
+          if (!answered) loginFail('A janela de login foi fechada sem resposta do Google. Se você concluiu a autorização, toque em "Entrar com Google" de novo: a segunda tentativa costuma ser direta.');
+        }, 6000);
+        return;
+      }
+      loginFail((e && e.message) || 'Falha no login.');
+    },
+  });
+  // '' = só pede consentimento quando necessário (na primeira vez, ou se a permissão foi revogada).
+  tokenClient.requestAccessToken({ prompt: '' });
+}
+
+$('btnLogin').addEventListener('click', startLogin);
 
 // ── Chamadas ao Drive ────────────────────────────────────────────────────────
 async function api(method, url, body, headers) {
