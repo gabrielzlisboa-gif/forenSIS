@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>forenSIS beta</title>
+<title>forenSIS</title>
 <meta name="theme-color" content="#0f1117">
 <meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -13,331 +13,798 @@
 :root {
   --bg:#0f1117; --surface:#1a1d26; --surface2:#222533; --border:#2e3145; --border-strong:#3d4160;
   --text:#e8eaf0; --text-sec:#a3a8bf; --text-muted:#8a8fa6;
-  --accent:#00c9a7; --accent-dim:rgba(0,201,167,.12); --accent-border:rgba(0,201,167,.4);
+  --accent:#00c9a7; --accent-dim:rgba(0,201,167,.12); --accent-border:rgba(0,201,167,.4); --on-accent:#06231d;
   --red:#e86a6a; --red-dim:rgba(232,106,106,.14); --red-border:rgba(232,106,106,.5);
   --amber:#e8c27a; --amber-dim:rgba(224,176,80,.12); --amber-border:rgba(224,176,80,.45);
   --mono:'JetBrains Mono',ui-monospace,monospace; --sans:'Inter',system-ui,sans-serif;
 }
-html, body { background:var(--bg); }
-body { font-family:var(--sans); color:var(--text); font-size:15px; line-height:1.5; }
-.wrap { max-width:640px; margin:0 auto; padding:calc(16px + env(safe-area-inset-top)) 16px 48px; display:flex; flex-direction:column; gap:16px; }
-header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-h1 { font-size:20px; font-weight:600; letter-spacing:.01em; }
-h1 span { color:var(--accent); }
-.beta { font-size:11px; font-weight:600; letter-spacing:.08em; padding:3px 8px; border-radius:4px; color:var(--amber); background:var(--amber-dim); border:1px solid var(--amber-border); }
-.banner { font-size:13px; color:var(--text-sec); padding:10px 12px; border-radius:8px; border:1px solid var(--border); background:var(--surface); }
-.step { border:1px solid var(--border); border-radius:12px; background:var(--surface); padding:14px; display:flex; flex-direction:column; gap:10px; }
-.step h2 { font-size:15px; font-weight:600; display:flex; align-items:center; gap:10px; }
-.step h2 .n { width:24px; height:24px; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; font-size:12px; background:var(--surface2); border:1px solid var(--border-strong); color:var(--text-sec); flex-shrink:0; }
-.step.ok h2 .n { background:var(--accent-dim); border-color:var(--accent-border); color:var(--accent); }
-.step p { font-size:13px; color:var(--text-sec); }
-label { font-size:13px; color:var(--text-sec); display:flex; flex-direction:column; gap:6px; }
-input[type=text] { height:44px; padding:0 12px; border-radius:8px; border:1px solid var(--border-strong); background:var(--bg); color:var(--text); font:400 15px var(--mono); width:100%; }
-input[type=text]:focus { outline:none; border-color:var(--accent); }
-.row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-button, .filebtn { height:44px; padding:0 16px; border-radius:8px; border:1px solid var(--border-strong); background:var(--surface2); color:var(--text); font:500 14px var(--sans); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
-button.primary, .filebtn.primary { background:var(--accent); border-color:var(--accent); color:#06231d; font-weight:600; }
+html, body { height:100%; background:var(--bg); }
+body { font-family:var(--sans); color:var(--text); font-size:15px; line-height:1.45; -webkit-tap-highlight-color:transparent; overscroll-behavior:none; }
+button { font-family:inherit; color:inherit; cursor:pointer; }
 button:disabled { opacity:.45; cursor:not-allowed; }
-.filebtn input { display:none; }
-.out { font:400 12px/1.6 var(--mono); color:var(--text-sec); background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; white-space:pre-wrap; overflow-wrap:anywhere; -webkit-user-select:text; user-select:text; }
-.out:empty { display:none; }
-.ok-t { color:var(--accent); } .err-t { color:var(--red); } .warn-t { color:var(--amber); }
-footer { font-size:12px; color:var(--text-muted); text-align:center; }
+input, select { font-family:inherit; color:var(--text); }
+[hidden] { display:none !important; }
+.mono { font-family:var(--mono); }
+
+.app { height:100vh; height:100dvh; max-width:640px; margin:0 auto; display:flex; flex-direction:column; padding-top:env(safe-area-inset-top); }
+.top { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 16px; border-bottom:1px solid var(--border); }
+.brand { font-weight:600; font-size:17px; } .brand span { color:var(--accent); }
+.beta { font-size:10px; font-weight:600; letter-spacing:.08em; padding:2px 6px; border-radius:4px; color:var(--amber); background:var(--amber-dim); border:1px solid var(--amber-border); margin-left:6px; vertical-align:2px; }
+.acct { font-size:12px; color:var(--text-sec); display:flex; align-items:center; gap:6px; }
+.dot { width:8px; height:8px; border-radius:4px; background:var(--text-muted); display:inline-block; }
+.dot.on { background:var(--accent); } .dot.warn { background:var(--amber); } .dot.err { background:var(--red); }
+
+.banners { display:flex; flex-direction:column; gap:6px; padding:0 16px; }
+.banners:not(:empty) { padding-top:8px; }
+.banner { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 12px; border-radius:10px; font-size:13px; border:1px solid var(--border-strong); background:var(--surface2); }
+.banner .msg { flex:1; min-width:160px; }
+.banner.warn { border-color:var(--amber-border); background:var(--amber-dim); }
+.banner.err { border-color:var(--red-border); background:var(--red-dim); }
+.banner.ok { border-color:var(--accent-border); background:var(--accent-dim); }
+
+.view { flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.pad { padding:16px; display:flex; flex-direction:column; gap:14px; }
+.label { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--text-sec); }
+.card { border:1px solid var(--border); border-radius:12px; background:var(--surface); padding:14px; display:flex; flex-direction:column; gap:10px; }
+.btn { height:44px; padding:0 16px; border-radius:10px; border:1px solid var(--border-strong); background:var(--surface2); font:500 14px var(--sans); display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+.btn.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:600; }
+.btn.big { height:56px; font-size:16px; border-radius:12px; width:100%; }
+.btn.ghost { background:transparent; }
+.btn.warn { border-color:var(--amber-border); background:var(--amber-dim); color:var(--amber); }
+.btn.sm { height:34px; padding:0 10px; font-size:13px; border-radius:8px; }
+.field { height:44px; padding:0 12px; border-radius:10px; border:1px solid var(--border-strong); background:var(--bg); font-size:16px; width:100%; min-width:0; }
+.field:focus { outline:none; border-color:var(--accent); }
+.row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.help { font-size:13px; color:var(--text-sec); }
+.case-no { font-family:var(--mono); font-size:32px; font-weight:500; letter-spacing:-.01em; }
+.path { font-family:var(--mono); font-size:12px; color:var(--text-muted); }
+.bar { height:6px; border-radius:3px; background:var(--border); overflow:hidden; }
+.bar > div { height:6px; background:var(--accent); width:0; transition:width .3s; }
+.sec { display:flex; align-items:center; justify-content:space-between; height:52px; padding:0 16px; border-radius:10px; border:1px solid var(--border); background:var(--surface); font-size:15px; width:100%; text-align:left; }
+.sec.active { border:2px solid var(--accent); background:var(--accent-dim); font-weight:500; }
+.sec .n { font-family:var(--mono); font-size:12px; color:var(--text-sec); }
+.sec.active .n { color:var(--accent); }
+
+nav.tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border-top:1px solid var(--border); height:60px; padding-bottom:env(safe-area-inset-bottom); }
+nav.tabs button { background:transparent; border:none; font-size:13px; color:var(--text-sec); }
+nav.tabs button.on { color:var(--accent); font-weight:600; }
+
+/* Captura */
+#vCap { position:relative; background:#07080b; overflow:hidden; display:flex; flex-direction:column; }
+#video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#1c1f27; }
+.cap-top { position:relative; z-index:2; display:flex; align-items:center; gap:8px; padding:12px; }
+.round { width:44px; height:44px; border-radius:22px; border:none; background:rgba(7,8,11,.7); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.round.on { background:var(--amber); color:#2a1e05; }
+.secpick { flex:1; min-width:0; height:44px; border-radius:22px; border:1px solid var(--accent-border); background:rgba(7,8,11,.78); padding:0 12px; font-size:14px; font-weight:500; }
+.cap-status { position:relative; z-index:2; align-self:flex-start; margin:0 12px; padding:5px 10px; border-radius:8px; background:rgba(7,8,11,.72); font-size:12px; color:var(--text-sec); display:inline-flex; align-items:center; gap:6px; }
+.cap-msg { position:relative; z-index:2; margin:auto 16px; text-align:center; color:var(--text-sec); font-size:14px; }
+.flash { position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:3; transition:opacity .25s; }
+.flash.go { opacity:.55; transition:none; }
+.cap-bottom { position:relative; z-index:2; margin-top:auto; background:linear-gradient(transparent, rgba(7,8,11,.92) 30%); padding:28px 16px calc(16px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:14px; }
+.strip { display:flex; gap:8px; align-items:center; min-height:56px; }
+.thumb { width:56px; height:56px; border-radius:8px; background:#2a2e3a center/cover no-repeat; position:relative; flex-shrink:0; }
+.thumb .st { position:absolute; right:3px; bottom:3px; width:14px; height:14px; border-radius:7px; border:2px solid var(--amber); background:#07080b; }
+.thumb .st.ok { border-color:var(--accent); background:var(--accent); }
+.thumb .st.err { border-color:var(--red); background:var(--red); }
+.thumb .st.up { border-color:var(--text); border-top-color:transparent; animation:spin 1s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.controls { display:flex; align-items:center; justify-content:space-between; }
+.side { width:64px; height:64px; border-radius:12px; border:1px solid var(--border-strong); background:rgba(7,8,11,.5); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; font-size:11px; }
+.shutter { width:84px; height:84px; border-radius:42px; border:4px solid var(--text); background:transparent; display:flex; align-items:center; justify-content:center; padding:0; }
+.shutter span { width:66px; height:66px; border-radius:33px; background:var(--text); transition:transform .1s; }
+.shutter:active span, .shutter.busy span { transform:scale(.86); }
+.shutter.busy span { background:var(--text-muted); }
+.count { font-family:var(--mono); font-size:13px; color:var(--text-sec); text-align:center; }
+
+/* Revisão */
+.chips { display:flex; gap:6px; overflow-x:auto; padding:10px 16px; border-bottom:1px solid var(--border); scrollbar-width:none; flex-shrink:0; }
+.chips::-webkit-scrollbar { display:none; }
+.chip { height:34px; padding:0 12px; border-radius:17px; border:1px solid var(--border-strong); background:transparent; color:var(--text-sec); font-size:13px; white-space:nowrap; }
+.chip.on { border-color:var(--accent-border); background:var(--accent-dim); color:var(--accent); font-weight:500; }
+.item { display:flex; gap:12px; padding:10px; border-radius:12px; background:var(--surface); border:1px solid var(--border); }
+.item .ph { width:76px; height:76px; border-radius:8px; background:#2a2e3a center/cover no-repeat; flex-shrink:0; }
+.item .body { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
+.item .name { font-family:var(--mono); font-size:12px; overflow-wrap:anywhere; }
+.item .meta { font-size:12px; color:var(--text-sec); }
+.s-ok { color:var(--accent); } .s-q { color:var(--amber); } .s-err { color:var(--red); }
+.item select { height:34px; border-radius:8px; border:1px solid var(--border); background:var(--bg); font-size:13px; padding:0 6px; max-width:100%; }
+.empty { color:var(--text-muted); text-align:center; padding:40px 16px; font-size:14px; }
+
+/* Folha de configuração / login */
+.sheet { position:fixed; inset:0; z-index:20; background:var(--bg); overflow-y:auto; }
+.sheet .pad { max-width:640px; margin:0 auto; padding-top:calc(16px + env(safe-area-inset-top)); }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>foren<span>SIS</span></h1>
-    <span class="beta">BETA · FASE 0</span>
+<div class="app">
+  <header class="top">
+    <div class="brand">foren<span>SIS</span><span class="beta">BETA</span></div>
+    <button class="acct" id="acct" style="background:none;border:none"><span class="dot" id="acctDot"></span><span id="acctTxt">desconectado</span></button>
   </header>
-  <div class="banner">Teste de conexão. Use apenas dados fictícios. O app só enxerga a pasta <b>DPT_BETA</b> que ele mesmo cria no seu Drive; os arquivos reais em DPT ficam fora do alcance dele.</div>
+  <div class="banners" id="banners" aria-live="polite"></div>
 
-  <section class="step" id="s1">
-    <h2><span class="n">1</span>Credencial do Google</h2>
-    <p>Cole o ID do cliente OAuth criado no Google Cloud (termina em <span style="font-family:var(--mono)">.apps.googleusercontent.com</span>). Ele não é secreto.</p>
-    <label for="clientId">ID do cliente</label>
-    <input type="text" id="clientId" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="000000000000-xxxx.apps.googleusercontent.com">
-  </section>
+  <!-- CASO -->
+  <section class="view" id="vCaso">
+    <div class="pad">
+      <div class="card" id="noCase">
+        <span class="label">Novo exame</span>
+        <p class="help">Beta: use números fictícios de 9000 a 9999.</p>
+        <div class="row">
+          <input class="field mono" id="newCase" inputmode="numeric" placeholder="2026 9001" autocomplete="off" style="flex:1">
+          <button class="btn primary" id="btnOpenCase">Abrir</button>
+        </div>
+        <div class="row" id="recentCases"></div>
+      </div>
 
-  <section class="step" id="s2">
-    <h2><span class="n">2</span>Entrar com a conta Google</h2>
-    <p>Pede permissão restrita: apenas arquivos criados por este app.</p>
-    <div class="row"><button class="primary" id="btnLogin">Entrar com Google</button></div>
-    <div class="out" id="outLogin"></div>
-  </section>
+      <div id="caseBox" hidden>
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px">
+          <div><div class="help">Laudo</div><div class="case-no" id="caseNo"></div></div>
+          <button class="btn" id="btnSwitch">Trocar</button>
+        </div>
+        <div class="path" id="casePath"></div>
+      </div>
 
-  <section class="step" id="s3">
-    <h2><span class="n">3</span>Pasta de testes</h2>
-    <p>Cria (ou reencontra) <span style="font-family:var(--mono)">DPT_BETA / Morto / 2026</span> e o caso fictício abaixo, com as subpastas Originais e Editadas.</p>
-    <label for="caseNo">Caso fictício</label>
-    <input type="text" id="caseNo" value="2026 9001" autocomplete="off">
-    <div class="row"><button id="btnFolders" disabled>Preparar pastas</button></div>
-    <div class="out" id="outFolders"></div>
-  </section>
+      <div class="card" id="syncCard" hidden>
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span style="font-weight:500" id="syncTitle"></span>
+          <span class="help" id="syncQueue"></span>
+        </div>
+        <div class="bar"><div id="syncBar"></div></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <span class="help" id="syncSub"></span>
+          <button class="btn sm warn" id="btnRelease" hidden></button>
+        </div>
+      </div>
 
-  <section class="step" id="s4">
-    <h2><span class="n">4</span>Envio com conferência de integridade</h2>
-    <p>Tire uma foto de qualquer objeto. O app calcula o SHA-256 no celular, envia para Originais e compara com o SHA-256 informado pelo Drive.</p>
-    <div class="row">
-      <label class="filebtn primary" id="lblPhoto" aria-disabled="true">Tirar foto de teste<input type="file" id="photo" accept="image/*" capture="environment" disabled></label>
+      <div id="secBox" hidden style="display:flex;flex-direction:column;gap:8px">
+        <span class="label">Seção ativa</span>
+        <div id="secList" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+
+      <button class="btn primary big" id="btnGoCam" hidden>Abrir câmera</button>
     </div>
-    <div class="out" id="outUpload"></div>
   </section>
 
-  <section class="step" id="s5">
-    <h2><span class="n">5</span>Diagnóstico da câmera</h2>
-    <p>Verifica o que a câmera dentro do app consegue fazer neste aparelho: resolução máxima, lanterna, foco. Não grava nada.</p>
-    <div class="row"><button id="btnCam">Testar câmera</button></div>
-    <div class="out" id="outCam"></div>
+  <!-- CAPTURA -->
+  <section class="view" id="vCap" hidden>
+    <video id="video" playsinline muted></video>
+    <div class="flash" id="flash"></div>
+    <div class="cap-top">
+      <button class="round" id="btnCapBack" aria-label="Voltar ao caso"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <select class="secpick" id="capSec" aria-label="Seção"></select>
+      <button class="round" id="btnTorch" aria-label="Lanterna"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></button>
+    </div>
+    <div class="cap-status"><span class="dot" id="capDot"></span><span id="capStatus">—</span></div>
+    <div class="cap-msg" id="capMsg" hidden></div>
+    <div class="cap-bottom">
+      <div class="strip" id="strip"></div>
+      <div class="controls">
+        <button class="side" id="btnCapRev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Revisar</button>
+        <button class="shutter" id="shutter" aria-label="Tirar foto"><span></span></button>
+        <div class="side" style="border:none;background:none"><span class="count" id="capCount">0</span><span style="color:var(--text-muted)">nesta seção</span></div>
+      </div>
+    </div>
   </section>
 
-  <footer>forenSIS · fase 0 · <span id="ver"></span></footer>
+  <!-- REVISÃO -->
+  <section class="view" id="vRev" hidden style="display:flex;flex-direction:column">
+    <div class="chips" id="revChips"></div>
+    <div class="pad" id="revList"></div>
+  </section>
+
+  <nav class="tabs" id="tabs">
+    <button data-v="vCaso" class="on">Caso</button>
+    <button data-v="vCap">Captura</button>
+    <button data-v="vRev">Revisão</button>
+  </nav>
+</div>
+
+<!-- Conta / configuração -->
+<div class="sheet" id="sheet" hidden>
+  <div class="pad">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span class="brand">foren<span>SIS</span></span>
+      <button class="btn" id="btnSheetClose">Fechar</button>
+    </div>
+    <div class="card">
+      <span class="label">Conta Google</span>
+      <p class="help" id="sheetAcct">Desconectado.</p>
+      <button class="btn primary" id="btnLogin">Entrar com Google</button>
+      <p class="help">Permissão restrita: o app só enxerga a pasta DPT_BETA que ele mesmo criou.</p>
+    </div>
+    <div class="card">
+      <span class="label">ID do cliente OAuth</span>
+      <input class="field mono" id="clientId" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="….apps.googleusercontent.com" style="font-size:13px">
+    </div>
+    <div class="card">
+      <span class="label">Cópia no celular</span>
+      <label class="row" style="justify-content:space-between"><span>Salvar cada foto em Downloads</span><input type="checkbox" id="optCopy" style="width:22px;height:22px"></label>
+      <p class="help">A cópia aparece na galeria (pasta Download). Na primeira vez, o Chrome pergunta se o site pode baixar vários arquivos: permita.</p>
+    </div>
+    <div class="card">
+      <span class="label">Aparelho</span>
+      <p class="help" id="storageInfo">—</p>
+      <a class="btn ghost" href="diagnostico.html" style="text-decoration:none">Abrir diagnóstico (fase 0)</a>
+    </div>
+    <p class="help" style="text-align:center" id="verTxt"></p>
+  </div>
 </div>
 
 <script>
 'use strict';
-const VERSION = '0.0.2';
+/*PURE-START*/
+const VERSION = '0.1.0';
+const BETA_ROOT = 'DPT_BETA';
+const SECTIONS = [
+  { id: 'ext', name: 'Exame externo' },
+  { id: 'fen', name: 'Fenômenos cadavéricos' },
+  { id: 'les', name: 'Lesões externas' },
+  { id: 'int', name: 'Exame interno' },
+  { id: 'obs', name: 'Observações' },
+];
+
+function normalizeCase(s) { return String(s || '').trim().replace(/\s+/g, ' '); }
+// Beta: só casos fictícios "AAAA 9xxx".
+function caseError(name) {
+  if (!/^\d{4} \d{3,6}$/.test(name)) return 'Use o formato "2026 9001".';
+  if (!/^\d{4} 9\d{3}$/.test(name)) return 'No beta, use apenas números fictícios de 9000 a 9999.';
+  return null;
+}
+function pad(n, w) { return String(n).padStart(w || 2, '0'); }
+// Mesmo padrão da câmera do Android: IMG_AAAAMMDD_HHMMSSmmm.jpg
+function photoName(d) {
+  return 'IMG_' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '_' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()) + pad(d.getMilliseconds(), 3) + '.jpg';
+}
+function isoLocal(d) {
+  const off = -d.getTimezoneOffset(), sign = off >= 0 ? '+' : '-', a = Math.abs(off);
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + sign + pad(Math.floor(a / 60)) + ':' + pad(a % 60);
+}
+// Manifesto do caso. Registros remotos que este aparelho não conhece são preservados.
+function buildManifest(caseName, photos, remote) {
+  const mine = photos.filter(p => p.status === 'verified').map(p => ({
+    id: p.id, tipo: 'foto', secao: p.sec, arquivo: 'Originais/' + p.name, driveId: p.driveId,
+    capturadaEm: p.takenAtLocal, sha256: p.sha256, largura: p.width || null, altura: p.height || null,
+    reduzida: !!p.fallback,
+  }));
+  const known = new Set(mine.map(r => r.id));
+  const kept = ((remote && remote.registros) || []).filter(r => r && r.id && !known.has(r.id));
+  const registros = kept.concat(mine).sort((a, b) => String(a.capturadaEm).localeCompare(String(b.capturadaEm)));
+  return {
+    formato: 'forensis-caso', versao: 1, caso: caseName,
+    secoes: SECTIONS.map(s => ({ id: s.id, nome: s.name })),
+    atualizadoEm: new Date().toISOString(), registros,
+  };
+}
+function counts(photos) {
+  const c = { total: photos.length, verified: 0, queued: 0, error: 0, toRelease: 0 };
+  for (const p of photos) {
+    if (p.status === 'verified') { c.verified++; if (p.copied && !p.released) c.toRelease++; }
+    else if (p.status === 'error' || p.status === 'mismatch') c.error++;
+    else c.queued++;
+  }
+  return c;
+}
+/*PURE-END*/
+
 const SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const API = 'https://www.googleapis.com/drive/v3';
-const UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
+const UPL = 'https://www.googleapis.com/upload/drive/v3/files';
 const FOLDER = 'application/vnd.google-apps.folder';
-const BETA_PATH = ['DPT_BETA', 'Morto', '2026'];
-const K_CLIENT = 'forensis_client_id';
+const K = { client: 'forensis_client_id', active: 'forensis_case', sec: 'forensis_sec', copy: 'forensis_copy', recent: 'forensis_recent' };
 
 const $ = id => document.getElementById(id);
-let token = null, tokenExp = 0, tokenClient = null, caseFolders = null;
-
-function log(id, text, cls) {
-  const el = $(id);
-  const line = document.createElement('div');
-  if (cls) line.className = cls;
-  line.textContent = text;
-  el.append(line);
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const k in attrs || {}) {
+    const v = attrs[k]; if (v == null || v === false) continue;
+    if (k === 'class') el.className = v; else if (k === 'style') el.style.cssText = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v); else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids) if (c != null) el.append(c);
+  return el;
 }
-function clear(id) { $(id).textContent = ''; }
-function stepOk(id) { $(id).classList.add('ok'); }
+const ls = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+function vib(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function hm(ts) { return new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
 
-// ── Credencial ───────────────────────────────────────────────────────────────
-function getClientId() { return $('clientId').value.trim(); }
-try { $('clientId').value = localStorage.getItem(K_CLIENT) || (window.FORENSIS_CLIENT_ID || ''); } catch (e) {}
-$('clientId').addEventListener('input', () => {
-  try { localStorage.setItem(K_CLIENT, getClientId()); } catch (e) {}
-  tokenClient = null;
-  if (/\.apps\.googleusercontent\.com$/.test(getClientId())) stepOk('s1'); else $('s1').classList.remove('ok');
-});
-if (/\.apps\.googleusercontent\.com$/.test(getClientId())) stepOk('s1');
+// ── Avisos ───────────────────────────────────────────────────────────────────
+const bannersByKey = new Map();
+function banner(key, kind, text, actions, ms) {
+  dropBanner(key);
+  const el = h('div', { class: 'banner ' + (kind || '') }, h('span', { class: 'msg' }, text));
+  for (const a of actions || []) el.append(h('button', { class: 'btn sm', onclick: () => { if (!a.keep) dropBanner(key); a.fn(); } }, a.label));
+  el.append(h('button', { class: 'btn sm ghost', 'aria-label': 'Fechar aviso', onclick: () => dropBanner(key) }, '✕'));
+  $('banners').append(el); bannersByKey.set(key, el);
+  if (ms) setTimeout(() => { if (bannersByKey.get(key) === el) dropBanner(key); }, ms);
+}
+function dropBanner(key) { const el = bannersByKey.get(key); if (el) { el.remove(); bannersByKey.delete(key); } }
 
-// ── Login (Google Identity Services, modelo de token) ───────────────────────
-function waitGis(ms) {
-  return new Promise((resolve, reject) => {
-    const t0 = Date.now();
-    (function poll() {
-      if (window.google && google.accounts && google.accounts.oauth2) return resolve();
-      if (Date.now() - t0 > ms) return reject(new Error('A biblioteca de login do Google não carregou. Verifique a conexão.'));
-      setTimeout(poll, 100);
-    })();
+// ── Banco local (IndexedDB) ─────────────────────────────────────────────────
+let dbp = null;
+function db() {
+  if (!dbp) dbp = new Promise((res, rej) => {
+    const r = indexedDB.open('forensis', 1);
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      const ph = d.createObjectStore('photos', { keyPath: 'id' }); ph.createIndex('caseName', 'caseName');
+      d.createObjectStore('cases', { keyPath: 'name' });
+    };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+  return dbp;
+}
+async function tx(store, mode, fn) {
+  const d = await db();
+  return new Promise((res, rej) => {
+    const t = d.transaction(store, mode); const s = t.objectStore(store); let out;
+    const r = fn(s); if (r) r.onsuccess = () => { out = r.result; };
+    t.oncomplete = () => res(out); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error || new Error('Transação abortada'));
   });
 }
+const dbPut = (s, v) => tx(s, 'readwrite', st => st.put(v));
+const dbGet = (s, k) => tx(s, 'readonly', st => st.get(k));
+const dbDel = (s, k) => tx(s, 'readwrite', st => st.delete(k));
+const dbAll = s => tx(s, 'readonly', st => st.getAll());
+const photosOf = name => tx('photos', 'readonly', st => st.index('caseName').getAll(name));
+async function patchPhoto(id, changes) { const p = await dbGet('photos', id); if (!p) return null; Object.assign(p, changes); await dbPut('photos', p); return p; }
 
-// No Android, o Google às vezes avisa "janela fechada" ANTES de entregar a
-// autorização, que chega logo em seguida. Por isso o aviso de janela fechada
-// só vale se nada chegar em alguns segundos, e uma autorização que chegue
-// atrasada é aceita normalmente.
-function loginFail(msg) {
-  clear('outLogin');
-  log('outLogin', '✗ ' + msg, 'err-t');
-  $('btnLogin').disabled = false;
+// ── Login Google ─────────────────────────────────────────────────────────────
+let token = null, tokenExp = 0, acctEmail = '';
+const clientId = () => ($('clientId').value || '').trim();
+const tokenValid = () => !!token && Date.now() < tokenExp - 60000;
+function waitGis(ms) {
+  return new Promise((res, rej) => { const t0 = Date.now(); (function p() { if (window.google && google.accounts && google.accounts.oauth2) return res(); if (Date.now() - t0 > ms) return rej(new Error('A biblioteca de login do Google não carregou. Verifique a conexão.')); setTimeout(p, 100); })(); });
 }
-
-async function afterLogin() {
-  try {
-    const about = await api('GET', API + '/about?fields=user(displayName,emailAddress)');
-    clear('outLogin');
-    log('outLogin', '✓ Conectado como ' + about.user.emailAddress, 'ok-t');
-    log('outLogin', 'Permissão válida por cerca de ' + Math.round((tokenExp - Date.now()) / 60000) + ' min.');
-    stepOk('s2');
-    $('btnFolders').disabled = false;
-  } catch (e) { loginFail(e.message); }
-  $('btnLogin').disabled = false;
-}
-
-async function startLogin() {
-  clear('outLogin');
-  if (/; wv\)/.test(navigator.userAgent)) {
-    log('outLogin', '! Esta página está aberta dentro de outro app. Para o login funcionar, abra o endereço direto no Chrome.', 'warn-t');
-  }
-  if (!/\.apps\.googleusercontent\.com$/.test(getClientId())) return loginFail('Informe o ID do cliente no passo 1.');
-  try { await waitGis(8000); } catch (e) { return loginFail(e.message); }
-  log('outLogin', 'Abrindo o login do Google…');
+async function login() {
+  if (!/\.apps\.googleusercontent\.com$/.test(clientId())) { openSheet(); banner('login', 'warn', 'Informe o ID do cliente OAuth.', [], 6000); return; }
+  try { await waitGis(8000); } catch (e) { banner('login', 'err', e.message); return; }
   $('btnLogin').disabled = true;
   let answered = false;
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: getClientId(),
-    scope: SCOPE,
-    callback: r => {
-      answered = true;
-      if (r.error) return loginFail(r.error_description || r.error);
-      if (!google.accounts.oauth2.hasGrantedAllScopes(r, SCOPE)) return loginFail('A permissão de arquivos do Drive não foi concedida. Marque a caixa do Google Drive na tela de autorização.');
-      token = r.access_token;
-      tokenExp = Date.now() + (Number(r.expires_in) || 3600) * 1000;
-      afterLogin();
+  const fail = msg => { $('btnLogin').disabled = false; banner('login', 'err', msg); renderAcct(); };
+  const tc = google.accounts.oauth2.initTokenClient({
+    client_id: clientId(), scope: SCOPE,
+    callback: async r => {
+      answered = true; $('btnLogin').disabled = false;
+      if (r.error) return fail(r.error_description || r.error);
+      if (!google.accounts.oauth2.hasGrantedAllScopes(r, SCOPE)) return fail('A permissão do Google Drive não foi concedida.');
+      token = r.access_token; tokenExp = Date.now() + (Number(r.expires_in) || 3600) * 1000;
+      dropBanner('login'); dropBanner('relogin');
+      try { const a = await api('GET', API + '/about?fields=user(emailAddress)'); acctEmail = a.user.emailAddress; } catch (e) {}
+      renderAcct(); closeSheet(); kickQueue();
     },
     error_callback: e => {
-      const type = e && e.type;
-      if (type === 'popup_failed_to_open') return loginFail('O navegador bloqueou a janela de login. Permita pop-ups para este site e tente de novo.');
-      if (type === 'popup_closed') {
-        log('outLogin', 'Aguardando a resposta do Google…');
-        setTimeout(() => {
-          if (!answered) loginFail('A janela de login foi fechada sem resposta do Google. Se você concluiu a autorização, toque em "Entrar com Google" de novo: a segunda tentativa costuma ser direta.');
-        }, 6000);
-        return;
-      }
-      loginFail((e && e.message) || 'Falha no login.');
+      const t = e && e.type;
+      if (t === 'popup_failed_to_open') return fail('O navegador bloqueou a janela de login. Permita pop-ups para este site.');
+      if (t === 'popup_closed') { setTimeout(() => { if (!answered) fail('A janela de login foi fechada sem resposta do Google. Tente de novo.'); }, 6000); return; }
+      fail((e && e.message) || 'Falha no login.');
     },
   });
-  // '' = só pede consentimento quando necessário (na primeira vez, ou se a permissão foi revogada).
-  tokenClient.requestAccessToken({ prompt: '' });
+  tc.requestAccessToken({ prompt: '' });
+}
+function renderAcct() {
+  const ok = tokenValid();
+  $('acctDot').className = 'dot ' + (ok ? 'on' : token ? 'warn' : '');
+  $('acctTxt').textContent = ok ? (acctEmail ? acctEmail.split('@')[0] : 'conectado') : token ? 'sessão expirada' : 'desconectado';
+  $('sheetAcct').textContent = ok ? 'Conectado como ' + (acctEmail || '—') + '. Sessão válida por mais ' + Math.max(0, Math.round((tokenExp - Date.now()) / 60000)) + ' min.' : 'Desconectado.';
 }
 
-$('btnLogin').addEventListener('click', startLogin);
-
-// ── Chamadas ao Drive ────────────────────────────────────────────────────────
-async function api(method, url, body, headers) {
-  if (!token || Date.now() > tokenExp - 60000) throw new Error('Sessão expirada. Toque em "Entrar com Google" de novo.');
-  const res = await fetch(url, { method, body, headers: Object.assign({ Authorization: 'Bearer ' + token }, headers || {}) });
-  let data = null;
-  try { data = await res.json(); } catch (e) {}
+// ── Drive ───────────────────────────────────────────────────────────────────
+class NeedLogin extends Error {}
+class Offline extends Error {}
+async function api(method, url, body, headers, raw) {
+  if (!tokenValid()) throw new NeedLogin('Sessão expirada');
+  let res;
+  try { res = await fetch(url, { method, body, headers: Object.assign({ Authorization: 'Bearer ' + token }, headers || {}) }); }
+  catch (e) { throw new Offline('Sem conexão'); }
+  if (res.status === 401) { tokenExp = 0; renderAcct(); throw new NeedLogin('Sessão expirada'); }
+  if (raw && res.ok) return res;
+  let data = null; try { data = await res.json(); } catch (e) {}
   if (!res.ok) {
-    const msg = data && data.error && data.error.message ? data.error.message : 'HTTP ' + res.status;
-    if (res.status === 401) { token = null; throw new Error('Sessão expirada. Entre de novo.'); }
+    const msg = (data && data.error && data.error.message) || ('HTTP ' + res.status);
+    if (res.status >= 500 || res.status === 429) throw new Offline(msg);
     throw new Error(msg);
   }
   return data;
 }
 const q = s => "'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
-
-async function findOrCreateFolder(name, parentId) {
-  const query = 'name = ' + q(name) + ' and mimeType = ' + q(FOLDER) + ' and trashed = false and ' + q(parentId || 'root') + ' in parents';
-  const found = await api('GET', API + '/files?spaces=drive&fields=files(id,name)&q=' + encodeURIComponent(query));
-  if (found.files && found.files.length) return { id: found.files[0].id, created: false };
-  const meta = { name, mimeType: FOLDER, parents: [parentId || 'root'], appProperties: { forensis: 'beta' } };
-  const made = await api('POST', API + '/files?fields=id', JSON.stringify(meta), { 'Content-Type': 'application/json; charset=UTF-8' });
-  return { id: made.id, created: true };
+async function findChild(name, parent, mime) {
+  let query = 'name = ' + q(name) + ' and trashed = false and ' + q(parent) + ' in parents';
+  if (mime) query += ' and mimeType = ' + q(mime);
+  const r = await api('GET', API + '/files?spaces=drive&fields=files(id,name)&q=' + encodeURIComponent(query));
+  return r.files && r.files[0] ? r.files[0].id : null;
+}
+async function folder(name, parent) {
+  const found = await findChild(name, parent, FOLDER);
+  if (found) return found;
+  const r = await api('POST', API + '/files?fields=id', JSON.stringify({ name, mimeType: FOLDER, parents: [parent], appProperties: { forensis: 'beta' } }), { 'Content-Type': 'application/json; charset=UTF-8' });
+  return r.id;
+}
+function multipart(meta, blob, type) {
+  const b = 'forensis' + Math.random().toString(36).slice(2);
+  return { body: new Blob(['--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(meta) + '\r\n--' + b + '\r\nContent-Type: ' + type + '\r\n\r\n', blob, '\r\n--' + b + '--']), ct: 'multipart/related; boundary=' + b };
 }
 
-$('btnFolders').addEventListener('click', async () => {
-  clear('outFolders');
-  const caseName = $('caseNo').value.trim().replace(/\s+/g, ' ');
-  if (!/^\d{4} \d{3,6}$/.test(caseName)) { log('outFolders', '✗ Use o formato "2026 9001".', 'err-t'); return; }
-  if (!/^\d{4} 9\d{3}$/.test(caseName)) log('outFolders', '! Recomendado usar números de 9000 a 9999 para casos fictícios.', 'warn-t');
-  $('btnFolders').disabled = true;
-  try {
-    let parent = null, path = [];
-    for (const name of BETA_PATH) {
-      const f = await findOrCreateFolder(name, parent);
-      parent = f.id; path.push(name);
-      log('outFolders', (f.created ? '+ criada   ' : '= já existe ') + path.join(' / '));
-    }
-    const c = await findOrCreateFolder(caseName, parent);
-    log('outFolders', (c.created ? '+ criada   ' : '= já existe ') + path.join(' / ') + ' / ' + caseName);
-    const orig = await findOrCreateFolder('Originais', c.id);
-    const edit = await findOrCreateFolder('Editadas', c.id);
-    log('outFolders', (orig.created ? '+ ' : '= ') + 'Originais   ' + (edit.created ? '+ ' : '= ') + 'Editadas');
-    caseFolders = { caseId: c.id, originais: orig.id, editadas: edit.id, caseName };
-    log('outFolders', '✓ Pastas prontas.', 'ok-t');
-    stepOk('s3');
-    $('photo').disabled = false; $('lblPhoto').removeAttribute('aria-disabled');
-  } catch (e) { log('outFolders', '✗ ' + e.message, 'err-t'); }
-  $('btnFolders').disabled = false;
-});
+// Pastas do caso (memorizadas no aparelho).
+const caseFolderCache = new Map();
+async function ensureCase(name) {
+  if (caseFolderCache.has(name)) return caseFolderCache.get(name);
+  const rec = (await dbGet('cases', name)) || { name, createdAt: Date.now() };
+  if (!rec.folders) {
+    const root = await folder(BETA_ROOT, 'root');
+    const morto = await folder('Morto', root);
+    const year = await folder(name.slice(0, 4), morto);
+    const c = await folder(name, year);
+    const originais = await folder('Originais', c);
+    const editadas = await folder('Editadas', c);
+    rec.folders = { root, caseId: c, originais, editadas };
+    rec.manifestId = await findChild('caso.json', c, null);
+    await dbPut('cases', rec);
+  }
+  caseFolderCache.set(name, rec);
+  return rec;
+}
 
-// ── Envio com SHA-256 ────────────────────────────────────────────────────────
+// ── Fila de envio ───────────────────────────────────────────────────────────
+let queueBusy = false, queueTimer = null;
+const remoteManifests = new Map();
+function kickQueue(delay) { clearTimeout(queueTimer); queueTimer = setTimeout(runQueue, delay || 0); }
+async function runQueue() {
+  if (queueBusy) return;
+  queueBusy = true;
+  try {
+    const all = (await dbAll('photos')).filter(p => p.status === 'queued' || p.status === 'uploaded').sort((a, b) => a.takenAt - b.takenAt);
+    for (const p of all) {
+      if (!tokenValid()) { needLogin(); break; }
+      await sendOne(p);
+      refresh();
+    }
+  } catch (e) {
+    for (const p of await dbAll('photos')) if (p.sending) await patchPhoto(p.id, { sending: false });
+    if (e instanceof NeedLogin) needLogin();
+    else if (e instanceof Offline) { setNet(false); kickQueue(15000); }
+    else banner('queue', 'err', 'Falha no envio: ' + e.message, [{ label: 'Tentar de novo', fn: () => kickQueue() }]);
+  } finally { queueBusy = false; refresh(); }
+}
+function needLogin() {
+  if (bannersByKey.has('relogin')) return;
+  banner('relogin', 'warn', 'Sessão do Google expirada. As fotos continuam guardadas no celular; entre de novo para enviá-las.', [{ label: 'Entrar', fn: login }]);
+}
+function setNet(ok) {
+  if (ok) dropBanner('net');
+  else if (!bannersByKey.has('net')) banner('net', 'warn', 'Sem conexão com o Drive. As fotos ficam na fila e sobem quando a conexão voltar.');
+}
+async function sendOne(p) {
+  const c = await ensureCase(p.caseName);
+  if (p.status === 'queued') {
+    await patchPhoto(p.id, { sending: true }); refresh();
+    const blob = p.blob;
+    if (!blob) throw new Error('Arquivo local ausente para ' + p.name);
+    const already = await api('GET', API + '/files?spaces=drive&fields=files(id,sha256Checksum)&q=' + encodeURIComponent("appProperties has { key='registro' and value=" + q(p.id) + " } and trashed = false"));
+    if (already.files && already.files[0]) {
+      p = await patchPhoto(p.id, { status: 'uploaded', driveId: already.files[0].id, remoteSha: already.files[0].sha256Checksum || null, sending: false });
+    } else {
+    const mp = multipart({ name: p.name, parents: [c.folders.originais], appProperties: { forensis: 'beta', sha256: p.sha256, secao: p.sec, registro: p.id } }, blob, 'image/jpeg');
+    const r = await api('POST', UPL + '?uploadType=multipart&fields=id,sha256Checksum', mp.body, { 'Content-Type': mp.ct });
+    p = await patchPhoto(p.id, { status: 'uploaded', driveId: r.id, remoteSha: r.sha256Checksum || null, sending: false });
+    }
+    setNet(true);
+  }
+  // Conferência de integridade
+  let remote = p.remoteSha;
+  for (let i = 0; !remote && i < 6; i++) {
+    await new Promise(r => setTimeout(r, 1000));
+    const f = await api('GET', API + '/files/' + encodeURIComponent(p.driveId) + '?fields=sha256Checksum');
+    remote = f.sha256Checksum || null;
+  }
+  if (!remote) return; // tenta de novo na próxima passada
+  if (remote !== p.sha256) {
+    await patchPhoto(p.id, { status: 'mismatch', remoteSha: remote });
+    banner('mm-' + p.id, 'err', 'O arquivo ' + p.name + ' chegou ao Drive diferente do original. A cópia local foi mantida.');
+    return;
+  }
+  const changes = { status: 'verified', remoteSha: remote, verifiedAt: Date.now() };
+  if (p.copied || !optCopy()) changes.blob = null; // Drive confirmado e cópia no celular feita: libera o espaço do app
+  await patchPhoto(p.id, changes);
+  await writeManifest(p.caseName);
+}
+async function writeManifest(caseName) {
+  const c = await ensureCase(caseName);
+  if (c.manifestId && !remoteManifests.has(caseName)) {
+    try { const res = await api('GET', API + '/files/' + encodeURIComponent(c.manifestId) + '?alt=media', null, null, true); remoteManifests.set(caseName, await res.json()); }
+    catch (e) { if (e instanceof NeedLogin || e instanceof Offline) throw e; remoteManifests.set(caseName, null); }
+  }
+  const man = buildManifest(caseName, await photosOf(caseName), remoteManifests.get(caseName));
+  const json = new Blob([JSON.stringify(man, null, 2)], { type: 'application/json' });
+  if (c.manifestId) {
+    await api('PATCH', UPL + '/' + encodeURIComponent(c.manifestId) + '?uploadType=media&fields=id', json, { 'Content-Type': 'application/json' });
+  } else {
+    const mp = multipart({ name: 'caso.json', parents: [c.folders.caseId], mimeType: 'application/json', appProperties: { forensis: 'beta' } }, json, 'application/json');
+    const r = await api('POST', UPL + '?uploadType=multipart&fields=id', mp.body, { 'Content-Type': mp.ct });
+    c.manifestId = r.id; await dbPut('cases', c);
+  }
+  remoteManifests.set(caseName, man);
+}
+
+// ── Câmera ──────────────────────────────────────────────────────────────────
+const cam = { stream: null, track: null, ic: null, caps: null, torch: false, busy: false };
+async function startCamera() {
+  if (cam.stream) return;
+  $('capMsg').hidden = true;
+  try {
+    cam.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 4096 }, height: { ideal: 3072 } } });
+    cam.track = cam.stream.getVideoTracks()[0];
+    $('video').srcObject = cam.stream;
+    await $('video').play().catch(() => {});
+    if ('ImageCapture' in window) {
+      cam.ic = new ImageCapture(cam.track);
+      try { cam.caps = await cam.ic.getPhotoCapabilities(); } catch (e) { cam.caps = null; }
+    }
+    const tc = cam.track.getCapabilities ? cam.track.getCapabilities() : {};
+    $('btnTorch').hidden = !tc.torch;
+    if (cam.torch) setTorch(true);
+    requestWakeLock();
+  } catch (e) {
+    stopCamera();
+    $('capMsg').hidden = false;
+    $('capMsg').textContent = e && e.name === 'NotAllowedError' ? 'Permissão da câmera negada. Libere a câmera para este site nas configurações do Chrome.' : 'Não foi possível abrir a câmera: ' + (e && e.message || e);
+  }
+}
+function stopCamera() {
+  if (cam.stream) cam.stream.getTracks().forEach(t => t.stop());
+  cam.stream = cam.track = cam.ic = cam.caps = null;
+  $('video').srcObject = null;
+  releaseWakeLock();
+}
+async function setTorch(on) {
+  cam.torch = on;
+  $('btnTorch').classList.toggle('on', on);
+  if (cam.track) { try { await cam.track.applyConstraints({ advanced: [{ torch: on }] }); } catch (e) {} }
+}
+async function grabFrame() {
+  const v = $('video'); const cv = document.createElement('canvas');
+  cv.width = v.videoWidth; cv.height = v.videoHeight; cv.getContext('2d').drawImage(v, 0, 0);
+  return new Promise(r => cv.toBlob(r, 'image/jpeg', 0.95));
+}
+async function takePhoto() {
+  let blob = null, fallback = false;
+  if (cam.ic) {
+    try {
+      const opts = { fillLightMode: 'off' };
+      if (cam.caps && cam.caps.imageWidth && cam.caps.imageHeight) { opts.imageWidth = cam.caps.imageWidth.max; opts.imageHeight = cam.caps.imageHeight.max; }
+      if (!(cam.caps && cam.caps.fillLightMode && cam.caps.fillLightMode.includes('off'))) delete opts.fillLightMode;
+      blob = await cam.ic.takePhoto(opts);
+    } catch (e) { blob = null; }
+  }
+  if (!blob) { blob = await grabFrame(); fallback = true; }
+  if (cam.torch) setTorch(true); // algumas câmeras desligam a lanterna após a foto
+  return { blob, fallback };
+}
 async function sha256Hex(blob) {
   const buf = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
-function stamp(d) {
-  const p = n => String(n).padStart(2, '0');
-  return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '_' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
+async function makeThumb(blob) {
+  const bmp = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+  const w = bmp.width, hh = bmp.height, s = 240 / Math.max(w, hh);
+  const cv = document.createElement('canvas'); cv.width = Math.round(w * s); cv.height = Math.round(hh * s);
+  cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+  bmp.close && bmp.close();
+  const thumb = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.7));
+  return { thumb, width: w, height: hh };
 }
-
-async function uploadFile(file, parentId, name, localHash) {
-  const boundary = 'forensis' + Math.random().toString(36).slice(2);
-  const meta = { name, parents: [parentId], appProperties: { forensis: 'beta', sha256: localHash } };
-  const body = new Blob([
-    '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(meta) + '\r\n',
-    '--' + boundary + '\r\nContent-Type: ' + (file.type || 'application/octet-stream') + '\r\n\r\n',
-    file,
-    '\r\n--' + boundary + '--',
-  ]);
-  return api('POST', UPLOAD + '?uploadType=multipart&fields=id,name,size,sha256Checksum', body, { 'Content-Type': 'multipart/related; boundary=' + boundary });
+function saveCopy(blob, name) {
+  const a = h('a', { href: URL.createObjectURL(blob), download: name, style: 'display:none' });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 30000);
 }
-
-async function driveHash(id, first) {
-  if (first && first.sha256Checksum) return first.sha256Checksum;
-  for (let i = 0; i < 6; i++) {
-    await new Promise(r => setTimeout(r, 1000));
-    const f = await api('GET', API + '/files/' + encodeURIComponent(id) + '?fields=sha256Checksum');
-    if (f.sha256Checksum) return f.sha256Checksum;
-  }
-  return null;
-}
-
-$('photo').addEventListener('change', async ev => {
-  const file = ev.target.files && ev.target.files[0];
-  ev.target.value = '';
-  if (!file || !caseFolders) return;
-  clear('outUpload');
+async function shoot() {
+  if (cam.busy || !cam.stream) return;
+  const caseName = ls.get(K.active, ''); if (!caseName) return;
+  cam.busy = true; $('shutter').classList.add('busy');
+  vib(25);
+  const fl = $('flash'); fl.classList.add('go'); requestAnimationFrame(() => requestAnimationFrame(() => fl.classList.remove('go')));
   try {
-    const ext = (file.name.match(/\.[a-z0-9]+$/i) || ['.jpg'])[0].toLowerCase();
-    const name = 'IMG_' + stamp(new Date()) + ext;
-    log('outUpload', 'Arquivo: ' + name + ' · ' + (file.size / 1048576).toFixed(2) + ' MB');
-    const t0 = performance.now();
-    const local = await sha256Hex(file);
-    log('outUpload', 'SHA-256 no celular: ' + local + ' (' + Math.round(performance.now() - t0) + ' ms)');
-    const t1 = performance.now();
-    const up = await uploadFile(file, caseFolders.originais, name, local);
-    log('outUpload', 'Enviado em ' + ((performance.now() - t1) / 1000).toFixed(1) + ' s para ' + caseFolders.caseName + ' / Originais');
-    const remote = await driveHash(up.id, up);
-    if (!remote) log('outUpload', '! O Drive ainda não informou o SHA-256. Tente de novo em instantes.', 'warn-t');
-    else if (remote === local) { log('outUpload', 'SHA-256 no Drive:   ' + remote); log('outUpload', '✓ Integridade confirmada: o arquivo no Drive é idêntico ao do celular.', 'ok-t'); stepOk('s4'); }
-    else log('outUpload', '✗ SHA-256 divergente no Drive: ' + remote, 'err-t');
-  } catch (e) { log('outUpload', '✗ ' + e.message, 'err-t'); }
-});
-
-// ── Diagnóstico da câmera ────────────────────────────────────────────────────
-$('btnCam').addEventListener('click', async () => {
-  clear('outCam');
-  let stream = null;
-  try {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('Este navegador não dá acesso à câmera.');
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 4096 }, height: { ideal: 3072 } }, audio: false });
-    const track = stream.getVideoTracks()[0];
-    const set = track.getSettings ? track.getSettings() : {};
-    const caps = track.getCapabilities ? track.getCapabilities() : {};
-    log('outCam', 'Câmera: ' + (track.label || 'sem nome'));
-    log('outCam', 'Vídeo em uso: ' + (set.width || '?') + '×' + (set.height || '?'));
-    if (caps.width && caps.height) log('outCam', 'Vídeo máximo: ' + caps.width.max + '×' + caps.height.max);
-    log('outCam', 'Lanterna: ' + (caps.torch ? 'sim' : 'não informada'), caps.torch ? 'ok-t' : 'warn-t');
-    log('outCam', 'Modos de foco: ' + ((caps.focusMode || []).join(', ') || 'não informados'));
-    if ('ImageCapture' in window) {
-      try {
-        const pc = await new ImageCapture(track).getPhotoCapabilities();
-        const w = pc.imageWidth && pc.imageWidth.max, hgt = pc.imageHeight && pc.imageHeight.max;
-        log('outCam', 'Foto máxima: ' + (w || '?') + '×' + (hgt || '?') + (w && hgt ? ' (' + (w * hgt / 1e6).toFixed(1) + ' MP)' : ''), 'ok-t');
-        log('outCam', 'Flash: ' + ((pc.fillLightMode || []).join(', ') || 'não informado'));
-      } catch (e) { log('outCam', 'Captura de foto em alta resolução: indisponível (' + e.message + ')', 'warn-t'); }
-    } else log('outCam', 'Captura de foto em alta resolução: não suportada neste navegador', 'warn-t');
-    stepOk('s5');
+    const now = new Date();
+    const { blob, fallback } = await takePhoto();
+    const sha = await sha256Hex(blob);
+    let t = { thumb: null, width: null, height: null };
+    try { t = await makeThumb(blob); } catch (e) {}
+    const rec = {
+      id: uid(), caseName, sec: activeSec(), name: photoName(now), takenAt: now.getTime(), takenAtLocal: isoLocal(now),
+      blob, thumb: t.thumb, width: t.width, height: t.height, size: blob.size, sha256: sha, fallback,
+      status: 'queued', copied: false, released: false,
+    };
+    await dbPut('photos', rec);
+    if (fallback) banner('fallback', 'warn', 'A câmera não entregou a foto em alta resolução; esta foi salva em resolução reduzida.', [], 8000);
+    if (optCopy()) { saveCopy(blob, rec.name); await patchPhoto(rec.id, { copied: true }); }
+    refresh(); kickQueue();
   } catch (e) {
-    log('outCam', '✗ ' + (e.name === 'NotAllowedError' ? 'Permissão da câmera negada.' : e.message), 'err-t');
-  } finally {
-    if (stream) stream.getTracks().forEach(t => t.stop());
-  }
-});
+    vib([80, 60, 80]);
+    banner('shoot', 'err', 'Não foi possível salvar a foto: ' + (e && e.message || e));
+  } finally { cam.busy = false; $('shutter').classList.remove('busy'); }
+}
 
-$('ver').textContent = 'v' + VERSION;
+let wakeLock = null;
+async function requestWakeLock() { try { if ('wakeLock' in navigator && document.visibilityState === 'visible') wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {} }
+function releaseWakeLock() { try { wakeLock && wakeLock.release(); } catch (e) {} wakeLock = null; }
+
+// ── Estado de tela ──────────────────────────────────────────────────────────
+const optCopy = () => ls.get(K.copy, '1') === '1';
+const activeSec = () => ls.get(K.sec, SECTIONS[0].id);
+let view = 'vCaso', revSec = null;
+function show(v) {
+  if (v !== 'vCaso' && !ls.get(K.active, '')) v = 'vCaso';
+  view = v;
+  for (const id of ['vCaso', 'vCap', 'vRev']) $(id).hidden = id !== v;
+  $('tabs').hidden = v === 'vCap';
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  if (v === 'vCap') startCamera(); else stopCamera();
+  refresh();
+}
+const objUrls = [];
+function blobUrl(b) { const u = URL.createObjectURL(b); objUrls.push(u); return u; }
+function freeUrls() { while (objUrls.length) URL.revokeObjectURL(objUrls.pop()); }
+
+function statusLabel(p) {
+  if (p.status === 'verified') return ['no Drive, hash conferido', 's-ok'];
+  if (p.status === 'mismatch') return ['hash divergente no Drive', 's-err'];
+  if (p.status === 'error') return ['erro: ' + (p.error || ''), 's-err'];
+  if (p.sending) return ['enviando…', 's-q'];
+  if (p.status === 'uploaded') return ['no Drive, conferindo hash…', 's-q'];
+  return ['na fila de envio', 's-q'];
+}
+
+let refreshing = false, refreshAgain = false;
+async function refresh() {
+  if (refreshing) { refreshAgain = true; return; }
+  refreshing = true;
+  try {
+    freeUrls();
+    const name = ls.get(K.active, '');
+    const photos = name ? await photosOf(name) : [];
+    const c = counts(photos);
+    renderAcct();
+    // Caso
+    $('noCase').hidden = !!name; $('caseBox').hidden = !name; $('syncCard').hidden = !name; $('secBox').hidden = !name; $('btnGoCam').hidden = !name;
+    if (!name) renderRecent();
+    else {
+      $('caseNo').textContent = name;
+      $('casePath').textContent = BETA_ROOT + ' / Morto / ' + name.slice(0, 4) + ' / ' + name;
+      $('syncTitle').textContent = c.total + (c.total === 1 ? ' foto' : ' fotos');
+      $('syncQueue').textContent = c.queued ? c.queued + ' na fila' : '';
+      $('syncBar').style.width = (c.total ? Math.round(c.verified / c.total * 100) : 0) + '%';
+      $('syncSub').textContent = c.verified + ' no Drive com hash conferido' + (c.error ? ' · ' + c.error + ' com problema' : '');
+      $('btnRelease').hidden = !c.toRelease;
+      $('btnRelease').textContent = 'Liberar galeria (' + c.toRelease + ')';
+      const sl = $('secList'); sl.textContent = '';
+      for (const s of SECTIONS) {
+        const n = photos.filter(p => p.sec === s.id).length;
+        sl.append(h('button', { class: 'sec' + (s.id === activeSec() ? ' active' : ''), onclick: () => { ls.set(K.sec, s.id); refresh(); } }, h('span', null, s.name), h('span', { class: 'n' }, n ? n + (n === 1 ? ' foto' : ' fotos') : 'vazia')));
+      }
+    }
+    // Captura
+    const cs = $('capSec');
+    if (!cs.options.length) for (const s of SECTIONS) cs.append(h('option', { value: s.id }, s.name));
+    cs.value = activeSec();
+    $('capDot').className = 'dot ' + (c.queued ? 'warn' : c.error ? 'err' : 'on');
+    $('capStatus').textContent = (name ? name.slice(5) + ' · ' : '') + c.verified + ' no Drive' + (c.queued ? ' · ' + c.queued + ' na fila' : '');
+    $('capCount').textContent = String(photos.filter(p => p.sec === activeSec()).length);
+    const strip = $('strip'); strip.textContent = '';
+    for (const p of photos.slice().sort((a, b) => b.takenAt - a.takenAt).slice(0, 5).reverse()) {
+      const th = h('div', { class: 'thumb' });
+      if (p.thumb) th.style.backgroundImage = 'url(' + blobUrl(p.thumb) + ')';
+      th.append(h('span', { class: 'st' + (p.status === 'verified' ? ' ok' : (p.status === 'mismatch' || p.status === 'error') ? ' err' : p.sending ? ' up' : '') }));
+      strip.append(th);
+    }
+    // Revisão
+    if (view === 'vRev') renderRev(photos);
+  } finally {
+    refreshing = false;
+    if (refreshAgain) { refreshAgain = false; refresh(); }
+  }
+}
+
+function renderRev(photos) {
+  if (!revSec) revSec = activeSec();
+  const chips = $('revChips'); chips.textContent = '';
+  for (const s of SECTIONS) {
+    const n = photos.filter(p => p.sec === s.id).length;
+    chips.append(h('button', { class: 'chip' + (s.id === revSec ? ' on' : ''), onclick: () => { revSec = s.id; refresh(); } }, s.name + (n ? ' ' + n : '')));
+  }
+  const list = $('revList'); list.textContent = '';
+  const items = photos.filter(p => p.sec === revSec).sort((a, b) => a.takenAt - b.takenAt);
+  if (!items.length) { list.append(h('div', { class: 'empty' }, 'Nenhuma foto nesta seção.')); return; }
+  items.forEach((p, i) => {
+    const [txt, cls] = statusLabel(p);
+    const ph = h('div', { class: 'ph' }); if (p.thumb) ph.style.backgroundImage = 'url(' + blobUrl(p.thumb) + ')';
+    const mv = h('select', { 'aria-label': 'Mover para outra seção' });
+    for (const s of SECTIONS) mv.append(h('option', { value: s.id }, s.name));
+    mv.value = p.sec;
+    mv.addEventListener('change', async () => { await patchPhoto(p.id, { sec: mv.value }); if (p.status === 'verified') { try { await writeManifest(p.caseName); } catch (e) { kickQueue(); } } refresh(); });
+    const actions = h('div', { class: 'row' }, mv);
+    if (p.status === 'queued' && !p.sending) actions.append(h('button', { class: 'btn sm ghost', onclick: async () => { if (confirm('Excluir esta foto do celular? Ela ainda não foi enviada ao Drive.')) { await dbDel('photos', p.id); refresh(); } } }, 'Excluir'));
+    list.append(h('div', { class: 'item' }, ph, h('div', { class: 'body' },
+      h('span', { class: 'name' }, (i + 1) + '. ' + p.name),
+      h('span', { class: 'meta' }, hm(p.takenAt) + ' · ' + (p.width ? p.width + '×' + p.height : '') + ' · ' + (p.size / 1048576).toFixed(1) + ' MB' + (p.fallback ? ' · resolução reduzida' : '')),
+      h('span', { class: 'meta ' + cls }, txt), actions)));
+  });
+}
+
+async function renderRecent() {
+  const box = $('recentCases'); box.textContent = '';
+  const cases = (await dbAll('cases')).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 4);
+  for (const c of cases) box.append(h('button', { class: 'btn sm', onclick: () => openCase(c.name) }, c.name));
+}
+
+async function openCase(raw) {
+  const name = normalizeCase(raw);
+  const err = caseError(name);
+  if (err) { banner('case', 'warn', err, [], 5000); return; }
+  if (!(await dbGet('cases', name))) await dbPut('cases', { name, createdAt: Date.now() });
+  ls.set(K.active, name); ls.set(K.sec, SECTIONS[0].id); revSec = null;
+  dropBanner('case'); $('newCase').value = '';
+  refresh(); kickQueue();
+}
+
+async function release() {
+  const name = ls.get(K.active, '');
+  const ps = (await photosOf(name)).filter(p => p.status === 'verified' && p.copied && !p.released);
+  if (!ps.length) return;
+  const first = ps[0].name, last = ps[ps.length - 1].name;
+  banner('release', 'ok', ps.length + ' fotos estão confirmadas no Drive (de ' + first + ' a ' + last + '). Apague-as da galeria, na pasta Download, e depois esvazie a lixeira da galeria.', [{ label: 'Já apaguei', fn: async () => { for (const p of ps) await patchPhoto(p.id, { released: true, blob: null }); refresh(); } }]);
+}
+
+// ── Configuração ────────────────────────────────────────────────────────────
+function openSheet() { renderAcct(); $('sheet').hidden = false; storageInfo(); }
+function closeSheet() { $('sheet').hidden = true; }
+async function storageInfo() {
+  try {
+    const e = await navigator.storage.estimate();
+    const persisted = navigator.storage.persisted ? await navigator.storage.persisted() : false;
+    $('storageInfo').textContent = 'Espaço usado pelo app: ' + (e.usage / 1048576).toFixed(0) + ' MB de ' + (e.quota / 1073741824).toFixed(1) + ' GB disponíveis. Armazenamento ' + (persisted ? 'protegido contra limpeza automática.' : 'sem proteção contra limpeza automática.');
+  } catch (e) { $('storageInfo').textContent = '—'; }
+}
+
+// ── Início ──────────────────────────────────────────────────────────────────
+function bind() {
+  document.querySelectorAll('nav.tabs button').forEach(b => b.addEventListener('click', () => show(b.dataset.v)));
+  $('acct').addEventListener('click', openSheet);
+  $('btnSheetClose').addEventListener('click', closeSheet);
+  $('btnLogin').addEventListener('click', login);
+  $('clientId').value = ls.get(K.client, '');
+  $('clientId').addEventListener('input', () => ls.set(K.client, clientId()));
+  $('optCopy').checked = optCopy();
+  $('optCopy').addEventListener('change', e => ls.set(K.copy, e.target.checked ? '1' : '0'));
+  $('btnOpenCase').addEventListener('click', () => openCase($('newCase').value));
+  $('newCase').addEventListener('keydown', e => { if (e.key === 'Enter') openCase($('newCase').value); });
+  $('btnSwitch').addEventListener('click', () => { ls.set(K.active, ''); refresh(); });
+  $('btnGoCam').addEventListener('click', () => show('vCap'));
+  $('btnRelease').addEventListener('click', release);
+  $('btnCapBack').addEventListener('click', () => show('vCaso'));
+  $('btnCapRev').addEventListener('click', () => { revSec = activeSec(); show('vRev'); });
+  $('capSec').addEventListener('change', e => { ls.set(K.sec, e.target.value); refresh(); });
+  $('btnTorch').addEventListener('click', () => setTorch(!cam.torch));
+  $('shutter').addEventListener('click', shoot);
+  window.addEventListener('online', () => { setNet(true); kickQueue(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') stopCamera();
+    else { if (view === 'vCap') startCamera(); kickQueue(); }
+  });
+  setInterval(() => { renderAcct(); if (!queueBusy) kickQueue(); }, 30000);
+}
+
+(async function init() {
+  $('verTxt').textContent = 'forenSIS beta · v' + VERSION;
+  bind();
+  try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (e) {}
+  try {
+    await db();
+    for (const p of await dbAll('photos')) if (p.sending) await patchPhoto(p.id, { sending: false }); // envio interrompido: volta para a fila
+  } catch (e) { banner('db', 'err', 'O armazenamento do aparelho não está disponível. As fotos não poderão ser guardadas.'); }
+  if (!/\.apps\.googleusercontent\.com$/.test(clientId())) openSheet();
+  show('vCaso');
+})();
 </script>
 </body>
 </html>
