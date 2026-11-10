@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>forenSIS beta</title>
+<meta name="theme-color" content="#0f1117">
+<meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:#0f1117; --surface:#1a1d26; --surface2:#222533; --border:#2e3145; --border-strong:#3d4160;
+  --text:#e8eaf0; --text-sec:#a3a8bf; --text-muted:#8a8fa6;
+  --accent:#00c9a7; --accent-dim:rgba(0,201,167,.12); --accent-border:rgba(0,201,167,.4);
+  --red:#e86a6a; --red-dim:rgba(232,106,106,.14); --red-border:rgba(232,106,106,.5);
+  --amber:#e8c27a; --amber-dim:rgba(224,176,80,.12); --amber-border:rgba(224,176,80,.45);
+  --mono:'JetBrains Mono',ui-monospace,monospace; --sans:'Inter',system-ui,sans-serif;
+}
+html, body { background:var(--bg); }
+body { font-family:var(--sans); color:var(--text); font-size:15px; line-height:1.5; }
+.wrap { max-width:640px; margin:0 auto; padding:calc(16px + env(safe-area-inset-top)) 16px 48px; display:flex; flex-direction:column; gap:16px; }
+header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+h1 { font-size:20px; font-weight:600; letter-spacing:.01em; }
+h1 span { color:var(--accent); }
+.beta { font-size:11px; font-weight:600; letter-spacing:.08em; padding:3px 8px; border-radius:4px; color:var(--amber); background:var(--amber-dim); border:1px solid var(--amber-border); }
+.banner { font-size:13px; color:var(--text-sec); padding:10px 12px; border-radius:8px; border:1px solid var(--border); background:var(--surface); }
+.step { border:1px solid var(--border); border-radius:12px; background:var(--surface); padding:14px; display:flex; flex-direction:column; gap:10px; }
+.step h2 { font-size:15px; font-weight:600; display:flex; align-items:center; gap:10px; }
+.step h2 .n { width:24px; height:24px; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; font-size:12px; background:var(--surface2); border:1px solid var(--border-strong); color:var(--text-sec); flex-shrink:0; }
+.step.ok h2 .n { background:var(--accent-dim); border-color:var(--accent-border); color:var(--accent); }
+.step p { font-size:13px; color:var(--text-sec); }
+label { font-size:13px; color:var(--text-sec); display:flex; flex-direction:column; gap:6px; }
+input[type=text] { height:44px; padding:0 12px; border-radius:8px; border:1px solid var(--border-strong); background:var(--bg); color:var(--text); font:400 15px var(--mono); width:100%; }
+input[type=text]:focus { outline:none; border-color:var(--accent); }
+.row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+button, .filebtn { height:44px; padding:0 16px; border-radius:8px; border:1px solid var(--border-strong); background:var(--surface2); color:var(--text); font:500 14px var(--sans); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
+button.primary, .filebtn.primary { background:var(--accent); border-color:var(--accent); color:#06231d; font-weight:600; }
+button:disabled { opacity:.45; cursor:not-allowed; }
+.filebtn input { display:none; }
+.out { font:400 12px/1.6 var(--mono); color:var(--text-sec); background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; white-space:pre-wrap; overflow-wrap:anywhere; -webkit-user-select:text; user-select:text; }
+.out:empty { display:none; }
+.ok-t { color:var(--accent); } .err-t { color:var(--red); } .warn-t { color:var(--amber); }
+footer { font-size:12px; color:var(--text-muted); text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>foren<span>SIS</span></h1>
+    <span class="beta">BETA · FASE 0</span>
+  </header>
+  <div class="banner">Teste de conexão. Use apenas dados fictícios. O app só enxerga a pasta <b>DPT_BETA</b> que ele mesmo cria no seu Drive; os arquivos reais em DPT ficam fora do alcance dele.</div>
+
+  <section class="step" id="s1">
+    <h2><span class="n">1</span>Credencial do Google</h2>
+    <p>Cole o ID do cliente OAuth criado no Google Cloud (termina em <span style="font-family:var(--mono)">.apps.googleusercontent.com</span>). Ele não é secreto.</p>
+    <label for="clientId">ID do cliente</label>
+    <input type="text" id="clientId" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="000000000000-xxxx.apps.googleusercontent.com">
+  </section>
+
+  <section class="step" id="s2">
+    <h2><span class="n">2</span>Entrar com a conta Google</h2>
+    <p>Pede permissão restrita: apenas arquivos criados por este app.</p>
+    <div class="row"><button class="primary" id="btnLogin">Entrar com Google</button></div>
+    <div class="out" id="outLogin"></div>
+  </section>
+
+  <section class="step" id="s3">
+    <h2><span class="n">3</span>Pasta de testes</h2>
+    <p>Cria (ou reencontra) <span style="font-family:var(--mono)">DPT_BETA / Morto / 2026</span> e o caso fictício abaixo, com as subpastas Originais e Editadas.</p>
+    <label for="caseNo">Caso fictício</label>
+    <input type="text" id="caseNo" value="2026 9001" autocomplete="off">
+    <div class="row"><button id="btnFolders" disabled>Preparar pastas</button></div>
+    <div class="out" id="outFolders"></div>
+  </section>
+
+  <section class="step" id="s4">
+    <h2><span class="n">4</span>Envio com conferência de integridade</h2>
+    <p>Tire uma foto de qualquer objeto. O app calcula o SHA-256 no celular, envia para Originais e compara com o SHA-256 informado pelo Drive.</p>
+    <div class="row">
+      <label class="filebtn primary" id="lblPhoto" aria-disabled="true">Tirar foto de teste<input type="file" id="photo" accept="image/*" capture="environment" disabled></label>
+    </div>
+    <div class="out" id="outUpload"></div>
+  </section>
+
+  <section class="step" id="s5">
+    <h2><span class="n">5</span>Diagnóstico da câmera</h2>
+    <p>Verifica o que a câmera dentro do app consegue fazer neste aparelho: resolução máxima, lanterna, foco. Não grava nada.</p>
+    <div class="row"><button id="btnCam">Testar câmera</button></div>
+    <div class="out" id="outCam"></div>
+  </section>
+
+  <footer>forenSIS · fase 0 · <span id="ver"></span></footer>
+</div>
+
+<script>
+'use strict';
+const VERSION = '0.0.1';
+const SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const API = 'https://www.googleapis.com/drive/v3';
+const UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
+const FOLDER = 'application/vnd.google-apps.folder';
+const BETA_PATH = ['DPT_BETA', 'Morto', '2026'];
+const K_CLIENT = 'forensis_client_id';
+
+const $ = id => document.getElementById(id);
+let token = null, tokenExp = 0, tokenClient = null, caseFolders = null;
+
+function log(id, text, cls) {
+  const el = $(id);
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = text;
+  el.append(line);
+}
+function clear(id) { $(id).textContent = ''; }
+function stepOk(id) { $(id).classList.add('ok'); }
+
+// ── Credencial ───────────────────────────────────────────────────────────────
+function getClientId() { return $('clientId').value.trim(); }
+try { $('clientId').value = localStorage.getItem(K_CLIENT) || (window.FORENSIS_CLIENT_ID || ''); } catch (e) {}
+$('clientId').addEventListener('input', () => {
+  try { localStorage.setItem(K_CLIENT, getClientId()); } catch (e) {}
+  tokenClient = null;
+  if (/\.apps\.googleusercontent\.com$/.test(getClientId())) stepOk('s1'); else $('s1').classList.remove('ok');
+});
+if (/\.apps\.googleusercontent\.com$/.test(getClientId())) stepOk('s1');
+
+// ── Login (Google Identity Services, modelo de token) ───────────────────────
+function waitGis(ms) {
+  return new Promise((resolve, reject) => {
+    const t0 = Date.now();
+    (function poll() {
+      if (window.google && google.accounts && google.accounts.oauth2) return resolve();
+      if (Date.now() - t0 > ms) return reject(new Error('A biblioteca de login do Google não carregou. Verifique a conexão.'));
+      setTimeout(poll, 100);
+    })();
+  });
+}
+
+function requestToken(prompt) {
+  return new Promise(async (resolve, reject) => {
+    try { await waitGis(8000); } catch (e) { return reject(e); }
+    if (!/\.apps\.googleusercontent\.com$/.test(getClientId())) return reject(new Error('Informe o ID do cliente no passo 1.'));
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: getClientId(),
+      scope: SCOPE,
+      callback: r => {
+        if (r.error) return reject(new Error(r.error_description || r.error));
+        if (!google.accounts.oauth2.hasGrantedAllScopes(r, SCOPE)) return reject(new Error('A permissão de arquivos do Drive não foi concedida.'));
+        token = r.access_token;
+        tokenExp = Date.now() + (Number(r.expires_in) || 3600) * 1000;
+        resolve();
+      },
+      error_callback: e => reject(new Error(e && e.type === 'popup_closed' ? 'A janela de login foi fechada.' : (e && e.message) || 'Falha no login.')),
+    });
+    tokenClient.requestAccessToken({ prompt });
+  });
+}
+
+$('btnLogin').addEventListener('click', async () => {
+  clear('outLogin');
+  try {
+    await requestToken(token ? '' : 'consent');
+    const about = await api('GET', API + '/about?fields=user(displayName,emailAddress)');
+    log('outLogin', '✓ Conectado como ' + about.user.emailAddress, 'ok-t');
+    log('outLogin', 'Permissão válida por cerca de ' + Math.round((tokenExp - Date.now()) / 60000) + ' min.');
+    stepOk('s2');
+    $('btnFolders').disabled = false;
+  } catch (e) { log('outLogin', '✗ ' + e.message, 'err-t'); }
+});
+
+// ── Chamadas ao Drive ────────────────────────────────────────────────────────
+async function api(method, url, body, headers) {
+  if (!token || Date.now() > tokenExp - 60000) throw new Error('Sessão expirada. Toque em "Entrar com Google" de novo.');
+  const res = await fetch(url, { method, body, headers: Object.assign({ Authorization: 'Bearer ' + token }, headers || {}) });
+  let data = null;
+  try { data = await res.json(); } catch (e) {}
+  if (!res.ok) {
+    const msg = data && data.error && data.error.message ? data.error.message : 'HTTP ' + res.status;
+    if (res.status === 401) { token = null; throw new Error('Sessão expirada. Entre de novo.'); }
+    throw new Error(msg);
+  }
+  return data;
+}
+const q = s => "'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+
+async function findOrCreateFolder(name, parentId) {
+  const query = 'name = ' + q(name) + ' and mimeType = ' + q(FOLDER) + ' and trashed = false and ' + q(parentId || 'root') + ' in parents';
+  const found = await api('GET', API + '/files?spaces=drive&fields=files(id,name)&q=' + encodeURIComponent(query));
+  if (found.files && found.files.length) return { id: found.files[0].id, created: false };
+  const meta = { name, mimeType: FOLDER, parents: [parentId || 'root'], appProperties: { forensis: 'beta' } };
+  const made = await api('POST', API + '/files?fields=id', JSON.stringify(meta), { 'Content-Type': 'application/json; charset=UTF-8' });
+  return { id: made.id, created: true };
+}
+
+$('btnFolders').addEventListener('click', async () => {
+  clear('outFolders');
+  const caseName = $('caseNo').value.trim().replace(/\s+/g, ' ');
+  if (!/^\d{4} \d{3,6}$/.test(caseName)) { log('outFolders', '✗ Use o formato "2026 9001".', 'err-t'); return; }
+  if (!/^\d{4} 9\d{3}$/.test(caseName)) log('outFolders', '! Recomendado usar números de 9000 a 9999 para casos fictícios.', 'warn-t');
+  $('btnFolders').disabled = true;
+  try {
+    let parent = null, path = [];
+    for (const name of BETA_PATH) {
+      const f = await findOrCreateFolder(name, parent);
+      parent = f.id; path.push(name);
+      log('outFolders', (f.created ? '+ criada   ' : '= já existe ') + path.join(' / '));
+    }
+    const c = await findOrCreateFolder(caseName, parent);
+    log('outFolders', (c.created ? '+ criada   ' : '= já existe ') + path.join(' / ') + ' / ' + caseName);
+    const orig = await findOrCreateFolder('Originais', c.id);
+    const edit = await findOrCreateFolder('Editadas', c.id);
+    log('outFolders', (orig.created ? '+ ' : '= ') + 'Originais   ' + (edit.created ? '+ ' : '= ') + 'Editadas');
+    caseFolders = { caseId: c.id, originais: orig.id, editadas: edit.id, caseName };
+    log('outFolders', '✓ Pastas prontas.', 'ok-t');
+    stepOk('s3');
+    $('photo').disabled = false; $('lblPhoto').removeAttribute('aria-disabled');
+  } catch (e) { log('outFolders', '✗ ' + e.message, 'err-t'); }
+  $('btnFolders').disabled = false;
+});
+
+// ── Envio com SHA-256 ────────────────────────────────────────────────────────
+async function sha256Hex(blob) {
+  const buf = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function stamp(d) {
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '_' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
+}
+
+async function uploadFile(file, parentId, name, localHash) {
+  const boundary = 'forensis' + Math.random().toString(36).slice(2);
+  const meta = { name, parents: [parentId], appProperties: { forensis: 'beta', sha256: localHash } };
+  const body = new Blob([
+    '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(meta) + '\r\n',
+    '--' + boundary + '\r\nContent-Type: ' + (file.type || 'application/octet-stream') + '\r\n\r\n',
+    file,
+    '\r\n--' + boundary + '--',
+  ]);
+  return api('POST', UPLOAD + '?uploadType=multipart&fields=id,name,size,sha256Checksum', body, { 'Content-Type': 'multipart/related; boundary=' + boundary });
+}
+
+async function driveHash(id, first) {
+  if (first && first.sha256Checksum) return first.sha256Checksum;
+  for (let i = 0; i < 6; i++) {
+    await new Promise(r => setTimeout(r, 1000));
+    const f = await api('GET', API + '/files/' + encodeURIComponent(id) + '?fields=sha256Checksum');
+    if (f.sha256Checksum) return f.sha256Checksum;
+  }
+  return null;
+}
+
+$('photo').addEventListener('change', async ev => {
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = '';
+  if (!file || !caseFolders) return;
+  clear('outUpload');
+  try {
+    const ext = (file.name.match(/\.[a-z0-9]+$/i) || ['.jpg'])[0].toLowerCase();
+    const name = 'IMG_' + stamp(new Date()) + ext;
+    log('outUpload', 'Arquivo: ' + name + ' · ' + (file.size / 1048576).toFixed(2) + ' MB');
+    const t0 = performance.now();
+    const local = await sha256Hex(file);
+    log('outUpload', 'SHA-256 no celular: ' + local + ' (' + Math.round(performance.now() - t0) + ' ms)');
+    const t1 = performance.now();
+    const up = await uploadFile(file, caseFolders.originais, name, local);
+    log('outUpload', 'Enviado em ' + ((performance.now() - t1) / 1000).toFixed(1) + ' s para ' + caseFolders.caseName + ' / Originais');
+    const remote = await driveHash(up.id, up);
+    if (!remote) log('outUpload', '! O Drive ainda não informou o SHA-256. Tente de novo em instantes.', 'warn-t');
+    else if (remote === local) { log('outUpload', 'SHA-256 no Drive:   ' + remote); log('outUpload', '✓ Integridade confirmada: o arquivo no Drive é idêntico ao do celular.', 'ok-t'); stepOk('s4'); }
+    else log('outUpload', '✗ SHA-256 divergente no Drive: ' + remote, 'err-t');
+  } catch (e) { log('outUpload', '✗ ' + e.message, 'err-t'); }
+});
+
+// ── Diagnóstico da câmera ────────────────────────────────────────────────────
+$('btnCam').addEventListener('click', async () => {
+  clear('outCam');
+  let stream = null;
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('Este navegador não dá acesso à câmera.');
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 4096 }, height: { ideal: 3072 } }, audio: false });
+    const track = stream.getVideoTracks()[0];
+    const set = track.getSettings ? track.getSettings() : {};
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
+    log('outCam', 'Câmera: ' + (track.label || 'sem nome'));
+    log('outCam', 'Vídeo em uso: ' + (set.width || '?') + '×' + (set.height || '?'));
+    if (caps.width && caps.height) log('outCam', 'Vídeo máximo: ' + caps.width.max + '×' + caps.height.max);
+    log('outCam', 'Lanterna: ' + (caps.torch ? 'sim' : 'não informada'), caps.torch ? 'ok-t' : 'warn-t');
+    log('outCam', 'Modos de foco: ' + ((caps.focusMode || []).join(', ') || 'não informados'));
+    if ('ImageCapture' in window) {
+      try {
+        const pc = await new ImageCapture(track).getPhotoCapabilities();
+        const w = pc.imageWidth && pc.imageWidth.max, hgt = pc.imageHeight && pc.imageHeight.max;
+        log('outCam', 'Foto máxima: ' + (w || '?') + '×' + (hgt || '?') + (w && hgt ? ' (' + (w * hgt / 1e6).toFixed(1) + ' MP)' : ''), 'ok-t');
+        log('outCam', 'Flash: ' + ((pc.fillLightMode || []).join(', ') || 'não informado'));
+      } catch (e) { log('outCam', 'Captura de foto em alta resolução: indisponível (' + e.message + ')', 'warn-t'); }
+    } else log('outCam', 'Captura de foto em alta resolução: não suportada neste navegador', 'warn-t');
+    stepOk('s5');
+  } catch (e) {
+    log('outCam', '✗ ' + (e.name === 'NotAllowedError' ? 'Permissão da câmera negada.' : e.message), 'err-t');
+  } finally {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+  }
+});
+
+$('ver').textContent = 'v' + VERSION;
+</script>
+</body>
+</html>
