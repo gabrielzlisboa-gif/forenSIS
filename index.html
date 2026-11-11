@@ -109,6 +109,36 @@ nav.tabs button.on { color:var(--accent); font-weight:600; }
 .s-ok { color:var(--accent); } .s-q { color:var(--amber); } .s-err { color:var(--red); }
 .item select { height:34px; border-radius:8px; border:1px solid var(--border); background:var(--bg); font-size:13px; padding:0 6px; max-width:100%; }
 .empty { color:var(--text-muted); text-align:center; padding:40px 16px; font-size:14px; }
+.mic { width:64px; height:64px; border-radius:32px; border:2px solid var(--red); background:var(--red-dim); color:var(--red); display:flex; align-items:center; justify-content:center; touch-action:none; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+.mic svg, .ptt-inline svg { pointer-events:none; }
+.mic.rec, .ptt-inline.rec { background:var(--red); color:#2a0c0c; transform:scale(.94); box-shadow:0 0 0 8px rgba(232,106,106,.18); }
+.mic.wake, .ptt-inline.wake { border-color:var(--amber); color:var(--amber); }
+.ptt-inline { touch-action:none; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; border-color:var(--red-border) !important; background:var(--red-dim) !important; color:var(--red) !important; }
+.bubble { position:relative; z-index:2; padding:10px 12px; border-radius:12px; background:rgba(26,29,38,.94); border:1px solid var(--border); display:flex; flex-direction:column; gap:4px; }
+.bubble .who { font-size:12px; color:var(--text-sec); }
+.bubble .txt { font-family:var(--mono); font-size:14px; line-height:1.5; max-height:4.5em; overflow:hidden; }
+.fring { position:absolute; z-index:2; width:72px; height:72px; margin:-36px 0 0 -36px; border:2px solid var(--amber); border-radius:8px; pointer-events:none; transition:opacity .4s; }
+.expo { display:flex; align-items:center; gap:10px; font-size:12px; color:var(--text-sec); }
+.expo input { flex:1; accent-color:var(--amber); }
+.desc { margin-top:2px; display:flex; flex-direction:column; gap:4px; }
+.desc textarea { width:100%; font-family:var(--mono); font-size:14px; line-height:1.5; padding:6px 8px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); resize:none; overflow:hidden; }
+.desc textarea:focus { outline:none; border-color:var(--accent); }
+.desc .st { font-size:12px; color:var(--blue, #6c9bf2); font-style:italic; }
+.desc.failed .st { color:var(--red); font-style:normal; }
+.tags { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+.tag { font-size:11px; padding:2px 7px; border-radius:10px; border:1px solid var(--border-strong); background:transparent; color:var(--text-sec); }
+.tag.amber { color:var(--amber); border-color:var(--amber-border); background:var(--amber-dim); }
+.tag.accent { color:var(--accent); border-color:var(--accent-border); background:var(--accent-dim); }
+.raw { font-family:var(--mono); font-size:12px; color:var(--text-sec); background:var(--bg); border-radius:6px; padding:6px 8px; }
+.suggest { font-size:12px; border:1px solid var(--accent-border); background:var(--accent-dim); border-radius:8px; padding:8px; display:flex; flex-direction:column; gap:6px; }
+.suggest b { font-family:var(--mono); font-weight:500; color:var(--accent); }
+.textph { width:76px; height:76px; border-radius:8px; border:1px dashed var(--border-strong); display:flex; align-items:center; justify-content:center; color:var(--text-muted); flex-shrink:0; }
+.revbar { padding:10px 16px calc(10px + env(safe-area-inset-bottom)); border-top:1px solid var(--border); flex-shrink:0; }
+.sheet textarea.ctx { width:100%; min-height:96px; padding:8px 10px; border-radius:8px; border:1px solid var(--border-strong); background:var(--bg); color:var(--text); font:14px/1.5 var(--sans); resize:vertical; }
+.tok { font-family:var(--mono); font-size:11px; color:var(--text-muted); }
+.tok.over { color:var(--red); }
+.rule { display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:13px; padding:4px 0; border-bottom:1px solid var(--border); }
+.rule span { flex:1; overflow-wrap:anywhere; }
 
 /* Folha de configuração / login */
 .sheet { position:fixed; inset:0; z-index:20; background:var(--bg); overflow-y:auto; }
@@ -169,6 +199,7 @@ nav.tabs button.on { color:var(--accent); font-weight:600; }
   <!-- CAPTURA -->
   <section class="view" id="vCap" hidden>
     <video id="video" playsinline muted autoplay></video>
+    <div class="fring" id="fring" hidden></div>
     <div class="flash" id="flash"></div>
     <div class="cap-top">
       <button class="round" id="btnCapBack" aria-label="Voltar ao caso"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
@@ -178,19 +209,23 @@ nav.tabs button.on { color:var(--accent); font-weight:600; }
     <div class="cap-status"><span class="dot" id="capDot"></span><span id="capStatus">—</span></div>
     <div class="cap-msg" id="capMsg" hidden></div>
     <div class="cap-bottom">
+      <div class="bubble" id="capBubble" hidden><span class="who" id="capBubbleWho"></span><span class="txt" id="capBubbleTxt"></span></div>
+      <div class="expo" id="expoRow" hidden><span>Exposição</span><input type="range" id="expo" aria-label="Compensação de exposição"><span class="mono" id="expoVal" style="min-width:34px;text-align:right">0</span></div>
       <div class="strip" id="strip"></div>
+      <div class="count" id="capHint">Toque na imagem para focar · segure o microfone para descrever a última foto</div>
       <div class="controls">
         <button class="side" id="btnCapRev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Revisar</button>
         <button class="shutter" id="shutter" aria-label="Tirar foto"><span></span></button>
-        <div class="side" style="border:none;background:none"><span class="count" id="capCount">0</span><span style="color:var(--text-muted)">nesta seção</span></div>
+        <button class="mic" id="capMic" aria-label="Segurar para ditar a descrição da última foto"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
       </div>
     </div>
   </section>
 
   <!-- REVISÃO -->
-  <section class="view" id="vRev" hidden style="display:flex;flex-direction:column">
+  <section class="view" id="vRev" hidden style="display:flex;flex-direction:column;overflow:hidden">
     <div class="chips" id="revChips"></div>
-    <div class="pad" id="revList"></div>
+    <div class="pad" id="revList" style="flex:1;overflow-y:auto"></div>
+    <div class="revbar"><button class="btn big ptt-inline" id="btnDictNoPhoto">Segurar para ditar sem foto</button></div>
   </section>
 
   <nav class="tabs" id="tabs">
@@ -218,6 +253,30 @@ nav.tabs button.on { color:var(--accent); font-weight:600; }
       <input class="field mono" id="clientId" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="….apps.googleusercontent.com" style="font-size:13px">
     </div>
     <div class="card">
+      <span class="label">Ditado</span>
+      <label class="help" for="groqKey">Chave Groq (transcrição de voz)</label>
+      <input class="field mono" type="password" id="groqKey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="gsk_..." style="font-size:13px">
+      <button class="btn" id="btnImport">Importar chave, dicionário e contextos do app de ditado</button>
+      <p class="help">O áudio do ditado é enviado ao Groq para transcrição; as fotos não.</p>
+    </div>
+    <div class="card">
+      <span class="label">Disparo</span>
+      <label class="row" style="justify-content:space-between"><span>Espera depois do toque</span>
+        <select class="field" id="optDelay" style="width:auto;height:38px;font-size:14px"><option value="0">nenhuma</option><option value="500">0,5 s</option><option value="1000">1 s</option></select></label>
+      <p class="help">A espera evita que o tremor do dedo no botão saia na foto.</p>
+    </div>
+    <div class="card">
+      <span class="label">Dicionário de correções</span>
+      <p class="help">Trocas aplicadas a cada transcrição. Também são sugeridas quando você corrige um texto.</p>
+      <div id="ruleList"></div>
+      <div class="row"><input class="field" id="ruleFrom" placeholder="como sai" autocomplete="off" autocapitalize="off" style="flex:1;min-width:110px"><input class="field" id="ruleTo" placeholder="como deve ficar" autocomplete="off" autocapitalize="off" style="flex:1;min-width:110px"><button class="btn" id="btnRuleAdd">Adicionar</button></div>
+    </div>
+    <div class="card">
+      <span class="label">Contexto de cada seção</span>
+      <p class="help">Texto de exemplo enviado ao Whisper junto com o áudio, para acertar os termos. Limite de 224 tokens; o excedente é cortado pelo início.</p>
+      <div id="ctxList" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+    <div class="card">
       <span class="label">Cópia no celular</span>
       <label class="row" style="justify-content:space-between"><span>Guardar cópia do exame no celular</span><input type="checkbox" id="optCopy" style="width:22px;height:22px"></label>
       <p class="help">No fim do exame, o botão "Salvar cópia do exame" grava todas as fotos num único arquivo .zip em Downloads, com um aviso só. O app guarda as fotos até essa cópia ser salva. Desligado, cada foto é apagada do app assim que é confirmada no Drive.</p>
@@ -234,7 +293,7 @@ nav.tabs button.on { color:var(--accent); font-weight:600; }
 <script>
 'use strict';
 /*PURE-START*/
-const VERSION = '0.1.2';
+const VERSION = '0.2.0';
 const BETA_ROOT = 'DPT_BETA';
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -244,6 +303,103 @@ const SECTIONS = [
   { id: 'obs', name: 'Observações' },
 ];
 
+const TOKEN_LIMIT = 224, CHARS_PER_TOKEN = 2.7;
+const DEFAULT_CONTEXT = {
+  ext: 'Exame externo. Cadáver do sexo masculino, em bom estado de nutrição, cor parda, íris castanha, cabelos curtos, dentes em bom estado de conservação, trajando cueca preta e camiseta azul. Genitália externa sem sinais de violência. Sem particularidades. Tatuagem no antebraço direito.',
+  fen: 'Fenômenos cadavéricos. Nota-se midríase fixa bilateral, córneas com brilho reduzido, rigor mortis generalizado, hipóstases dorsais claras, fixas. Livores, mancha verde abdominal, circulação póstuma, enfisema putrefativo, flictenas, cronotanatognose.',
+  les: 'Ao exame ectoscópico, lesões distribuídas pelas regiões anatômicas. Ferimento de formato ovoide, medindo cerca de 0,8 cm, bordas invertidas, orla de escoriação e de enxugo concêntricas, zona de tatuagem e esfumaçamento, entrada de projétil de arma de fogo. Bordas evertidas, saída. Ferimento perfurocontundente, tangenciamento, orla equimótica, equimose, escoriação linear, ferida contusa, restos hemáticos. Terço médio da face anterior do antebraço, punho, quirodáctilo, pododáctilo, hálux, flanco, fossa ilíaca.',
+  int: 'Exame interno. Incisão bimastóidea, escalpo rebatido, calota craniana serrada, dura-máter, hemorragia subaracnóidea, hematoma subdural, edema cerebral, encéfalo, fratura cominutiva. Incisão mediana manúbrio-pubiana, plastrão condroesternal removido, arcos costais, hemotórax, volume estimado em mililitros, transfixação do lobo superior, pericárdio íntegro, mediastino, hemoperitônio, laceração hepática, hematoma retroperitoneal, baço, supra-renais, alças intestinais íntegras, bexiga vazia, trajeto do projétil.',
+  obs: 'Exame necroscópico médico-legal. Projétil recolhido e encaminhado à perícia. Material coletado para exame toxicológico. Quesitos. Hipótese diagnóstica.',
+};
+// Palavras que nunca viram sugestão automática de regra: trocá-las sempre mudaria o sentido do laudo.
+const RISKY_WORDS = new Set(['direita', 'esquerda', 'direito', 'esquerdo', 'anterior', 'posterior', 'superior', 'inferior',
+  'medial', 'lateral', 'proximal', 'distal', 'entrada', 'saída', 'saida', 'com', 'sem', 'não', 'nao', 'sim',
+  'presente', 'ausente', 'presença', 'ausência', 'íntegro', 'íntegra', 'masculino', 'feminino', 'um', 'uma',
+  'dois', 'duas', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez', 'e', 'ou', 'de', 'do', 'da', 'a', 'o']);
+// Frases que o Whisper costuma inventar sobre silêncio ou ruído.
+const NOISE_PATTERNS = [
+  /^e\s*a[ií][\s!?.,]*$/i,
+  /^(muito\s+)?obrigad[oa]([\s,]+(a todos|por assistir(em)?))?[\s!?.]*$/i,
+  /^(tchau|até\s+(mais|logo|a próxima))[\s!?.]*$/i,
+  /^(h+m+|a+h+|u+h+|ã+h*)[\s!?.]*$/i,
+  /^[\s.…!?,-]*$/,
+  /^[\[(][^\])]*[\])]$/,
+  /^(thank you|thanks|bye)[\s!?.]*$/i,
+  /https?:\/\//i, /\bwww\./i, /\b[\w-]+\.(com|pt|org|net|br)\b/i,
+  /acesse\s+o\s+(nosso|meu|seu)\s+site/i, /visite\s+(o\s+)?(nosso\s+)?site/i,
+  /para\s+saber\s+mais[\s!.]*$/i, /inscreva[\s-]*se/i,
+  /legendas?\s+(por|pela|feitas?\s+por)/i, /traduzid[oa]\s+por/i,
+];
+function estimateTokens(s) { return Math.ceil(String(s || '').trim().length / CHARS_PER_TOKEN); }
+function escRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function applyRules(text, rules) {
+  const applied = []; let out = String(text || '');
+  const sorted = (rules || []).filter(r => r && r.from && r.from.trim() && typeof r.to === 'string').slice().sort((a, b) => b.from.trim().length - a.from.trim().length);
+  for (const r of sorted) {
+    const from = r.from.trim(); let re;
+    try { re = new RegExp('(^|[^\\p{L}\\p{N}])(' + escRe(from).replace(/\s+/g, '\\s+') + ')(?![\\p{L}\\p{N}])', 'giu'); } catch (e) { continue; }
+    let n = 0;
+    out = out.replace(re, (m, pre, hit) => { n++; let to = r.to; if (to && hit[0] !== hit[0].toLowerCase() && to[0] === to[0].toLowerCase()) to = to[0].toUpperCase() + to.slice(1); return pre + to; });
+    if (n) applied.push({ from, to: r.to, n });
+  }
+  return { text: out, applied };
+}
+function stripPunct(s) { return s.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''); }
+function suggestRule(before, after) {
+  const a = String(before || '').trim().split(/\s+/).filter(Boolean), b = String(after || '').trim().split(/\s+/).filter(Boolean);
+  let i = 0; while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  let j = 0; while (j < a.length - i && j < b.length - i && a[a.length - 1 - j] === b[b.length - 1 - j]) j++;
+  const from = a.slice(i, a.length - j), to = b.slice(i, b.length - j);
+  if (!from.length || !to.length || from.length > 4 || to.length > 4) return null;
+  const f = stripPunct(from.join(' ')), t = stripPunct(to.join(' '));
+  if (!f || !t || f.toLowerCase() === t.toLowerCase()) return null;
+  if (/\d/.test(f) || /\d/.test(t)) return null;
+  const fw = f.toLowerCase().split(/\s+/);
+  if (fw.length === 1 && RISKY_WORDS.has(fw[0])) return null;
+  if (fw.every(w => RISKY_WORDS.has(w))) return null;
+  return { from: f, to: t };
+}
+function downsample(input, srcRate, dstRate) {
+  if (!(srcRate > dstRate)) return { data: input, rate: srcRate };
+  const ratio = srcRate / dstRate, outLen = Math.floor(input.length / ratio), out = new Float32Array(outLen);
+  let pos = 0;
+  for (let i = 0; i < outLen; i++) { const next = Math.min(input.length, Math.round((i + 1) * ratio)); let sum = 0, n = 0; for (let k = pos; k < next; k++) { sum += input[k]; n++; } out[i] = n ? sum / n : 0; pos = next; }
+  return { data: out, rate: dstRate };
+}
+function encodeWav(samples, rate) {
+  const buf = new ArrayBuffer(44 + samples.length * 2), v = new DataView(buf);
+  const str = (o, x) => { for (let i = 0; i < x.length; i++) v.setUint8(o + i, x.charCodeAt(i)); };
+  str(0, 'RIFF'); v.setUint32(4, 36 + samples.length * 2, true); str(8, 'WAVE'); str(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, samples.length * 2, true);
+  let o = 44; for (let i = 0; i < samples.length; i++, o += 2) { const x = Math.max(-1, Math.min(1, samples[i])); v.setInt16(o, x < 0 ? x * 0x8000 : x * 0x7FFF, true); }
+  return buf;
+}
+function peakWindowRms(samples, rate, winMs) {
+  const win = Math.max(1, Math.round(rate * winMs / 1000)); let peak = 0;
+  for (let st = 0; st + win <= samples.length; st += win) { let sum = 0; for (let i = st; i < st + win; i++) sum += samples[i] * samples[i]; const r = Math.sqrt(sum / win); if (r > peak) peak = r; }
+  return peak;
+}
+function noiseReason(text, segments) {
+  const t = String(text || '').trim();
+  if (t.length < 2) return 'texto vazio';
+  if (Array.isArray(segments) && segments.length && segments.every(x => typeof x.no_speech_prob === 'number' && x.no_speech_prob > 0.8)) return 'sem fala no áudio';
+  if (NOISE_PATTERNS.some(re => re.test(t))) return 'frase típica de ruído';
+  return null;
+}
+function isLowConfidence(segments) { return Array.isArray(segments) && segments.some(x => typeof x.avg_logprob === 'number' && x.avg_logprob < -0.5); }
+// Transcrição legível do caso, por seção, com a foto de referência de cada texto.
+function buildTranscript(caseName, photos, texts) {
+  const pn = new Map(photos.map(p => [p.id, p.name]));
+  const ok = texts.filter(t => t.status === 'ok' && String(t.text || '').trim()).sort((a, b) => a.ts - b.ts);
+  const parts = ['forenSIS — transcrição do caso ' + caseName, ''];
+  for (const s of SECTIONS) {
+    const ts = ok.filter(t => t.sec === s.id);
+    if (!ts.length) continue;
+    parts.push(s.name.toUpperCase(), '');
+    for (const t of ts) parts.push((t.photoId && pn.has(t.photoId) ? '[' + pn.get(t.photoId) + '] ' : '') + t.text.trim(), '');
+  }
+  return parts.join('\n').trim() + '\n';
+}
 function normalizeCase(s) { return String(s || '').trim().replace(/\s+/g, ' '); }
 // Beta: só casos fictícios "AAAA 9xxx".
 function caseError(name) {
@@ -261,15 +417,20 @@ function isoLocal(d) {
   return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + sign + pad(Math.floor(a / 60)) + ':' + pad(a % 60);
 }
 // Manifesto do caso. Registros remotos que este aparelho não conhece são preservados.
-function buildManifest(caseName, photos, remote) {
+function buildManifest(caseName, photos, remote, texts, deleted) {
+  const textRecs = (texts || []).filter(t => t.status === 'ok' && String(t.text || '').trim()).map(t => ({
+    id: t.id, tipo: 'texto', secao: t.sec, texto: t.text, textoOriginal: t.raw || t.text, fotoId: t.photoId || null,
+    capturadaEm: t.tsLocal, correcoes: (t.fix || []).reduce((a, f) => a + f.n, 0), conferir: !!t.low,
+  }));
   const mine = photos.filter(p => p.status === 'verified').map(p => ({
     id: p.id, tipo: 'foto', secao: p.sec, arquivo: 'Originais/' + p.name, driveId: p.driveId,
     capturadaEm: p.takenAtLocal, sha256: p.sha256, largura: p.width || null, altura: p.height || null,
     reduzida: !!p.fallback,
   }));
-  const known = new Set(mine.map(r => r.id));
-  const kept = ((remote && remote.registros) || []).filter(r => r && r.id && !known.has(r.id));
-  const registros = kept.concat(mine).sort((a, b) => String(a.capturadaEm).localeCompare(String(b.capturadaEm)));
+  const known = new Set(mine.map(r => r.id).concat(textRecs.map(r => r.id)));
+  const gone = new Set(deleted || []);
+  const kept = ((remote && remote.registros) || []).filter(r => r && r.id && !known.has(r.id) && !gone.has(r.id));
+  const registros = kept.concat(mine, textRecs).sort((a, b) => String(a.capturadaEm).localeCompare(String(b.capturadaEm)));
   return {
     formato: 'forensis-caso', versao: 1, caso: caseName,
     secoes: SECTIONS.map(s => ({ id: s.id, nome: s.name })),
@@ -321,7 +482,7 @@ const SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const API = 'https://www.googleapis.com/drive/v3';
 const UPL = 'https://www.googleapis.com/upload/drive/v3/files';
 const FOLDER = 'application/vnd.google-apps.folder';
-const K = { prev: 'forensis_preview_step', client: 'forensis_client_id', active: 'forensis_case', sec: 'forensis_sec', copy: 'forensis_copy', recent: 'forensis_recent' };
+const K = { groq: 'forensis_groq', rules: 'forensis_rules', ctx: 'forensis_ctx', delay: 'forensis_delay', expo: 'forensis_expo', prev: 'forensis_preview_step', client: 'forensis_client_id', active: 'forensis_case', sec: 'forensis_sec', copy: 'forensis_copy', recent: 'forensis_recent' };
 
 const $ = id => document.getElementById(id);
 function h(tag, attrs, ...kids) {
@@ -355,11 +516,12 @@ function dropBanner(key) { const el = bannersByKey.get(key); if (el) { el.remove
 let dbp = null;
 function db() {
   if (!dbp) dbp = new Promise((res, rej) => {
-    const r = indexedDB.open('forensis', 1);
+    const r = indexedDB.open('forensis', 2);
     r.onupgradeneeded = () => {
       const d = r.result;
-      const ph = d.createObjectStore('photos', { keyPath: 'id' }); ph.createIndex('caseName', 'caseName');
-      d.createObjectStore('cases', { keyPath: 'name' });
+      if (!d.objectStoreNames.contains('photos')) { const ph = d.createObjectStore('photos', { keyPath: 'id' }); ph.createIndex('caseName', 'caseName'); }
+      if (!d.objectStoreNames.contains('cases')) d.createObjectStore('cases', { keyPath: 'name' });
+      if (!d.objectStoreNames.contains('textos')) { const tx = d.createObjectStore('textos', { keyPath: 'id' }); tx.createIndex('caseName', 'caseName'); }
     };
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
   });
@@ -378,6 +540,15 @@ const dbGet = (s, k) => tx(s, 'readonly', st => st.get(k));
 const dbDel = (s, k) => tx(s, 'readwrite', st => st.delete(k));
 const dbAll = s => tx(s, 'readonly', st => st.getAll());
 const photosOf = name => tx('photos', 'readonly', st => st.index('caseName').getAll(name));
+const textsOf = name => tx('textos', 'readonly', st => st.index('caseName').getAll(name));
+async function patchText(id, changes) { const t = await dbGet('textos', id); if (!t) return null; Object.assign(t, changes); await dbPut('textos', t); return t; }
+// Atualiza o registro do caso relendo do banco (evita sobrescrever com uma cópia antiga).
+async function updateCase(name, changes) {
+  const r = (await dbGet('cases', name)) || { name, createdAt: Date.now() };
+  if (typeof changes === 'function') changes(r); else Object.assign(r, changes);
+  await dbPut('cases', r); caseFolderCache.delete(name); return r;
+}
+async function markDirty(name) { await updateCase(name, { dirtyAt: Date.now() }); kickQueue(300); }
 async function patchPhoto(id, changes) { const p = await dbGet('photos', id); if (!p) return null; Object.assign(p, changes); await dbPut('photos', p); return p; }
 
 // ── Login Google ─────────────────────────────────────────────────────────────
@@ -470,19 +641,22 @@ async function ensureCase(name) {
     const editadas = await folder('Editadas', c);
     rec.folders = { root, caseId: c, originais, editadas };
     rec.manifestId = await findChild('caso.json', c, null);
-    await dbPut('cases', rec);
+    rec.transcriptId = await findChild('transcricao.txt', c, null);
+    const fresh = await updateCase(name, { folders: rec.folders, manifestId: rec.manifestId, transcriptId: rec.transcriptId });
+    caseFolderCache.set(name, fresh);
+    return fresh;
   }
   caseFolderCache.set(name, rec);
   return rec;
 }
 
 // ── Fila de envio ───────────────────────────────────────────────────────────
-let queueBusy = false, queueTimer = null;
+let queueBusy = false, queueTimer = null, queueAgain = false;
 const remoteManifests = new Map();
 function kickQueue(delay) { clearTimeout(queueTimer); queueTimer = setTimeout(runQueue, delay || 0); }
 async function runQueue() {
-  if (queueBusy) return;
-  queueBusy = true;
+  if (queueBusy) { queueAgain = true; return; } // chegou foto nova durante o envio: roda de novo ao terminar
+  queueBusy = true; queueAgain = false;
   try {
     const all = (await dbAll('photos')).filter(p => p.status === 'queued' || p.status === 'uploaded').sort((a, b) => a.takenAt - b.takenAt);
     for (const p of all) {
@@ -490,12 +664,22 @@ async function runQueue() {
       await sendOne(p);
       refresh();
     }
+    for (const c of (await dbAll('cases')).filter(c => c.dirtyAt && !(c.syncedAt >= c.dirtyAt))) {
+      if (!tokenValid()) { needLogin(); break; }
+      const started = Date.now();
+      await writeManifest(c.name);
+      await writeTranscript(c.name);
+      await updateCase(c.name, r => { r.syncedAt = started; });
+    }
   } catch (e) {
     for (const p of await dbAll('photos')) if (p.sending) await patchPhoto(p.id, { sending: false });
     if (e instanceof NeedLogin) needLogin();
     else if (e instanceof Offline) { setNet(false); kickQueue(15000); }
     else banner('queue', 'err', 'Falha no envio: ' + e.message, [{ label: 'Tentar de novo', fn: () => kickQueue() }]);
-  } finally { queueBusy = false; refresh(); }
+  } finally {
+    queueBusy = false; refresh();
+    if (queueAgain && tokenValid()) { queueAgain = false; kickQueue(); }
+  }
 }
 function needLogin() {
   if (bannersByKey.has('relogin')) return;
@@ -545,16 +729,27 @@ async function writeManifest(caseName) {
     try { const res = await api('GET', API + '/files/' + encodeURIComponent(c.manifestId) + '?alt=media', null, null, true); remoteManifests.set(caseName, await res.json()); }
     catch (e) { if (e instanceof NeedLogin || e instanceof Offline) throw e; remoteManifests.set(caseName, null); }
   }
-  const man = buildManifest(caseName, await photosOf(caseName), remoteManifests.get(caseName));
+  const man = buildManifest(caseName, await photosOf(caseName), remoteManifests.get(caseName), await textsOf(caseName), c.deleted);
   const json = new Blob([JSON.stringify(man, null, 2)], { type: 'application/json' });
   if (c.manifestId) {
     await api('PATCH', UPL + '/' + encodeURIComponent(c.manifestId) + '?uploadType=media&fields=id', json, { 'Content-Type': 'application/json' });
   } else {
     const mp = multipart({ name: 'caso.json', parents: [c.folders.caseId], mimeType: 'application/json', appProperties: { forensis: 'beta' } }, json, 'application/json');
     const r = await api('POST', UPL + '?uploadType=multipart&fields=id', mp.body, { 'Content-Type': mp.ct });
-    c.manifestId = r.id; await dbPut('cases', c);
+    await updateCase(caseName, { manifestId: r.id });
   }
   remoteManifests.set(caseName, man);
+}
+async function writeTranscript(caseName) {
+  const c = await ensureCase(caseName);
+  const txt = new Blob([buildTranscript(caseName, await photosOf(caseName), await textsOf(caseName))], { type: 'text/plain' });
+  if (c.transcriptId) {
+    await api('PATCH', UPL + '/' + encodeURIComponent(c.transcriptId) + '?uploadType=media&fields=id', txt, { 'Content-Type': 'text/plain; charset=UTF-8' });
+  } else {
+    const mp = multipart({ name: 'transcricao.txt', parents: [c.folders.caseId], mimeType: 'text/plain', appProperties: { forensis: 'beta' } }, txt, 'text/plain; charset=UTF-8');
+    const r = await api('POST', UPL + '?uploadType=multipart&fields=id', mp.body, { 'Content-Type': mp.ct });
+    await updateCase(caseName, { transcriptId: r.id });
+  }
 }
 
 // ── Câmera ──────────────────────────────────────────────────────────────────
@@ -576,6 +771,41 @@ async function openStream(st) {
   const tc = cam.track.getCapabilities ? cam.track.getCapabilities() : {};
   $('btnTorch').hidden = !tc.torch;
   if (cam.torch) setTorch(true);
+  const ec = tc.exposureCompensation;
+  $('expoRow').hidden = !(ec && ec.max > ec.min);
+  if (ec && ec.max > ec.min) {
+    const e = $('expo'); e.min = ec.min; e.max = ec.max; e.step = ec.step || 0.1;
+    const v = Math.min(ec.max, Math.max(ec.min, Number(ls.get(K.expo, '0')) || 0)); e.value = v; setExposure(v);
+  }
+}
+async function setExposure(v) {
+  $('expoVal').textContent = (v > 0 ? '+' : '') + Number(v).toFixed(1).replace('.', ',');
+  ls.set(K.expo, String(v));
+  if (cam.track) { try { await cam.track.applyConstraints({ advanced: [{ exposureCompensation: Number(v) }] }); } catch (e) {} }
+}
+let focusTimer = null;
+async function focusAt(ev) {
+  if (!cam.track) return;
+  const v = $('video'), r = v.getBoundingClientRect(), vw = v.videoWidth, vh = v.videoHeight;
+  if (!vw || !vh) return;
+  const sc = Math.max(r.width / vw, r.height / vh), dw = vw * sc, dh = vh * sc;
+  const pt = { x: Math.min(1, Math.max(0, (ev.clientX - r.left - (r.width - dw) / 2) / dw)), y: Math.min(1, Math.max(0, (ev.clientY - r.top - (r.height - dh) / 2) / dh)) };
+  const ring = $('fring'); ring.hidden = false; ring.style.opacity = '1';
+  ring.style.left = (ev.clientX - r.left) + 'px'; ring.style.top = (ev.clientY - r.top) + 'px';
+  const tc = cam.track.getCapabilities ? cam.track.getCapabilities() : {};
+  const modes = tc.focusMode || [];
+  try {
+    const c = { pointsOfInterest: [pt] };
+    if (modes.includes('single-shot')) c.focusMode = 'single-shot';
+    await cam.track.applyConstraints({ advanced: [c] });
+  } catch (e) {
+    try { await cam.track.applyConstraints({ advanced: [{ pointsOfInterest: [pt] }] }); } catch (e2) {}
+  }
+  clearTimeout(focusTimer);
+  focusTimer = setTimeout(async () => {
+    ring.style.opacity = '0'; setTimeout(() => { ring.hidden = true; }, 400);
+    if (cam.track && modes.includes('continuous')) { try { await cam.track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) {} }
+  }, 5000);
 }
 // Confirma que a prévia está de fato produzindo imagens.
 function previewAlive(ms) {
@@ -665,6 +895,8 @@ async function shoot() {
   if (cam.busy || !cam.stream) return;
   const caseName = ls.get(K.active, ''); if (!caseName) return;
   cam.busy = true; $('shutter').classList.add('busy');
+  const delay = Number(ls.get(K.delay, '500')) || 0;
+  if (delay) await new Promise(r => setTimeout(r, delay)); // o tremor do toque passa antes do disparo
   vib(25);
   const fl = $('flash'); fl.classList.add('go'); requestAnimationFrame(() => requestAnimationFrame(() => fl.classList.remove('go')));
   try {
@@ -679,12 +911,207 @@ async function shoot() {
       status: 'queued', copied: false, released: false,
     };
     await dbPut('photos', rec);
+    lastShot = rec;
     if (fallback) banner('fallback', 'warn', 'A câmera não entregou a foto em alta resolução; esta foi salva em resolução reduzida.', [], 8000);
     refresh(); kickQueue();
   } catch (e) {
     vib([80, 60, 80]);
     banner('shoot', 'err', 'Não foi possível salvar a foto: ' + (e && e.message || e));
   } finally { cam.busy = false; $('shutter').classList.remove('busy'); }
+}
+
+// ── Microfone e ditado (segurar para falar) ─────────────────────────────────
+const TARGET_RATE = 16000, PREROLL_SEC = 0.35, TAIL_MS = 250, MIN_HOLD_MS = 250, MAX_SEC = 300, SILENCE_RMS = 0.01;
+const VIB_ERR = [80, 60, 80];
+const WORKLET_SRC = `
+class TfCap extends AudioWorkletProcessor {
+  constructor() { super(); this.buf = new Float32Array(2048); this.n = 0; }
+  process(inputs) {
+    const ch = inputs[0] && inputs[0][0];
+    if (ch) { let i = 0; while (i < ch.length) { const k = Math.min(ch.length - i, this.buf.length - this.n); this.buf.set(ch.subarray(i, i + k), this.n); this.n += k; i += k;
+      if (this.n === this.buf.length) { this.port.postMessage(this.buf, [this.buf.buffer]); this.buf = new Float32Array(2048); this.n = 0; } } }
+    return true;
+  }
+}
+registerProcessor('tf-cap', TfCap);`;
+const mic = { ctx: null, stream: null, node: null, ring: [], ringLen: 0, rec: null, recLen: 0, preLen: 0, capturing: false, tailTimer: null, watch: null, pressAt: 0, heldMs: 0, endReason: '', lastFrameAt: 0, target: null, btn: null, initBusy: null };
+let pressing = false, pressSeq = 0;
+function onMicFrame(f) {
+  const now = performance.now();
+  if (now - mic.lastFrameAt > 300) { mic.ring = []; mic.ringLen = 0; }
+  mic.lastFrameAt = now;
+  if (mic.capturing) { mic.rec.push(f); mic.recLen += f.length; if (mic.ctx && mic.recLen > MAX_SEC * mic.ctx.sampleRate) { pressing = false; endCapture('max'); } }
+  else { mic.ring.push(f); mic.ringLen += f.length; const max = PREROLL_SEC * (mic.ctx ? mic.ctx.sampleRate : 48000); while (mic.ring.length > 1 && mic.ringLen - mic.ring[0].length >= max) mic.ringLen -= mic.ring.shift().length; }
+}
+function micTrackOk() { const t = mic.stream && mic.stream.getAudioTracks()[0]; return !!t && t.readyState === 'live' && !t.muted; }
+function micFlowing() { return !!mic.ctx && mic.ctx.state === 'running' && micTrackOk() && performance.now() - mic.lastFrameAt < 400; }
+function initMic() {
+  if (mic.initBusy) return mic.initBusy;
+  mic.initBusy = (async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      stopMic();
+      const Ctx = window.AudioContext || window.webkitAudioContext; const ctx = new Ctx();
+      const src = ctx.createMediaStreamSource(stream), mute = ctx.createGain(); mute.gain.value = 0; mute.connect(ctx.destination);
+      let node = null;
+      if (ctx.audioWorklet && window.AudioWorkletNode) {
+        try { const url = URL.createObjectURL(new Blob([WORKLET_SRC], { type: 'application/javascript' })); await ctx.audioWorklet.addModule(url); URL.revokeObjectURL(url);
+          node = new AudioWorkletNode(ctx, 'tf-cap', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1, channelCountMode: 'explicit' }); node.port.onmessage = ev => onMicFrame(ev.data); } catch (e) { node = null; }
+      }
+      if (!node) { node = ctx.createScriptProcessor(2048, 1, 1); node.onaudioprocess = ev => onMicFrame(new Float32Array(ev.inputBuffer.getChannelData(0))); }
+      src.connect(node); node.connect(mute);
+      Object.assign(mic, { ctx, stream, node, ring: [], ringLen: 0, lastFrameAt: 0 });
+      return true;
+    } catch (err) {
+      const denied = err && (err.name === 'NotAllowedError' || err.name === 'SecurityError');
+      banner('mic', 'err', denied ? 'O acesso ao microfone foi negado. Libere-o nas permissões do Chrome para este site.' : 'Não foi possível abrir o microfone: ' + (err && err.message || err));
+      return false;
+    } finally { mic.initBusy = null; }
+  })();
+  return mic.initBusy;
+}
+function stopMic() {
+  if (mic.capturing) return;
+  if (mic.stream) mic.stream.getTracks().forEach(t => t.stop());
+  if (mic.ctx) { try { mic.ctx.close(); } catch (e) {} }
+  Object.assign(mic, { ctx: null, stream: null, node: null, ring: [], ringLen: 0, lastFrameAt: 0 });
+}
+function waitMicFrames(ms) {
+  const t0 = performance.now(), f0 = mic.lastFrameAt;
+  return new Promise(res => { const iv = setInterval(() => { if (mic.ctx && mic.ctx.state === 'running' && mic.lastFrameAt > f0) { clearInterval(iv); res(true); } else if (performance.now() - t0 > ms) { clearInterval(iv); res(false); } }, 40); });
+}
+async function wakeMic() {
+  if (micTrackOk() && mic.ctx) { if (mic.ctx.state !== 'running') await Promise.race([mic.ctx.resume().catch(() => {}), new Promise(r => setTimeout(r, 1000))]); if (await waitMicFrames(600)) return true; }
+  if (!(await initMic())) return false;
+  if (mic.ctx && mic.ctx.state !== 'running') await Promise.race([mic.ctx.resume().catch(() => {}), new Promise(r => setTimeout(r, 1000))]);
+  return waitMicFrames(2500);
+}
+function bindPTT(btn, getTarget) {
+  btn.addEventListener('pointerdown', e => pttStart(e, btn, getTarget));
+  btn.addEventListener('pointerup', pttEnd); btn.addEventListener('pointercancel', pttEnd); btn.addEventListener('lostpointercapture', pttEnd);
+  btn.addEventListener('contextmenu', e => e.preventDefault());
+}
+function setPttUI(state) {
+  const b = mic.btn; if (!b) return;
+  b.classList.toggle('rec', state === 'rec'); b.classList.toggle('wake', state === 'wake');
+}
+async function pttStart(e, btn, getTarget) {
+  e.preventDefault();
+  if (e.button) return;
+  if (pressing) return;
+  if (!groqKey()) { openSheet(); banner('groq', 'warn', 'Informe a chave Groq em Configurações › Ditado para transcrever.', [], 7000); return; }
+  if (mic.tailTimer) finalizeAudio();
+  pressing = true; const seq = ++pressSeq;
+  mic.btn = btn; mic.target = getTarget();
+  if (!mic.target) { pressing = false; banner('ptt', 'info', 'Tire uma foto antes de descrevê-la, ou use "Ditar sem foto" na Revisão.', [], 5000); return; }
+  try { btn.setPointerCapture(e.pointerId); } catch (x) {}
+  if (!micFlowing()) {
+    setPttUI('wake');
+    const ok = await wakeMic();
+    if (seq !== pressSeq) return;
+    if (!ok) { pressing = false; setPttUI(''); vib(VIB_ERR); return; }
+    if (!pressing) { setPttUI(''); banner('ptt', 'info', 'Microfone ativado. Segure de novo para ditar.', [], 4000); return; }
+  }
+  mic.pressAt = performance.now();
+  const fresh = mic.pressAt - mic.lastFrameAt < 400;
+  mic.rec = fresh ? mic.ring.slice() : []; mic.recLen = fresh ? mic.ringLen : 0; mic.preLen = mic.recLen;
+  mic.ring = []; mic.ringLen = 0; mic.capturing = true; mic.endReason = '';
+  clearInterval(mic.watch);
+  mic.watch = setInterval(() => { if (mic.capturing && !mic.tailTimer && (performance.now() - mic.lastFrameAt > 700 || !micTrackOk())) { pressing = false; endCapture('stall'); } }, 250);
+  vib(40); setPttUI('rec'); refresh();
+}
+function pttEnd(e) {
+  if (e && e.cancelable) e.preventDefault();
+  if (!pressing) return;
+  pressing = false;
+  endCapture('release');
+}
+function endCapture(reason) {
+  if (!mic.capturing || mic.tailTimer) { setPttUI(''); return; }
+  clearInterval(mic.watch);
+  mic.heldMs = performance.now() - mic.pressAt; mic.endReason = reason;
+  setPttUI('');
+  if (reason === 'release' && mic.heldMs < MIN_HOLD_MS) { mic.capturing = false; mic.rec = null; mic.recLen = 0; banner('ptt', 'info', 'Toque muito curto. Mantenha pressionado enquanto fala.', [], 4000); refresh(); return; }
+  if (reason === 'stall') finalizeAudio(); else mic.tailTimer = setTimeout(finalizeAudio, TAIL_MS);
+  if (revPending) setTimeout(refresh, TAIL_MS + 20);
+}
+function finalizeAudio() {
+  clearTimeout(mic.tailTimer); mic.tailTimer = null; mic.capturing = false;
+  const rate = mic.ctx ? mic.ctx.sampleRate : 48000, chunks = mic.rec || [], total = mic.recLen, pre = mic.preLen, target = mic.target;
+  mic.rec = null; mic.recLen = 0;
+  const liveSec = (total - pre) / rate;
+  if (liveSec < 0.15) { vib(VIB_ERR); banner('ptt', 'err', 'O microfone não entregou áudio nesta gravação. Nada foi enviado.'); refresh(); return; }
+  const pcm = new Float32Array(total); let o = 0; for (const c of chunks) { pcm.set(c, o); o += c.length; }
+  const ds = downsample(pcm, rate, TARGET_RATE);
+  const wav = new Blob([encodeWav(ds.data, ds.rate)], { type: 'audio/wav' });
+  if (mic.endReason === 'stall') banner('ptt', 'warn', 'A gravação foi interrompida pelo sistema. Confira o final do texto.', [], 8000);
+  if (peakWindowRms(ds.data, ds.rate, 30) < SILENCE_RMS) {
+    vib(VIB_ERR);
+    banner('ptt', 'warn', 'Nenhuma voz detectada: o volume ficou muito baixo. Nada foi enviado.', [{ label: 'Transcrever mesmo assim', fn: () => createText(target, wav) }]);
+    refresh(); return;
+  }
+  createText(target, wav);
+}
+async function createText(target, wav) {
+  const now = new Date();
+  await dbPut('textos', { id: uid(), caseName: target.caseName, sec: target.sec, photoId: target.photoId || null, ts: now.getTime(), tsLocal: isoLocal(now), status: 'pending', audio: wav, text: '', raw: '' });
+  refresh(); runTranscribe();
+}
+
+// ── Transcrição (Groq Whisper) ──────────────────────────────────────────────
+const groqKey = () => ls.get(K.groq, '').trim();
+function getRules() { try { const r = JSON.parse(ls.get(K.rules, '[]')); return Array.isArray(r) ? r : []; } catch (e) { return []; } }
+function setRules(r) { ls.set(K.rules, JSON.stringify(r)); renderRules(); }
+function getCtx() { try { return Object.assign({}, DEFAULT_CONTEXT, JSON.parse(ls.get(K.ctx, '{}'))); } catch (e) { return Object.assign({}, DEFAULT_CONTEXT); } }
+function setCtx(id, text) { let c = {}; try { c = JSON.parse(ls.get(K.ctx, '{}')); } catch (e) {} c[id] = text; ls.set(K.ctx, JSON.stringify(c)); }
+class UserErr extends Error {}
+async function groqTranscribe(wav, prompt) {
+  const fd = new FormData();
+  fd.append('file', wav, 'ditado.wav'); fd.append('model', 'whisper-large-v3'); fd.append('language', 'pt'); fd.append('temperature', '0'); fd.append('response_format', 'verbose_json');
+  if (prompt) fd.append('prompt', prompt);
+  const ac = new AbortController(), to = setTimeout(() => ac.abort(), 60000);
+  let res;
+  try { res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: 'Bearer ' + groqKey() }, body: fd, signal: ac.signal }); }
+  catch (e) { throw new UserErr(e && e.name === 'AbortError' ? 'Tempo esgotado: a conexão está lenta.' : 'Sem conexão com o servidor de transcrição.'); }
+  finally { clearTimeout(to); }
+  let data = null; try { data = await res.json(); } catch (e) {}
+  if (!res.ok) {
+    if (res.status === 401) throw new UserErr('Chave Groq inválida ou expirada.');
+    if (res.status === 429) throw new UserErr('Limite de uso do Groq atingido. Aguarde um pouco.');
+    throw new UserErr(('Erro ' + res.status + ' do servidor de transcrição. ' + (data && data.error && data.error.message ? String(data.error.message).slice(0, 140) : '')).trim());
+  }
+  if (!data || typeof data.text !== 'string') throw new UserErr('Resposta inesperada do servidor de transcrição.');
+  return { text: data.text.trim(), segments: data.segments };
+}
+let txBusy = false;
+async function runTranscribe() {
+  if (txBusy) return; txBusy = true;
+  try {
+    for (;;) {
+      const next = (await dbAll('textos')).filter(t => t.status === 'pending' && t.audio).sort((a, b) => a.ts - b.ts)[0];
+      if (!next) break;
+      if (!groqKey()) { banner('groq', 'warn', 'Há ditados aguardando transcrição. Informe a chave Groq em Configurações › Ditado.', [{ label: 'Configurar', fn: openSheet }]); break; }
+      await transcribeOne(next);
+    }
+  } finally { txBusy = false; refresh(); }
+}
+async function transcribeOne(t) {
+  let r;
+  try { r = await groqTranscribe(t.audio, (getCtx()[t.sec] || '').trim()); }
+  catch (e) { await patchText(t.id, { status: 'failed', error: e instanceof UserErr ? e.message : 'Falha inesperada na transcrição.' }); vib(VIB_ERR); refresh(); return; }
+  const why = noiseReason(r.text, r.segments);
+  if (why) {
+    await dbDel('textos', t.id); refresh();
+    banner('noise-' + t.id, 'warn', 'Ditado descartado (' + why + ')' + (r.text ? ': “' + r.text.slice(0, 90) + (r.text.length > 90 ? '…' : '') + '”' : '.'), r.text ? [{ label: 'Manter', fn: () => acceptText(t, r) }] : [], 15000);
+    return;
+  }
+  await acceptText(t, r);
+}
+async function acceptText(t, r) {
+  const fx = applyRules(r.text, getRules());
+  Object.assign(t, { status: 'ok', text: fx.text, base: fx.text, raw: r.text, fix: fx.applied, low: isLowConfidence(r.segments), audio: null, error: null });
+  await dbPut('textos', t);
+  markDirty(t.caseName); vib([30, 40, 60]); refresh();
 }
 
 let wakeLock = null;
@@ -694,7 +1121,7 @@ function releaseWakeLock() { try { wakeLock && wakeLock.release(); } catch (e) {
 // ── Estado de tela ──────────────────────────────────────────────────────────
 const optCopy = () => ls.get(K.copy, '1') === '1';
 const activeSec = () => ls.get(K.sec, SECTIONS[0].id);
-let view = 'vCaso', revSec = null;
+let view = 'vCaso', revSec = null, lastShot = null; // lastShot: última foto do caso ativo (alvo do microfone da Captura)
 function show(v) {
   if (v !== 'vCaso' && !ls.get(K.active, '')) v = 'vCaso';
   view = v;
@@ -702,6 +1129,8 @@ function show(v) {
   $('tabs').hidden = v === 'vCap';
   document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   if (v === 'vCap') startCamera(); else stopCamera();
+  if (v === 'vCaso') stopMic();
+  else if (groqKey() && !mic.stream) initMic();
   refresh();
 }
 const objUrls = [];
@@ -717,7 +1146,8 @@ function statusLabel(p) {
   return ['na fila de envio', 's-q'];
 }
 
-let refreshing = false, refreshAgain = false;
+let refreshing = false, refreshAgain = false, revPending = false;
+const suggestions = new Map(); // id do texto -> regra sugerida após uma correção
 async function refresh() {
   if (refreshing) { refreshAgain = true; return; }
   refreshing = true;
@@ -725,7 +1155,9 @@ async function refresh() {
     freeUrls();
     const name = ls.get(K.active, '');
     const photos = name ? await photosOf(name) : [];
+    const texts = name ? await textsOf(name) : [];
     const c = counts(photos);
+    const nt = texts.filter(t => t.status === 'ok').length;
     renderAcct();
     // Caso
     $('noCase').hidden = !!name; $('caseBox').hidden = !name; $('syncCard').hidden = !name; $('secBox').hidden = !name; $('btnGoCam').hidden = !name;
@@ -733,7 +1165,7 @@ async function refresh() {
     else {
       $('caseNo').textContent = name;
       $('casePath').textContent = BETA_ROOT + ' / Morto / ' + name.slice(0, 4) + ' / ' + name;
-      $('syncTitle').textContent = c.total + (c.total === 1 ? ' foto' : ' fotos');
+      $('syncTitle').textContent = c.total + (c.total === 1 ? ' foto' : ' fotos') + ' · ' + nt + (nt === 1 ? ' descrição' : ' descrições');
       $('syncQueue').textContent = c.queued ? c.queued + ' na fila' : '';
       $('syncBar').style.width = (c.total ? Math.round(c.verified / c.total * 100) : 0) + '%';
       $('syncSub').textContent = c.verified + ' no Drive com hash conferido' + (c.error ? ' · ' + c.error + ' com problema' : '');
@@ -744,8 +1176,9 @@ async function refresh() {
       $('btnRelease').textContent = rel.length === 1 ? 'Apagar cópia do celular' : 'Apagar cópias do celular (' + rel.length + ')';
       const sl = $('secList'); sl.textContent = '';
       for (const s of SECTIONS) {
-        const n = photos.filter(p => p.sec === s.id).length;
-        sl.append(h('button', { class: 'sec' + (s.id === activeSec() ? ' active' : ''), onclick: () => { ls.set(K.sec, s.id); refresh(); } }, h('span', null, s.name), h('span', { class: 'n' }, n ? n + (n === 1 ? ' foto' : ' fotos') : 'vazia')));
+        const n = photos.filter(p => p.sec === s.id).length, m = texts.filter(t => t.sec === s.id && t.status === 'ok').length;
+        const lab = [n ? n + (n === 1 ? ' foto' : ' fotos') : '', m ? m + (m === 1 ? ' texto' : ' textos') : ''].filter(Boolean).join(' · ') || 'vazia';
+        sl.append(h('button', { class: 'sec' + (s.id === activeSec() ? ' active' : ''), onclick: () => { ls.set(K.sec, s.id); refresh(); } }, h('span', null, s.name), h('span', { class: 'n' }, lab)));
       }
     }
     // Captura
@@ -753,8 +1186,9 @@ async function refresh() {
     if (!cs.options.length) for (const s of SECTIONS) cs.append(h('option', { value: s.id }, s.name));
     cs.value = activeSec();
     $('capDot').className = 'dot ' + (c.queued ? 'warn' : c.error ? 'err' : 'on');
-    $('capStatus').textContent = (name ? name.slice(5) + ' · ' : '') + c.verified + ' no Drive' + (c.queued ? ' · ' + c.queued + ' na fila' : '');
-    $('capCount').textContent = String(photos.filter(p => p.sec === activeSec()).length);
+    $('capStatus').textContent = (name ? name.slice(5) + ' · ' : '') + photos.filter(p => p.sec === activeSec()).length + ' nesta seção · ' + c.verified + ' no Drive' + (c.queued ? ' · ' + c.queued + ' na fila' : '');
+    lastShot = photos.slice().sort((a, b) => b.takenAt - a.takenAt)[0] || null;
+    renderBubble(photos, texts);
     const strip = $('strip'); strip.textContent = '';
     for (const p of photos.slice().sort((a, b) => b.takenAt - a.takenAt).slice(0, 5).reverse()) {
       const th = h('div', { class: 'thumb' });
@@ -763,37 +1197,144 @@ async function refresh() {
       strip.append(th);
     }
     // Revisão
-    if (view === 'vRev') renderRev(photos);
+    if (view === 'vRev') {
+      const editing = document.activeElement && document.activeElement.tagName === 'TEXTAREA' && $('revList').contains(document.activeElement);
+      if (mic.capturing || pressing || editing) revPending = true; else { revPending = false; renderRev(photos, texts); }
+    }
   } finally {
     refreshing = false;
     if (refreshAgain) { refreshAgain = false; refresh(); }
   }
 }
 
-function renderRev(photos) {
+function autoResize(ta) { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
+const MIC_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+function pttButton(label, target) {
+  const b = h('button', { class: 'btn sm ptt-inline' }); b.innerHTML = MIC_SVG; b.append(' ' + label);
+  bindPTT(b, () => target);
+  return b;
+}
+function sectionSelect(value, onchange) {
+  const sel = h('select', { 'aria-label': 'Mover para outra seção' });
+  for (const s of SECTIONS) sel.append(h('option', { value: s.id }, s.name));
+  sel.value = value; sel.addEventListener('change', () => onchange(sel.value));
+  return sel;
+}
+function textEl(t) {
+  const box = h('div', { class: 'desc' + (t.status === 'failed' ? ' failed' : '') });
+  if (t.status === 'pending') { box.append(h('span', { class: 'st' }, 'transcrevendo…')); return box; }
+  if (t.status === 'failed') {
+    box.append(h('span', { class: 'st' }, (t.error || 'Falha na transcrição.') + ' O áudio está guardado.'),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn sm', onclick: async () => { await patchText(t.id, { status: 'pending', error: null }); refresh(); runTranscribe(); } }, 'Tentar de novo'),
+        h('button', { class: 'btn sm ghost', onclick: async () => { if (confirm('Descartar este áudio? O ditado será perdido.')) { await dbDel('textos', t.id); refresh(); } } }, 'Descartar áudio')));
+    return box;
+  }
+  const ta = h('textarea', { rows: '1', spellcheck: 'false', 'aria-label': 'Descrição' });
+  ta.value = t.text;
+  ta.addEventListener('input', () => autoResize(ta));
+  ta.addEventListener('change', async () => {
+    const before = t.base != null ? t.base : t.text;
+    t.text = ta.value; t.base = ta.value;
+    await patchText(t.id, { text: t.text, base: t.base });
+    markDirty(t.caseName);
+    const sug = suggestRule(before, t.text);
+    if (sug && !getRules().some(r => r.from.toLowerCase() === sug.from.toLowerCase())) suggestions.set(t.id, sug);
+    else suggestions.delete(t.id);
+    refresh();
+  });
+  requestAnimationFrame(() => autoResize(ta));
+  box.append(ta);
+  const sug = suggestions.get(t.id);
+  if (sug) {
+    const sb = h('div', { class: 'suggest' });
+    const msg = h('span'); msg.append('Trocar sempre ', h('b', null, '“' + sug.from + '”'), ' por ', h('b', null, '“' + sug.to + '”'), ' nas próximas transcrições?');
+    sb.append(msg, h('div', { class: 'row' },
+      h('button', { class: 'btn sm', style: 'border-color:var(--accent-border);color:var(--accent)', onclick: () => { setRules(getRules().concat([sug])); suggestions.delete(t.id); banner('rule', 'ok', 'Regra salva no dicionário.', [], 3000); refresh(); } }, 'Salvar regra'),
+      h('button', { class: 'btn sm ghost', onclick: () => { suggestions.delete(t.id); refresh(); } }, 'Agora não')));
+    box.append(sb);
+  }
+  const tags = h('div', { class: 'tags' });
+  if (t.low) tags.append(h('span', { class: 'tag amber', title: 'O modelo teve baixa confiança neste trecho' }, 'conferir'));
+  const nfix = (t.fix || []).reduce((a, f) => a + f.n, 0);
+  if (nfix) {
+    const raw = h('div', { class: 'raw', hidden: true }, 'Original: ' + t.raw);
+    tags.append(h('button', { class: 'tag accent', onclick: () => { raw.hidden = !raw.hidden; } }, nfix + (nfix === 1 ? ' correção' : ' correções')));
+    box.append(tags, raw);
+  } else if (tags.childNodes.length) box.append(tags);
+  return box;
+}
+async function deleteText(t) {
+  if (!confirm('Excluir esta descrição?')) return;
+  await dbDel('textos', t.id);
+  await updateCase(t.caseName, r => { r.deleted = (r.deleted || []).concat([t.id]); });
+  markDirty(t.caseName); refresh();
+}
+function renderRev(photos, texts) {
   if (!revSec) revSec = activeSec();
   const chips = $('revChips'); chips.textContent = '';
   for (const s of SECTIONS) {
-    const n = photos.filter(p => p.sec === s.id).length;
+    const n = photos.filter(p => p.sec === s.id).length + texts.filter(t => t.sec === s.id && !t.photoId).length;
     chips.append(h('button', { class: 'chip' + (s.id === revSec ? ' on' : ''), onclick: () => { revSec = s.id; refresh(); } }, s.name + (n ? ' ' + n : '')));
   }
+  const caseName = ls.get(K.active, '');
   const list = $('revList'); list.textContent = '';
-  const items = photos.filter(p => p.sec === revSec).sort((a, b) => a.takenAt - b.takenAt);
-  if (!items.length) { list.append(h('div', { class: 'empty' }, 'Nenhuma foto nesta seção.')); return; }
-  items.forEach((p, i) => {
-    const [txt, cls] = statusLabel(p);
-    const ph = h('div', { class: 'ph' }); if (p.thumb) ph.style.backgroundImage = 'url(' + blobUrl(p.thumb) + ')';
-    const mv = h('select', { 'aria-label': 'Mover para outra seção' });
-    for (const s of SECTIONS) mv.append(h('option', { value: s.id }, s.name));
-    mv.value = p.sec;
-    mv.addEventListener('change', async () => { await patchPhoto(p.id, { sec: mv.value }); if (p.status === 'verified') { try { await writeManifest(p.caseName); } catch (e) { kickQueue(); } } refresh(); });
-    const actions = h('div', { class: 'row' }, mv);
-    if (p.status === 'queued' && !p.sending) actions.append(h('button', { class: 'btn sm ghost', onclick: async () => { if (confirm('Excluir esta foto do celular? Ela ainda não foi enviada ao Drive.')) { await dbDel('photos', p.id); refresh(); } } }, 'Excluir'));
-    list.append(h('div', { class: 'item' }, ph, h('div', { class: 'body' },
-      h('span', { class: 'name' }, (i + 1) + '. ' + p.name),
-      h('span', { class: 'meta' }, hm(p.takenAt) + ' · ' + (p.width ? p.width + '×' + p.height : '') + ' · ' + (p.size / 1048576).toFixed(1) + ' MB' + (p.fallback ? ' · resolução reduzida' : '')),
-      h('span', { class: 'meta ' + cls }, txt), actions)));
-  });
+  const byPhoto = new Map();
+  for (const t of texts) if (t.photoId) { if (!byPhoto.has(t.photoId)) byPhoto.set(t.photoId, []); byPhoto.get(t.photoId).push(t); }
+  const known = new Set(photos.map(p => p.id));
+  const items = photos.filter(p => p.sec === revSec).map(p => ({ k: 'p', at: p.takenAt, p }))
+    .concat(texts.filter(t => t.sec === revSec && (!t.photoId || !known.has(t.photoId))).map(t => ({ k: 't', at: t.ts, t })))
+    .sort((a, b) => a.at - b.at);
+  if (!items.length) list.append(h('div', { class: 'empty' }, 'Nada nesta seção ainda.'));
+  let n = 0;
+  for (const it of items) {
+    if (it.k === 'p') {
+      const p = it.p; n++;
+      const [txt, cls] = statusLabel(p);
+      const ph = h('div', { class: 'ph' }); if (p.thumb) ph.style.backgroundImage = 'url(' + blobUrl(p.thumb) + ')';
+      const mv = sectionSelect(p.sec, async v => {
+        await patchPhoto(p.id, { sec: v });
+        for (const t of byPhoto.get(p.id) || []) await patchText(t.id, { sec: v });
+        markDirty(p.caseName); refresh();
+      });
+      const actions = h('div', { class: 'row' }, mv, pttButton((byPhoto.get(p.id) || []).length ? 'Ditar mais' : 'Segurar e ditar', { caseName, sec: p.sec, photoId: p.id }));
+      if (p.status === 'queued' && !p.sending) actions.append(h('button', { class: 'btn sm ghost', onclick: async () => { if (confirm('Excluir esta foto do celular? Ela ainda não foi enviada ao Drive.')) { await dbDel('photos', p.id); for (const t of byPhoto.get(p.id) || []) await patchText(t.id, { photoId: null }); refresh(); } } }, 'Excluir foto'));
+      const body = h('div', { class: 'body' },
+        h('span', { class: 'name' }, n + '. ' + p.name),
+        h('span', { class: 'meta' }, hm(p.takenAt) + ' · ' + (p.width ? p.width + '×' + p.height : '') + ' · ' + (p.size / 1048576).toFixed(1) + ' MB' + (p.fallback ? ' · resolução reduzida' : '')),
+        h('span', { class: 'meta ' + cls }, txt));
+      const ds = (byPhoto.get(p.id) || []).sort((a, b) => a.ts - b.ts);
+      if (!ds.length) body.append(h('span', { class: 'meta', style: 'font-style:italic' }, 'sem descrição'));
+      for (const t of ds) { const el = textEl(t); if (t.status === 'ok') el.querySelector('.tags') || el.append(h('div', { class: 'tags' })); const del = h('button', { class: 'tag', onclick: () => deleteText(t) }, 'excluir texto'); (el.querySelector('.tags') || el).append(del); body.append(el); }
+      body.append(actions);
+      list.append(h('div', { class: 'item' }, ph, body));
+    } else {
+      const t = it.t;
+      const icon = h('div', { class: 'textph' }); icon.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 6h14M5 11h14M5 16h9"/></svg>';
+      const body = h('div', { class: 'body' }, h('span', { class: 'meta' }, hm(t.ts) + ' · texto sem foto'), textEl(t),
+        h('div', { class: 'row' }, sectionSelect(t.sec, async v => { await patchText(t.id, { sec: v }); markDirty(t.caseName); refresh(); }),
+          h('button', { class: 'btn sm ghost', onclick: () => deleteText(t) }, 'Excluir')));
+      list.append(h('div', { class: 'item' }, icon, body));
+    }
+  }
+}
+function renderBubble(photos, texts) {
+  const b = $('capBubble');
+  const last = photos.slice().sort((a, c) => c.takenAt - a.takenAt)[0];
+  if (mic.capturing && mic.target) {
+    b.hidden = false; $('capBubbleWho').textContent = mic.target.photoId ? 'Gravando a descrição da foto ' + photoIndex(photos, mic.target.photoId) + '…' : 'Gravando ditado sem foto…'; $('capBubbleTxt').textContent = ''; return;
+  }
+  if (!last) { b.hidden = true; return; }
+  const ts = texts.filter(t => t.photoId === last.id).sort((a, c) => c.ts - a.ts);
+  if (!ts.length) { b.hidden = true; return; }
+  const t = ts[0];
+  b.hidden = false;
+  $('capBubbleWho').textContent = 'Descrição da foto ' + photoIndex(photos, last.id) + (t.status === 'pending' ? ' · transcrevendo…' : t.status === 'failed' ? ' · falhou (ver Revisão)' : '');
+  $('capBubbleTxt').textContent = t.status === 'ok' ? t.text : '';
+}
+function photoIndex(photos, id) {
+  const p = photos.find(x => x.id === id); if (!p) return '?';
+  return photos.filter(x => x.sec === p.sec).sort((a, b) => a.takenAt - b.takenAt).findIndex(x => x.id === id) + 1;
 }
 
 async function renderRecent() {
@@ -831,10 +1372,11 @@ async function exportCopy() {
       entries.push({ name: 'Originais/' + p.name, bytes: new Uint8Array(await p.blob.arrayBuffer()), date: new Date(p.takenAt) });
       sums.push(p.sha256 + '  Originais/' + p.name);
     }
-    const all = await photosOf(name);
-    const man = buildManifest(name, all.map(p => Object.assign({}, p, { status: 'verified' })), null);
+    const all = await photosOf(name), texts = await textsOf(name);
+    const man = buildManifest(name, all.map(p => Object.assign({}, p, { status: 'verified' })), null, texts);
     man.observacao = 'Cópia local gerada no celular. Registros ainda não confirmados no Drive aparecem aqui com o hash calculado no celular.';
     entries.push({ name: 'caso.json', bytes: new TextEncoder().encode(JSON.stringify(man, null, 2)), date: now });
+    entries.push({ name: 'transcricao.txt', bytes: new TextEncoder().encode(buildTranscript(name, all, texts)), date: now });
     entries.push({ name: 'SHA256SUMS.txt', bytes: new TextEncoder().encode(sums.join('\n') + '\n'), date: now });
     const file = exportName(name, now);
     const blob = new Blob(zipParts(entries), { type: 'application/zip' });
@@ -842,10 +1384,7 @@ async function exportCopy() {
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 60000);
     for (const p of ps) await patchPhoto(p.id, p.status === 'verified' ? { copied: true, blob: null } : { copied: true });
-    const rec = (await dbGet('cases', name)) || { name, createdAt: Date.now() };
-    rec.exports = (rec.exports || []).concat([{ file, ids: ps.map(p => p.id), at: now.getTime(), released: false }]);
-    await dbPut('cases', rec);
-    caseFolderCache.delete(name);
+    await updateCase(name, r => { r.exports = (r.exports || []).concat([{ file, ids: ps.map(p => p.id), at: now.getTime(), released: false }]); });
     banner('export', 'ok', 'Cópia salva em Downloads: ' + file + ' (' + ps.length + (ps.length === 1 ? ' foto' : ' fotos') + ', ' + (blob.size / 1048576).toFixed(0) + ' MB).', [], 10000);
   } catch (e) {
     banner('export', 'err', 'Não foi possível salvar a cópia: ' + (e && e.message || e));
@@ -865,7 +1404,41 @@ async function release() {
 }
 
 // ── Configuração ────────────────────────────────────────────────────────────
-function openSheet() { renderAcct(); $('sheet').hidden = false; storageInfo(); }
+function openSheet() { renderAcct(); $('groqKey').value = groqKey(); $('optDelay').value = ls.get(K.delay, '500'); renderRules(); renderCtx(); $('sheet').hidden = false; storageInfo(); }
+function renderRules() {
+  const box = $('ruleList'); if (!box) return; box.textContent = '';
+  const rs = getRules();
+  if (!rs.length) { box.append(h('p', { class: 'help' }, 'Nenhuma regra ainda.')); return; }
+  rs.forEach((r, i) => box.append(h('div', { class: 'rule' }, h('span', null, r.from + ' → ' + r.to), h('button', { class: 'btn sm ghost', 'aria-label': 'Excluir regra', onclick: () => { const a = getRules(); a.splice(i, 1); setRules(a); } }, '✕'))));
+}
+function renderCtx() {
+  const box = $('ctxList'); box.textContent = ''; const c = getCtx();
+  for (const s of SECTIONS) {
+    const ta = h('textarea', { class: 'ctx', 'aria-label': 'Contexto de ' + s.name, spellcheck: 'false' }); ta.value = c[s.id] || '';
+    const tok = h('span', { class: 'tok' });
+    const upd = () => { const n = estimateTokens(ta.value); tok.textContent = '≈ ' + n + ' de ' + TOKEN_LIMIT + ' tokens' + (n > TOKEN_LIMIT ? ' — acima do limite' : ''); tok.className = 'tok' + (n > TOKEN_LIMIT ? ' over' : ''); };
+    ta.addEventListener('input', () => { setCtx(s.id, ta.value); upd(); }); upd();
+    box.append(h('div', { style: 'display:flex;flex-direction:column;gap:4px' }, h('span', { style: 'font-size:13px;font-weight:500' }, s.name), ta, tok));
+  }
+}
+// O app de ditado fica no mesmo endereço (github.io), então os dados dele estão acessíveis aqui.
+function importDictation(silent) {
+  let t = null; try { t = JSON.parse(localStorage.getItem('tf4_settings') || 'null'); } catch (e) {}
+  if (!t) { if (!silent) banner('import', 'warn', 'Nenhuma configuração do app de ditado foi encontrada neste navegador.', [], 6000); return false; }
+  const got = [];
+  if (t.apiKey && (!groqKey() || !silent)) { ls.set(K.groq, t.apiKey); got.push('chave Groq'); }
+  if (Array.isArray(t.rules) && t.rules.length) {
+    const cur = getRules(); let n = 0;
+    for (const r of t.rules) if (r && r.from && !cur.some(x => x.from.toLowerCase() === r.from.toLowerCase())) { cur.push({ from: r.from, to: r.to }); n++; }
+    if (n) { ls.set(K.rules, JSON.stringify(cur)); got.push(n + (n === 1 ? ' regra' : ' regras')); }
+  }
+  if (Array.isArray(t.sections)) { let n = 0; for (const s of t.sections) if (s && SECTIONS.some(x => x.id === s.id) && s.context && s.context !== DEFAULT_CONTEXT[s.id]) { setCtx(s.id, s.context); n++; } if (n) got.push(n + (n === 1 ? ' contexto' : ' contextos')); }
+  if (got.length) banner('import', 'ok', 'Importado do app de ditado: ' + got.join(', ') + '.', [], 8000);
+  else if (!silent) banner('import', 'info', 'O app de ditado não tinha nada novo para importar.', [], 5000);
+  if ($('groqKey')) $('groqKey').value = groqKey();
+  renderRules(); if (!$('sheet').hidden) renderCtx();
+  return got.length > 0;
+}
 function closeSheet() { $('sheet').hidden = true; }
 async function storageInfo() {
   try {
@@ -900,10 +1473,28 @@ function bind() {
   $('capSec').addEventListener('change', e => { ls.set(K.sec, e.target.value); refresh(); });
   $('btnTorch').addEventListener('click', () => setTorch(!cam.torch));
   $('shutter').addEventListener('click', shoot);
-  window.addEventListener('online', () => { setNet(true); kickQueue(); });
+  $('video').addEventListener('click', focusAt);
+  $('revList').addEventListener('focusout', () => setTimeout(() => { if (revPending) refresh(); }, 0));
+  $('expo').addEventListener('input', e => setExposure(e.target.value));
+  bindPTT($('capMic'), () => lastShot ? { caseName: lastShot.caseName, sec: lastShot.sec, photoId: lastShot.id } : null);
+  bindPTT($('btnDictNoPhoto'), () => { const name = ls.get(K.active, ''); return name ? { caseName: name, sec: revSec || activeSec(), photoId: null } : null; });
+  $('groqKey').addEventListener('input', e => ls.set(K.groq, e.target.value.trim()));
+  $('btnImport').addEventListener('click', () => importDictation(false));
+  $('optDelay').addEventListener('change', e => ls.set(K.delay, e.target.value));
+  $('btnRuleAdd').addEventListener('click', () => {
+    const from = $('ruleFrom').value.trim(), to = $('ruleTo').value.trim();
+    if (!from || !to || from.toLowerCase() === to.toLowerCase()) return;
+    const a = getRules().filter(r => r.from.toLowerCase() !== from.toLowerCase()); a.push({ from, to }); setRules(a);
+    $('ruleFrom').value = ''; $('ruleTo').value = '';
+  });
+  window.addEventListener('online', async () => {
+    setNet(true); kickQueue();
+    for (const t of await dbAll('textos')) if (t.status === 'failed' && t.audio) await patchText(t.id, { status: 'pending', error: null });
+    runTranscribe();
+  });
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') stopCamera();
-    else { if (view === 'vCap') startCamera(); kickQueue(); }
+    if (document.visibilityState === 'hidden') { if (pressing) { pressing = false; endCapture('release'); } stopCamera(); stopMic(); }
+    else { if (view === 'vCap') startCamera(); if (view !== 'vCaso' && groqKey()) initMic(); kickQueue(); runTranscribe(); }
   });
   setInterval(() => { renderAcct(); if (!queueBusy) kickQueue(); }, 30000);
 }
@@ -916,8 +1507,10 @@ function bind() {
     await db();
     for (const p of await dbAll('photos')) if (p.sending) await patchPhoto(p.id, { sending: false }); // envio interrompido: volta para a fila
   } catch (e) { banner('db', 'err', 'O armazenamento do aparelho não está disponível. As fotos não poderão ser guardadas.'); }
+  if (!groqKey()) importDictation(true);
   if (!/\.apps\.googleusercontent\.com$/.test(clientId())) openSheet();
   show('vCaso');
+  runTranscribe();
 })();
 </script>
 </body>

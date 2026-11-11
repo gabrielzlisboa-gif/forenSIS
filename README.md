@@ -2,7 +2,7 @@
 
 App para o exame pericial: fotografias e ditado no mesmo registro, enviados direto do celular de serviço para o Google Drive, com conferência de integridade (SHA-256), e um hub no computador para revisar e editar.
 
-**Estado:** fase 1 — captura com câmera no app, fila sem sinal e envio com conferência de integridade. Usar apenas dados fictícios. A página da fase 0 continua em `diagnostico.html`.
+**Estado:** fase 2 — captura com câmera no app (foco por toque, exposição, disparo com espera), ditado ligado à foto, transcrição com dicionário e contexto por seção, envio verificado ao Drive com `caso.json` e `transcricao.txt`. Usar apenas dados fictícios. A página da fase 0 continua em `diagnostico.html`.
 
 ## Isolamento do beta
 
