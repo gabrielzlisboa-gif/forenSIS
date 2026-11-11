@@ -2,7 +2,7 @@
 
 App para o exame pericial: fotografias e ditado no mesmo registro, enviados direto do celular de serviço para o Google Drive, com conferência de integridade (SHA-256), e um hub no computador para revisar e editar.
 
-**Estado:** fase 2 (v0.3.0) — tela do caso com as seções (tocar abre a página da seção) e os botões Câmera e Ditado; depois de cada foto a câmera desliga e a foto fica congelada em tela cheia para conferir e descrever (Descartar, Descrever, Nova foto); visualizador em tela cheia com zoom; transcrição com dicionário e contexto por seção; envio verificado ao Drive com `caso.json` e `transcricao.txt`. Usar apenas dados fictícios. A página da fase 0 continua em `diagnostico.html`.
+**Estado:** fase 2 concluída (v0.3.2); próxima: 2.1, uso em campo — tela do caso com as seções (tocar abre a página da seção) e os botões Câmera e Ditado; depois de cada foto a câmera desliga e a foto fica congelada em tela cheia para conferir e descrever (Descartar, Descrever, Nova foto); visualizador em tela cheia com zoom; transcrição com dicionário e contexto por seção; envio verificado ao Drive com `caso.json` e `transcricao.txt`. Usar apenas dados fictícios. A página da fase 0 continua em `diagnostico.html`.
 
 ## Isolamento do beta
 
@@ -25,11 +25,34 @@ App para o exame pericial: fotografias e ditado no mesmo registro, enviados dire
 
 ## Fases
 
-| Fase | Conteúdo |
-|---|---|
-| 0 | Login, pastas de teste, envio com SHA-256, diagnóstico da câmera |
-| 1 | Câmera no app, fila sem sinal, cópia em Downloads |
-| 2 | Ditado ligado à foto, seções |
-| 3 | Hub no computador |
-| 4 | Fechamento: 7z, verificação, sanitizado |
-| 5 | Lançamento na pasta real |
+| Fase | Conteúdo | Situação |
+|---|---|---|
+| 0 | Login, pastas de teste, envio com SHA-256, diagnóstico da câmera | feita |
+| 1 | Câmera no app, fila sem sinal | feita |
+| 2 | Ditado ligado à foto, seções, foto congelada, tela cheia, exclusão com lixeira do Drive | feita |
+| 2.1 | **Uso em campo** (ver abaixo) | próxima |
+| 3 | Hub no computador | |
+| 4 | **Fechamento e selagem** (ver abaixo) | |
+| 5 | **Lançamento** (ver abaixo) | |
+
+### 2.1 — Uso em campo
+- *Service worker* e instalação como aplicativo: o app abre sem internet na sala e o armazenamento ganha proteção contra limpeza automática.
+- Renovação automática do login do Google antes de vencer (hoje, a cada 1 hora).
+- Teste de campo no Moto G100: uso com luvas (toque, segurar para ditar, pinça), bateria num exame completo, tempo de religar a câmera.
+- ~~Cópia local (.zip em Downloads, sem senha) desligada por padrão~~ — feito na v0.3.2.
+
+### 4 — Fechamento e selagem
+- Pacote 7z com senha, verificação dos hashes e versão sanitizada.
+- Selagem do caso: lista de hashes enviada ao e-mail institucional e/ou carimbo de tempo externo (RFC 3161), para provar data e integridade além do `caso.json`.
+- Senha fora do código do script de fechamento.
+- Se a cópia local continuar existindo, gerá-la com senha.
+
+### 5 — Lançamento
+- Endereço próprio para o app (domínio próprio), separado de `gabrielzlisboa-gif.github.io`, que é compartilhado com os outros projetos e dá acesso ao armazenamento local.
+- Verificação em duas etapas obrigatória na conta Google usada.
+- Validar com o DPT o uso de conta Google pessoal para as fotos e o envio do áudio do ditado ao Groq.
+- Troca do escopo para a pasta real (`DPT`) e fim do limite de casos fictícios.
+
+### Adiados (versão posterior)
+- Escala métrica nas fotos e calibração no hub.
+- Melhoria da sanitização e reescrita completa do script de fechamento.

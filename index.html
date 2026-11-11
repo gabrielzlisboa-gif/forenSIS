@@ -347,7 +347,8 @@ body.vw-open .banners { position:fixed; left:0; right:0; z-index:16; max-width:6
     <div class="card">
       <span class="label">Cópia no celular</span>
       <label class="row" style="justify-content:space-between"><span>Guardar cópia do exame no celular</span><input type="checkbox" id="optCopy" style="width:22px;height:22px"></label>
-      <p class="help">No fim do exame, o botão "Salvar cópia do exame" grava todas as fotos num único arquivo .zip em Downloads, com um aviso só. O app guarda as fotos até essa cópia ser salva. Desligado, cada foto é apagada do app assim que é confirmada no Drive.</p>
+      <p class="help">Desligado (padrão): cada foto é apagada do app assim que é confirmada no Drive com o hash conferido. Ligado: no fim do exame, o botão "Salvar cópia do exame" grava todas as fotos num único arquivo .zip em Downloads, e o app guarda as fotos até essa cópia ser salva.</p>
+      <p class="help" style="color:var(--amber)">Atenção: o .zip fica sem senha na pasta Downloads, que outros apps do celular conseguem ler. Use só se precisar de uma cópia fora do Drive e apague o arquivo assim que o app avisar que tudo foi conferido.</p>
     </div>
     <div class="card">
       <span class="label">Aparelho</span>
@@ -361,7 +362,7 @@ body.vw-open .banners { position:fixed; left:0; right:0; z-index:16; max-width:6
 <script>
 'use strict';
 /*PURE-START*/
-const VERSION = '0.3.1';
+const VERSION = '0.3.2';
 const BETA_ROOT = 'DPT_BETA';
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -741,6 +742,7 @@ async function runQueue() {
       await sendOne(p);
       refresh();
     }
+    await freeVerified();
     for (const c of (await dbAll('cases')).filter(c => (c.trashQueue || []).length)) {
       for (const x of c.trashQueue) {
         if (!tokenValid()) { needLogin(); break; }
@@ -809,6 +811,11 @@ async function sendOne(p) {
   if (p.copied || !optCopy()) changes.blob = null; // Drive confirmado e cópia no celular feita: libera o espaço do app
   await patchPhoto(p.id, changes);
   await writeManifest(p.caseName);
+}
+// Cópia local desligada: fotos já conferidas no Drive não precisam continuar no celular.
+async function freeVerified() {
+  if (optCopy()) return;
+  for (const p of await dbAll('photos')) if (p.status === 'verified' && p.blob) await patchPhoto(p.id, { blob: null });
 }
 // Move para a lixeira do Drive (recuperável por 30 dias) a foto excluída, achada pelo id ou pelo registro.
 async function trashOne(caseName, x) {
@@ -1224,7 +1231,8 @@ async function requestWakeLock() { try { if ('wakeLock' in navigator && document
 function releaseWakeLock() { try { wakeLock && wakeLock.release(); } catch (e) {} wakeLock = null; }
 
 // ── Estado de tela ──────────────────────────────────────────────────────────
-const optCopy = () => ls.get(K.copy, '1') === '1';
+// Cópia local (.zip em Downloads, sem senha) desligada por padrão: a pasta Downloads é legível por outros apps.
+const optCopy = () => ls.get(K.copy, '0') === '1';
 const activeSec = () => ls.get(K.sec, SECTIONS[0].id);
 const secName = id => (SECTIONS.find(s => s.id === id) || { name: id }).name;
 // view: tela de fundo (vCaso, vSec, vCap). O visualizador (vw) fica por cima de qualquer uma.
@@ -1788,7 +1796,7 @@ function bind() {
   $('clientId').value = ls.get(K.client, '');
   $('clientId').addEventListener('input', () => ls.set(K.client, clientId()));
   $('optCopy').checked = optCopy();
-  $('optCopy').addEventListener('change', e => ls.set(K.copy, e.target.checked ? '1' : '0'));
+  $('optCopy').addEventListener('change', e => { ls.set(K.copy, e.target.checked ? '1' : '0'); if (!e.target.checked) freeVerified(); refresh(); });
   $('btnOpenCase').addEventListener('click', () => openCase($('newCase').value));
   $('newCase').addEventListener('keydown', e => { if (e.key === 'Enter') openCase($('newCase').value); });
   $('btnSwitch').addEventListener('click', async () => {
