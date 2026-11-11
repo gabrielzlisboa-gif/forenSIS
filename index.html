@@ -167,7 +167,7 @@ nav.tabs button.on { color:var(--accent); font-weight:600; }
 
   <!-- CAPTURA -->
   <section class="view" id="vCap" hidden>
-    <video id="video" playsinline muted></video>
+    <video id="video" playsinline muted autoplay></video>
     <div class="flash" id="flash"></div>
     <div class="cap-top">
       <button class="round" id="btnCapBack" aria-label="Voltar ao caso"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
@@ -233,7 +233,7 @@ nav.tabs button.on { color:var(--accent); font-weight:600; }
 <script>
 'use strict';
 /*PURE-START*/
-const VERSION = '0.1.0';
+const VERSION = '0.1.1';
 const BETA_ROOT = 'DPT_BETA';
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -290,7 +290,7 @@ const SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const API = 'https://www.googleapis.com/drive/v3';
 const UPL = 'https://www.googleapis.com/upload/drive/v3/files';
 const FOLDER = 'application/vnd.google-apps.folder';
-const K = { client: 'forensis_client_id', active: 'forensis_case', sec: 'forensis_sec', copy: 'forensis_copy', recent: 'forensis_recent' };
+const K = { prev: 'forensis_preview_step', client: 'forensis_client_id', active: 'forensis_case', sec: 'forensis_sec', copy: 'forensis_copy', recent: 'forensis_recent' };
 
 const $ = id => document.getElementById(id);
 function h(tag, attrs, ...kids) {
@@ -527,28 +527,65 @@ async function writeManifest(caseName) {
 }
 
 // ── Câmera ──────────────────────────────────────────────────────────────────
-const cam = { stream: null, track: null, ic: null, caps: null, torch: false, busy: false };
+const cam = { stream: null, track: null, ic: null, caps: null, torch: false, busy: false, starting: false, info: '' };
+// A prévia usa resolução moderada: em vários Android, um vídeo de 12 MP funciona
+// para a foto mas não é desenhado na tela (prévia preta). A foto é tirada à parte,
+// pelo ImageCapture, na resolução máxima do sensor.
+const PREVIEW_STEPS = [{ w: 1920, h: 1440 }, { w: 1280, h: 960 }, { w: 640, h: 480 }];
+async function openStream(st) {
+  cam.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: st.w }, height: { ideal: st.h } } });
+  cam.track = cam.stream.getVideoTracks()[0];
+  const v = $('video');
+  v.srcObject = cam.stream;
+  try { await v.play(); } catch (e) {}
+  if ('ImageCapture' in window) {
+    cam.ic = new ImageCapture(cam.track);
+    try { cam.caps = await cam.ic.getPhotoCapabilities(); } catch (e) { cam.caps = null; }
+  }
+  const tc = cam.track.getCapabilities ? cam.track.getCapabilities() : {};
+  $('btnTorch').hidden = !tc.torch;
+  if (cam.torch) setTorch(true);
+}
+// Confirma que a prévia está de fato produzindo imagens.
+function previewAlive(ms) {
+  const v = $('video');
+  return new Promise(resolve => {
+    let done = false;
+    const finish = ok => { if (!done) { done = true; resolve(ok); } };
+    setTimeout(() => finish(v.videoWidth > 0 && v.currentTime > 0), ms);
+    if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(() => finish(v.videoWidth > 0));
+    else { const t0 = v.currentTime; const iv = setInterval(() => { if (v.currentTime > t0 && v.videoWidth > 0) { clearInterval(iv); finish(true); } }, 100); setTimeout(() => clearInterval(iv), ms); }
+  });
+}
+function describeCam(step) {
+  const v = $('video');
+  const photo = cam.caps && cam.caps.imageWidth ? cam.caps.imageWidth.max + '×' + cam.caps.imageHeight.max : 'resolução da prévia';
+  cam.info = 'Prévia ' + v.videoWidth + '×' + v.videoHeight + ' (nível ' + (step + 1) + ' de ' + PREVIEW_STEPS.length + ') · foto ' + photo;
+}
 async function startCamera() {
-  if (cam.stream) return;
+  if (cam.stream || cam.starting) return;
+  cam.starting = true;
   $('capMsg').hidden = true;
   try {
-    cam.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 4096 }, height: { ideal: 3072 } } });
-    cam.track = cam.stream.getVideoTracks()[0];
-    $('video').srcObject = cam.stream;
-    await $('video').play().catch(() => {});
-    if ('ImageCapture' in window) {
-      cam.ic = new ImageCapture(cam.track);
-      try { cam.caps = await cam.ic.getPhotoCapabilities(); } catch (e) { cam.caps = null; }
+    let step = Math.min(Number(ls.get(K.prev, '0')) || 0, PREVIEW_STEPS.length - 1);
+    for (; step < PREVIEW_STEPS.length; step++) {
+      await openStream(PREVIEW_STEPS[step]);
+      if (view !== 'vCap') { stopCamera(); return; }
+      if (await previewAlive(2500)) { ls.set(K.prev, String(step)); describeCam(step); requestWakeLock(); return; }
+      stopCamera();
     }
-    const tc = cam.track.getCapabilities ? cam.track.getCapabilities() : {};
-    $('btnTorch').hidden = !tc.torch;
-    if (cam.torch) setTorch(true);
+    // Nenhuma tentativa mostrou imagem: abre a menor e mantém a foto possível.
+    step = PREVIEW_STEPS.length - 1;
+    await openStream(PREVIEW_STEPS[step]);
+    describeCam(step); cam.info += ' · sem prévia';
     requestWakeLock();
+    $('capMsg').hidden = false;
+    $('capMsg').textContent = 'A prévia da câmera não apareceu neste aparelho, mas as fotos continuam sendo salvas. Em Configurações › Aparelho há os dados da câmera para me enviar.';
   } catch (e) {
     stopCamera();
     $('capMsg').hidden = false;
     $('capMsg').textContent = e && e.name === 'NotAllowedError' ? 'Permissão da câmera negada. Libere a câmera para este site nas configurações do Chrome.' : 'Não foi possível abrir a câmera: ' + (e && e.message || e);
-  }
+  } finally { cam.starting = false; }
 }
 function stopCamera() {
   if (cam.stream) cam.stream.getTracks().forEach(t => t.stop());
@@ -762,7 +799,7 @@ async function storageInfo() {
   try {
     const e = await navigator.storage.estimate();
     const persisted = navigator.storage.persisted ? await navigator.storage.persisted() : false;
-    $('storageInfo').textContent = 'Espaço usado pelo app: ' + (e.usage / 1048576).toFixed(0) + ' MB de ' + (e.quota / 1073741824).toFixed(1) + ' GB disponíveis. Armazenamento ' + (persisted ? 'protegido contra limpeza automática.' : 'sem proteção contra limpeza automática.');
+    $('storageInfo').textContent = (cam.info ? 'Câmera: ' + cam.info + '. ' : '') + 'Espaço usado pelo app: ' + (e.usage / 1048576).toFixed(0) + ' MB de ' + (e.quota / 1073741824).toFixed(1) + ' GB disponíveis. Armazenamento ' + (persisted ? 'protegido contra limpeza automática.' : 'sem proteção contra limpeza automática.');
   } catch (e) { $('storageInfo').textContent = '—'; }
 }
 
