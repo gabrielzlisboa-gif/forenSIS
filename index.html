@@ -65,11 +65,58 @@ input, select { font-family:inherit; color:var(--text); }
 .sec .n { font-family:var(--mono); font-size:12px; color:var(--text-sec); }
 .sec.active .n { color:var(--accent); }
 
-nav.tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border-top:1px solid var(--border); height:60px; padding-bottom:env(safe-area-inset-bottom); }
-nav.tabs button { background:transparent; border:none; font-size:13px; color:var(--text-sec); }
-nav.tabs button.on { color:var(--accent); font-weight:600; }
+.sec .r { display:flex; align-items:center; gap:8px; }
+.sec .chev { color:var(--text-muted); font-size:20px; line-height:1; }
 
-/* Captura */
+/* Barra de ações: Câmera e Ditado */
+.actbar { flex-shrink:0; border-top:1px solid var(--border); background:var(--bg); padding:10px 16px calc(12px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:10px; }
+.two { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.bigbtn { height:64px; border-radius:14px; display:flex; align-items:center; justify-content:center; gap:10px; font:600 16px var(--sans); border:1px solid var(--border-strong); background:var(--surface2); }
+.bigbtn svg, .bigbtn .bl { pointer-events:none; }
+.bigbtn .bl { display:flex; flex-direction:column; align-items:flex-start; line-height:1.2; }
+.bigbtn .bl small { font-size:11px; font-weight:400; opacity:.85; }
+.bigbtn.cam { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+.bigbtn.dict { border:2px solid var(--red-border); background:var(--red-dim); color:var(--red); touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+.bigbtn.dict.rec { background:var(--red); color:#2a0c0c; box-shadow:0 0 0 6px rgba(232,106,106,.18); }
+.bigbtn.dict.wake { border-color:var(--amber); color:var(--amber); }
+.secline { display:flex; align-items:center; gap:10px; font-size:13px; color:var(--text-sec); }
+.secline select { flex:1; min-width:0; height:38px; border-radius:10px; border:1px solid var(--border-strong); background:var(--surface); padding:0 10px; font-size:14px; }
+.last { padding:8px 12px; border-radius:10px; background:var(--surface); border:1px solid var(--border); display:flex; flex-direction:column; gap:2px; text-align:left; width:100%; }
+.last .who { font-size:12px; color:var(--text-sec); }
+.last .txt { font-family:var(--mono); font-size:13px; line-height:1.45; max-height:2.9em; overflow:hidden; }
+.last.rec { border-color:var(--red-border); }
+
+/* Página da seção */
+.sechead { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.sechead .t { flex:1; min-width:0; display:flex; flex-direction:column; }
+.sechead .t b { font-size:17px; font-weight:600; }
+.sechead .t span { font-size:12px; color:var(--text-sec); }
+.iconbtn { width:44px; height:44px; border-radius:22px; border:1px solid var(--border); background:var(--surface); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+
+/* Visualizador em tela cheia */
+.viewer { position:fixed; inset:0; z-index:15; background:#000; display:flex; flex-direction:column; }
+.vw-stage { flex:1; min-height:0; position:relative; overflow:hidden; touch-action:none; }
+.vw-stage img { position:absolute; left:0; top:0; width:100%; height:100%; object-fit:contain; transform-origin:0 0; -webkit-user-select:none; user-select:none; -webkit-user-drag:none; pointer-events:none; }
+.vw-top { position:absolute; top:0; left:0; right:0; z-index:2; display:flex; align-items:center; gap:8px; padding:calc(10px + env(safe-area-inset-top)) 12px 18px; background:linear-gradient(rgba(0,0,0,.8), transparent); }
+.vw-top .btn { background:rgba(7,8,11,.75); }
+.vw-title { flex:1; min-width:0; display:flex; flex-direction:column; }
+.vw-title b { font-size:15px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.vw-title span { font-size:12px; color:var(--text-sec); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.vw-top select { max-width:48%; height:40px; border-radius:20px; border:1px solid var(--accent-border); background:rgba(7,8,11,.8); padding:0 10px; font-size:13px; }
+.vw-nav { position:absolute; top:50%; z-index:2; margin-top:-24px; width:48px; height:48px; border-radius:24px; border:none; background:rgba(7,8,11,.55); display:flex; align-items:center; justify-content:center; }
+.vw-nav.prev { left:8px; } .vw-nav.next { right:8px; }
+.vw-load { position:absolute; left:50%; bottom:12px; transform:translateX(-50%); z-index:2; font-size:12px; color:var(--text-sec); background:rgba(7,8,11,.75); padding:4px 10px; border-radius:8px; white-space:nowrap; }
+.vw-panel { flex-shrink:0; max-height:48%; display:flex; flex-direction:column; gap:10px; background:var(--bg); border-top:1px solid var(--border); padding:10px 14px calc(12px + env(safe-area-inset-bottom)); }
+.vw-desc { overflow-y:auto; min-height:0; display:flex; flex-direction:column; gap:8px; }
+.vw-meta { font-size:12px; color:var(--text-sec); }
+.vw-acts { display:grid; grid-template-columns:1fr 1.5fr 1fr; gap:8px; align-items:stretch; }
+.vw-acts.normal { grid-template-columns:1fr; }
+.vw-acts .btn { height:56px; }
+.vw-acts .bigbtn { height:56px; font-size:15px; }
+.viewer.bare .vw-top, .viewer.bare .vw-panel, .viewer.bare .vw-nav { display:none; }
+body.vw-open .banners { position:fixed; left:0; right:0; z-index:16; max-width:640px; margin:0 auto; top:calc(78px + env(safe-area-inset-top)); }
+
+/* Câmera */
 #vCap { position:relative; background:#07080b; overflow:hidden; display:flex; flex-direction:column; }
 #video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#1c1f27; }
 .cap-top { position:relative; z-index:2; display:flex; align-items:center; gap:8px; padding:12px; }
@@ -96,11 +143,6 @@ nav.tabs button.on { color:var(--accent); font-weight:600; }
 .shutter.busy span { background:var(--text-muted); }
 .count { font-family:var(--mono); font-size:13px; color:var(--text-sec); text-align:center; }
 
-/* Revisão */
-.chips { display:flex; gap:6px; overflow-x:auto; padding:10px 16px; border-bottom:1px solid var(--border); scrollbar-width:none; flex-shrink:0; }
-.chips::-webkit-scrollbar { display:none; }
-.chip { height:34px; padding:0 12px; border-radius:17px; border:1px solid var(--border-strong); background:transparent; color:var(--text-sec); font-size:13px; white-space:nowrap; }
-.chip.on { border-color:var(--accent-border); background:var(--accent-dim); color:var(--accent); font-weight:500; }
 .item { display:flex; gap:12px; padding:10px; border-radius:12px; background:var(--surface); border:1px solid var(--border); }
 .item .ph { width:76px; height:76px; border-radius:8px; background:#2a2e3a center/cover no-repeat; flex-shrink:0; }
 .item .body { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
@@ -114,9 +156,6 @@ nav.tabs button.on { color:var(--accent); font-weight:600; }
 .mic.rec, .ptt-inline.rec { background:var(--red); color:#2a0c0c; transform:scale(.94); box-shadow:0 0 0 8px rgba(232,106,106,.18); }
 .mic.wake, .ptt-inline.wake { border-color:var(--amber); color:var(--amber); }
 .ptt-inline { touch-action:none; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; border-color:var(--red-border) !important; background:var(--red-dim) !important; color:var(--red) !important; }
-.bubble { position:relative; z-index:2; padding:10px 12px; border-radius:12px; background:rgba(26,29,38,.94); border:1px solid var(--border); display:flex; flex-direction:column; gap:4px; }
-.bubble .who { font-size:12px; color:var(--text-sec); }
-.bubble .txt { font-family:var(--mono); font-size:14px; line-height:1.5; max-height:4.5em; overflow:hidden; }
 .fring { position:absolute; z-index:2; width:72px; height:72px; margin:-36px 0 0 -36px; border:2px solid var(--amber); border-radius:8px; pointer-events:none; transition:opacity .4s; }
 .expo { display:flex; align-items:center; gap:10px; font-size:12px; color:var(--text-sec); }
 .expo input { flex:1; accent-color:var(--amber); }
@@ -133,7 +172,6 @@ nav.tabs button.on { color:var(--accent); font-weight:600; }
 .suggest { font-size:12px; border:1px solid var(--accent-border); background:var(--accent-dim); border-radius:8px; padding:8px; display:flex; flex-direction:column; gap:6px; }
 .suggest b { font-family:var(--mono); font-weight:500; color:var(--accent); }
 .textph { width:76px; height:76px; border-radius:8px; border:1px dashed var(--border-strong); display:flex; align-items:center; justify-content:center; color:var(--text-muted); flex-shrink:0; }
-.revbar { padding:10px 16px calc(10px + env(safe-area-inset-bottom)); border-top:1px solid var(--border); flex-shrink:0; }
 .sheet textarea.ctx { width:100%; min-height:96px; padding:8px 10px; border-radius:8px; border:1px solid var(--border-strong); background:var(--bg); color:var(--text); font:14px/1.5 var(--sans); resize:vertical; }
 .tok { font-family:var(--mono); font-size:11px; color:var(--text-muted); }
 .tok.over { color:var(--red); }
@@ -154,8 +192,8 @@ nav.tabs button.on { color:var(--accent); font-weight:600; }
   <div class="banners" id="banners" aria-live="polite"></div>
 
   <!-- CASO -->
-  <section class="view" id="vCaso">
-    <div class="pad">
+  <section class="view" id="vCaso" style="display:flex;flex-direction:column;overflow:hidden">
+    <div class="pad" style="flex:1;overflow-y:auto">
       <div class="card" id="noCase">
         <span class="label">Novo exame</span>
         <p class="help">Beta: use números fictícios de 9000 a 9999.</p>
@@ -188,11 +226,32 @@ nav.tabs button.on { color:var(--accent); font-weight:600; }
       </div>
 
       <div id="secBox" hidden style="display:flex;flex-direction:column;gap:8px">
-        <span class="label">Seção ativa</span>
-        <div id="secList" style="display:flex;flex-direction:column;gap:8px"></div>
+        <span class="label">Seções</span>
+        <div id="secRows" style="display:flex;flex-direction:column;gap:8px"></div>
       </div>
+    </div>
+    <div class="actbar" id="homeBar" hidden>
+      <button class="last" id="homeLast" hidden><span class="who" id="homeLastWho"></span><span class="txt" id="homeLastTxt"></span></button>
+      <label class="secline"><span>Seção</span><select id="homeSec" aria-label="Seção usada pela câmera e pelo ditado"></select></label>
+      <div class="two">
+        <button class="bigbtn cam" id="btnCam"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Câmera</button>
+        <button class="bigbtn dict" id="btnDict" aria-label="Segurar para ditar sem foto"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span class="bl">Ditado<small>segure e fale</small></span></button>
+      </div>
+    </div>
+  </section>
 
-      <button class="btn primary big" id="btnGoCam" hidden>Abrir câmera</button>
+  <!-- SEÇÃO -->
+  <section class="view" id="vSec" hidden style="display:flex;flex-direction:column;overflow:hidden">
+    <div class="sechead">
+      <button class="iconbtn" id="btnSecBack" aria-label="Voltar ao caso"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="t"><b id="secTitle"></b><span id="secCount"></span></div>
+    </div>
+    <div class="pad" id="secItems" style="flex:1;overflow-y:auto"></div>
+    <div class="actbar">
+      <div class="two">
+        <button class="bigbtn cam" id="btnSecCam"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Câmera</button>
+        <button class="bigbtn dict" id="btnSecDict" aria-label="Segurar para ditar sem foto nesta seção"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span class="bl">Ditado<small>segure e fale</small></span></button>
+      </div>
     </div>
   </section>
 
@@ -209,30 +268,39 @@ nav.tabs button.on { color:var(--accent); font-weight:600; }
     <div class="cap-status"><span class="dot" id="capDot"></span><span id="capStatus">—</span></div>
     <div class="cap-msg" id="capMsg" hidden></div>
     <div class="cap-bottom">
-      <div class="bubble" id="capBubble" hidden><span class="who" id="capBubbleWho"></span><span class="txt" id="capBubbleTxt"></span></div>
       <div class="expo" id="expoRow" hidden><span>Exposição</span><input type="range" id="expo" aria-label="Compensação de exposição"><span class="mono" id="expoVal" style="min-width:34px;text-align:right">0</span></div>
       <div class="strip" id="strip"></div>
-      <div class="count" id="capHint">Toque na imagem para focar · segure o microfone para descrever a última foto</div>
+      <div class="count" id="capHint">Toque na imagem para focar · toque numa miniatura para ampliar</div>
       <div class="controls">
-        <button class="side" id="btnCapRev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Revisar</button>
+        <button class="side" id="btnCapSec"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Seção</button>
         <button class="shutter" id="shutter" aria-label="Tirar foto"><span></span></button>
-        <button class="mic" id="capMic" aria-label="Segurar para ditar a descrição da última foto"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+        <div style="width:64px" aria-hidden="true"></div>
       </div>
     </div>
   </section>
+</div>
 
-  <!-- REVISÃO -->
-  <section class="view" id="vRev" hidden style="display:flex;flex-direction:column;overflow:hidden">
-    <div class="chips" id="revChips"></div>
-    <div class="pad" id="revList" style="flex:1;overflow-y:auto"></div>
-    <div class="revbar"><button class="btn big ptt-inline" id="btnDictNoPhoto">Segurar para ditar sem foto</button></div>
-  </section>
-
-  <nav class="tabs" id="tabs">
-    <button data-v="vCaso" class="on">Caso</button>
-    <button data-v="vCap">Captura</button>
-    <button data-v="vRev">Revisão</button>
-  </nav>
+<!-- Visualizador: foto congelada após o disparo, ou foto tocada na seção -->
+<div class="viewer" id="viewer" hidden>
+  <div class="vw-stage" id="vwStage">
+    <img id="vwImg" alt="Foto do exame" draggable="false">
+    <div class="vw-load" id="vwLoad" hidden></div>
+    <button class="vw-nav prev" id="vwPrev" aria-label="Foto anterior"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <button class="vw-nav next" id="vwFwd" aria-label="Próxima foto"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+  </div>
+  <div class="vw-top">
+    <button class="btn sm" id="vwClose">Fechar</button>
+    <div class="vw-title"><b id="vwTitle"></b><span id="vwSub"></span></div>
+    <select id="vwSec" aria-label="Seção da foto"></select>
+  </div>
+  <div class="vw-panel">
+    <div class="vw-desc" id="vwDesc"></div>
+    <div class="vw-acts" id="vwActs">
+      <button class="btn" id="vwDiscard">Descartar</button>
+      <button class="bigbtn dict" id="vwMic" aria-label="Segurar para descrever esta foto"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span class="bl">Descrever<small>segure e fale</small></span></button>
+      <button class="btn primary" id="vwNew">Nova foto</button>
+    </div>
+  </div>
 </div>
 
 <!-- Conta / configuração -->
@@ -293,7 +361,7 @@ nav.tabs button.on { color:var(--accent); font-weight:600; }
 <script>
 'use strict';
 /*PURE-START*/
-const VERSION = '0.2.1';
+const VERSION = '0.3.0';
 const BETA_ROOT = 'DPT_BETA';
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -467,8 +535,10 @@ function exportName(caseName, d) {
   return 'forenSIS_' + caseName.replace(' ', '-') + '_' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + '.zip';
 }
 function counts(photos) {
-  const c = { total: photos.length, verified: 0, queued: 0, error: 0, toCopy: 0 };
+  // 'review': foto recém-tirada, ainda na tela de conferência; só entra na fila depois de confirmada.
+  const c = { total: photos.length, verified: 0, queued: 0, error: 0, toCopy: 0, review: 0 };
   for (const p of photos) {
+    if (p.status === 'review') { c.review++; continue; }
     if (!p.copied && p.blob) c.toCopy++;
     if (p.status === 'verified') c.verified++;
     else if (p.status === 'error' || p.status === 'mismatch') c.error++;
@@ -831,13 +901,14 @@ async function startCamera() {
     let step = Math.min(Number(ls.get(K.prev, '0')) || 0, PREVIEW_STEPS.length - 1);
     for (; step < PREVIEW_STEPS.length; step++) {
       await openStream(PREVIEW_STEPS[step]);
-      if (view !== 'vCap') { stopCamera(); return; }
+      if (!camWanted()) { stopCamera(); return; }
       if (await previewAlive(2500)) { ls.set(K.prev, String(step)); describeCam(step); requestWakeLock(); return; }
       stopCamera();
     }
     // Nenhuma tentativa mostrou imagem: abre a menor e mantém a foto possível.
     step = PREVIEW_STEPS.length - 1;
     await openStream(PREVIEW_STEPS[step]);
+    if (!camWanted()) { stopCamera(); return; }
     describeCam(step); cam.info += ' · sem prévia';
     requestWakeLock();
     $('capMsg').hidden = false;
@@ -908,12 +979,12 @@ async function shoot() {
     const rec = {
       id: uid(), caseName, sec: activeSec(), name: photoName(now), takenAt: now.getTime(), takenAtLocal: isoLocal(now),
       blob, thumb: t.thumb, width: t.width, height: t.height, size: blob.size, sha256: sha, fallback,
-      status: 'queued', copied: false, released: false,
+      status: 'review', copied: false, released: false,
     };
     await dbPut('photos', rec);
-    lastShot = rec;
     if (fallback) banner('fallback', 'warn', 'A câmera não entregou a foto em alta resolução; esta foi salva em resolução reduzida.', [], 8000);
-    refresh(); kickQueue();
+    // A câmera desliga e a foto fica congelada na tela para conferir e descrever.
+    await openViewer(rec.id, { review: true });
   } catch (e) {
     vib([80, 60, 80]);
     banner('shoot', 'err', 'Não foi possível salvar a foto: ' + (e && e.message || e));
@@ -1003,7 +1074,7 @@ async function pttStart(e, btn, getTarget) {
   if (mic.tailTimer) finalizeAudio();
   pressing = true; const seq = ++pressSeq;
   mic.btn = btn; mic.target = getTarget();
-  if (!mic.target) { pressing = false; banner('ptt', 'info', 'Tire uma foto antes de descrevê-la, ou use "Ditar sem foto" na Revisão.', [], 5000); return; }
+  if (!mic.target) { pressing = false; banner('ptt', 'info', 'Abra um caso antes de ditar.', [], 5000); return; }
   try { btn.setPointerCapture(e.pointerId); } catch (x) {}
   if (!micFlowing()) {
     setPttUI('wake');
@@ -1033,7 +1104,7 @@ function endCapture(reason) {
   setPttUI('');
   if (reason === 'release' && mic.heldMs < MIN_HOLD_MS) { mic.capturing = false; mic.rec = null; mic.recLen = 0; banner('ptt', 'info', 'Toque muito curto. Mantenha pressionado enquanto fala.', [], 4000); refresh(); return; }
   if (reason === 'stall') finalizeAudio(); else mic.tailTimer = setTimeout(finalizeAudio, TAIL_MS);
-  if (revPending) setTimeout(refresh, TAIL_MS + 20);
+  setTimeout(refresh, TAIL_MS + 20);
 }
 function finalizeAudio() {
   clearTimeout(mic.tailTimer); mic.tailTimer = null; mic.capturing = false;
@@ -1055,6 +1126,7 @@ function finalizeAudio() {
 async function createText(target, wav) {
   const now = new Date();
   await dbPut('textos', { id: uid(), caseName: target.caseName, sec: target.sec, photoId: target.photoId || null, ts: now.getTime(), tsLocal: isoLocal(now), status: 'pending', audio: wav, text: '', raw: '' });
+  if (!target.photoId) scrollSecEnd = true;
   refresh(); runTranscribe();
 }
 
@@ -1108,6 +1180,7 @@ async function transcribeOne(t) {
   await acceptText(t, r);
 }
 async function acceptText(t, r) {
+  if (discarded.has(t.id)) return; // a foto foi descartada enquanto o áudio era transcrito
   const fx = applyRules(r.text, getRules());
   Object.assign(t, { status: 'ok', text: fx.text, base: fx.text, raw: r.text, fix: fx.applied, low: isLowConfidence(r.segments), audio: null, error: null });
   await dbPut('textos', t);
@@ -1121,23 +1194,190 @@ function releaseWakeLock() { try { wakeLock && wakeLock.release(); } catch (e) {
 // ── Estado de tela ──────────────────────────────────────────────────────────
 const optCopy = () => ls.get(K.copy, '1') === '1';
 const activeSec = () => ls.get(K.sec, SECTIONS[0].id);
-let view = 'vCaso', revSec = null, lastShot = null; // lastShot: última foto do caso ativo (alvo do microfone da Captura)
+const secName = id => (SECTIONS.find(s => s.id === id) || { name: id }).name;
+// view: tela de fundo (vCaso, vSec, vCap). O visualizador (vw) fica por cima de qualquer uma.
+let view = 'vCaso', secView = null, camOrigin = 'vCaso', scrollSecEnd = false;
+const vw = { open: false, id: null, sec: null, review: false, url: null, s: 1, tx: 0, ty: 0 };
+const discarded = new Set(); // textos de fotos descartadas: transcrições em andamento não os recriam
+function camWanted() { return view === 'vCap' && !vw.open && document.visibilityState === 'visible'; }
+function syncCamera() { if (camWanted()) startCamera(); else stopCamera(); }
+// O microfone fica aberto enquanto há caso aberto, para o início do ditado não se perder.
+function syncMic() { if (ls.get(K.active, '') && groqKey()) { if (!mic.stream) initMic(); } else stopMic(); }
 function show(v) {
   if (v !== 'vCaso' && !ls.get(K.active, '')) v = 'vCaso';
+  if (v === 'vCap' && view !== 'vCap') camOrigin = view;
+  if (v === 'vSec' && !secView) secView = activeSec();
   view = v;
-  for (const id of ['vCaso', 'vCap', 'vRev']) $(id).hidden = id !== v;
-  $('tabs').hidden = v === 'vCap';
-  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
-  if (v === 'vCap') startCamera(); else stopCamera();
-  if (v === 'vCaso') stopMic();
-  else if (groqKey() && !mic.stream) initMic();
+  for (const id of ['vCaso', 'vSec', 'vCap']) $(id).hidden = id !== v;
+  if (v === 'vSec') scrollSecEnd = false;
+  syncCamera(); syncMic(); syncHistory();
   refresh();
 }
+function openSection(sec) { ls.set(K.sec, sec); secView = sec; $('secItems').scrollTop = 0; show('vSec'); }
+
+// Botão "voltar" do Android: cada tela acima do caso deixa uma entrada no histórico.
+let histEntry = !!(history.state && history.state.fz), ignorePop = 0;
+function isDeep() { return vw.open || view !== 'vCaso' || !$('sheet').hidden; }
+function syncHistory() {
+  const deep = isDeep();
+  try {
+    if (deep && !histEntry) { history.pushState({ fz: 1 }, ''); histEntry = true; }
+    else if (!deep && histEntry) { histEntry = false; ignorePop++; history.back(); }
+  } catch (e) {}
+}
+function goBack() {
+  if (!$('sheet').hidden) { closeSheet(); return; }
+  if (vw.open) { if (vw.review) finishReview('done'); else closeViewer(); return; }
+  if (view === 'vCap') { if (camOrigin === 'vSec') { secView = activeSec(); show('vSec'); } else show('vCaso'); return; }
+  if (view === 'vSec') show('vCaso');
+}
+
+// ── Visualizador ────────────────────────────────────────────────────────────
+const fullCache = new Map(); // driveId -> foto original baixada do Drive (as 3 últimas)
+let vwLoadSeq = 0;
+function setImg(blob) {
+  if (vw.url) URL.revokeObjectURL(vw.url);
+  vw.url = blob ? URL.createObjectURL(blob) : null;
+  if (vw.url) $('vwImg').src = vw.url; else $('vwImg').removeAttribute('src');
+}
+async function openViewer(id, opts) {
+  vw.open = true; vw.id = id; vw.review = !!(opts && opts.review);
+  document.body.classList.add('vw-open');
+  $('viewer').hidden = false; $('viewer').classList.remove('bare');
+  syncCamera(); requestWakeLock(); syncHistory();
+  await loadViewerImage(id);
+  refresh();
+}
+function closeViewer(next) {
+  vw.open = false; vw.review = false; vw.id = null; vwLoadSeq++;
+  $('viewer').hidden = true; document.body.classList.remove('vw-open');
+  setImg(null); releaseWakeLock();
+  if (next) { show(next); return; }
+  syncCamera(); syncHistory(); refresh();
+}
+async function loadViewerImage(id) {
+  const seq = ++vwLoadSeq; resetZoom();
+  const p = await dbGet('photos', id);
+  if (!p || seq !== vwLoadSeq) return;
+  vw.sec = p.sec;
+  const load = $('vwLoad'); load.hidden = true;
+  if (p.blob) { setImg(p.blob); return; }
+  setImg(p.thumb || null);
+  if (p.driveId && fullCache.has(p.driveId)) { setImg(fullCache.get(p.driveId)); return; }
+  load.hidden = false;
+  if (!p.driveId || !tokenValid()) { load.textContent = 'Miniatura · o original está no Drive' + (p.driveId ? ' (entre na conta para ver)' : ''); return; }
+  load.textContent = 'Carregando o original do Drive…';
+  try {
+    const res = await api('GET', API + '/files/' + encodeURIComponent(p.driveId) + '?alt=media', null, null, true);
+    const b = new Blob([await res.blob()], { type: 'image/jpeg' });
+    fullCache.set(p.driveId, b); while (fullCache.size > 3) fullCache.delete(fullCache.keys().next().value);
+    if (seq === vwLoadSeq) { setImg(b); load.hidden = true; }
+  } catch (e) { if (seq === vwLoadSeq) load.textContent = 'Não foi possível baixar o original; mostrando a miniatura.'; }
+}
+const sameSec = (photos, sec) => photos.filter(p => p.sec === sec).sort((a, b) => a.takenAt - b.takenAt);
+async function stepViewer(d) {
+  if (!vw.open || vw.review) return;
+  const photos = await photosOf(ls.get(K.active, ''));
+  const cur = photos.find(p => p.id === vw.id); if (!cur) return;
+  const list = sameSec(photos, cur.sec), i = list.findIndex(p => p.id === vw.id) + d;
+  if (i < 0 || i >= list.length) return;
+  vw.id = list[i].id; await loadViewerImage(vw.id); refresh();
+}
+// Confirma a foto em conferência: entra na fila de envio.
+async function finishReview(next) {
+  const id = vw.id, p = id ? await dbGet('photos', id) : null;
+  if (p && p.status === 'review') { await patchPhoto(id, { status: 'queued' }); kickQueue(); }
+  if (next === 'new') closeViewer();
+  else if (camOrigin === 'vSec') { secView = activeSec(); closeViewer('vSec'); }
+  else closeViewer('vCaso');
+}
+async function discardReview() {
+  const p = await dbGet('photos', vw.id); if (!p) return;
+  const ts = (await textsOf(p.caseName)).filter(t => t.photoId === p.id);
+  for (const t of ts) { discarded.add(t.id); await dbDel('textos', t.id); }
+  await dbDel('photos', p.id);
+  const hadText = ts.some(t => t.status === 'ok');
+  if (hadText) { await updateCase(p.caseName, r => { r.deleted = (r.deleted || []).concat(ts.map(t => t.id)); }); markDirty(p.caseName); }
+  vib(30);
+  closeViewer();
+  banner('discard', 'info', 'Foto descartada' + (ts.length ? ' com ' + (ts.length === 1 ? 'a descrição' : 'as ' + ts.length + ' descrições') : '') + '.', [{ label: 'Desfazer', fn: async () => {
+    p.status = 'queued'; await dbPut('photos', p);
+    for (const t of ts) { discarded.delete(t.id); await dbPut('textos', t); }
+    const ids = new Set(ts.map(t => t.id));
+    await updateCase(p.caseName, r => { r.deleted = (r.deleted || []).filter(x => !ids.has(x)); });
+    markDirty(p.caseName); kickQueue(); runTranscribe(); refresh();
+    banner('discard', 'ok', 'Foto recuperada.', [], 3000);
+  } }], 10000);
+}
+async function moveViewerPhoto(v) {
+  const p = await patchPhoto(vw.id, { sec: v }); if (!p) return;
+  for (const t of (await textsOf(p.caseName)).filter(t => t.photoId === p.id)) await patchText(t.id, { sec: v });
+  vw.sec = v;
+  if (vw.review) ls.set(K.sec, v); // as próximas fotos seguem para a seção corrigida
+  markDirty(p.caseName); refresh();
+}
+// Zoom por pinça, arrasto com zoom, toque duplo para ampliar; toque simples esconde os controles.
+function applyZoom() { $('vwImg').style.transform = 'translate(' + vw.tx + 'px,' + vw.ty + 'px) scale(' + vw.s + ')'; }
+function clampZoom() {
+  const r = $('vwStage').getBoundingClientRect();
+  vw.s = Math.min(8, Math.max(1, vw.s));
+  if (vw.s === 1) { vw.tx = vw.ty = 0; return; }
+  vw.tx = Math.min(0, Math.max(r.width * (1 - vw.s), vw.tx)); vw.ty = Math.min(0, Math.max(r.height * (1 - vw.s), vw.ty));
+}
+function resetZoom() { vw.s = 1; vw.tx = vw.ty = 0; applyZoom(); }
+function zoomAt(x, y, s) { const cx = (x - vw.tx) / vw.s, cy = (y - vw.ty) / vw.s; vw.s = s; vw.tx = x - cx * s; vw.ty = y - cy * s; clampZoom(); applyZoom(); }
+function bindViewerGestures() {
+  const st = $('vwStage'), ptrs = new Map(); let g = null, lastTap = 0, tapTimer = null;
+  const rel = e => { const r = st.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  const startPan = (p, moved) => { g = { k: 'pan', x0: p.x, y0: p.y, tx0: vw.tx, ty0: vw.ty, t0: performance.now(), moved: !!moved, dx: 0, dy: 0 }; };
+  const startPinch = () => {
+    const [a, b] = [...ptrs.values()];
+    g = { k: 'pinch', d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, s0: vw.s, tx0: vw.tx, ty0: vw.ty };
+  };
+  st.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    try { st.setPointerCapture(e.pointerId); } catch (x) {}
+    ptrs.set(e.pointerId, rel(e));
+    if (ptrs.size === 2) startPinch(); else if (ptrs.size === 1) startPan(rel(e));
+  });
+  st.addEventListener('pointermove', e => {
+    if (!ptrs.has(e.pointerId) || !g) return;
+    ptrs.set(e.pointerId, rel(e));
+    if (g.k === 'pinch' && ptrs.size >= 2) {
+      const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      const s = Math.min(8, Math.max(1, g.s0 * d / g.d0)), cx = (g.mx - g.tx0) / g.s0, cy = (g.my - g.ty0) / g.s0;
+      vw.s = s; vw.tx = mx - cx * s; vw.ty = my - cy * s; clampZoom(); applyZoom();
+    } else if (g.k === 'pan') {
+      const p = rel(e); g.dx = p.x - g.x0; g.dy = p.y - g.y0;
+      if (Math.abs(g.dx) + Math.abs(g.dy) > 10) g.moved = true;
+      if (vw.s > 1) { vw.tx = g.tx0 + g.dx; vw.ty = g.ty0 + g.dy; clampZoom(); applyZoom(); }
+    }
+  });
+  const end = (e, cancel) => {
+    if (!ptrs.has(e.pointerId)) return;
+    const p = rel(e); ptrs.delete(e.pointerId);
+    if (g && g.k === 'pinch') { if (ptrs.size === 1) startPan([...ptrs.values()][0], true); else g = null; return; }
+    if (!g || cancel) { g = null; return; }
+    const pan = g; g = null;
+    if (!pan.moved && performance.now() - pan.t0 < 350) {
+      const now = performance.now();
+      if (now - lastTap < 320) { clearTimeout(tapTimer); lastTap = 0; zoomAt(p.x, p.y, vw.s > 1 ? 1 : 2.5); }
+      else { lastTap = now; tapTimer = setTimeout(() => $('viewer').classList.toggle('bare'), 300); }
+      return;
+    }
+    if (vw.s === 1 && !vw.review && Math.abs(pan.dx) > 60 && Math.abs(pan.dx) > Math.abs(pan.dy) * 1.5) stepViewer(pan.dx < 0 ? 1 : -1);
+  };
+  st.addEventListener('pointerup', e => end(e, false));
+  st.addEventListener('pointercancel', e => end(e, true));
+  window.addEventListener('resize', () => { if (vw.open) { clampZoom(); applyZoom(); } });
+}
+
 const objUrls = [];
 function blobUrl(b) { const u = URL.createObjectURL(b); objUrls.push(u); return u; }
 function freeUrls() { while (objUrls.length) URL.revokeObjectURL(objUrls.pop()); }
 
 function statusLabel(p) {
+  if (p.status === 'review') return ['em conferência, ainda não enviada', 's-q'];
   if (p.status === 'verified') return ['no Drive, hash conferido', 's-ok'];
   if (p.status === 'mismatch') return ['hash divergente no Drive', 's-err'];
   if (p.status === 'error') return ['erro: ' + (p.error || ''), 's-err'];
@@ -1145,66 +1385,110 @@ function statusLabel(p) {
   if (p.status === 'uploaded') return ['no Drive, conferindo hash…', 's-q'];
   return ['na fila de envio', 's-q'];
 }
+const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
 
-let refreshing = false, refreshAgain = false, revPending = false;
+let refreshing = false, refreshAgain = false;
 const suggestions = new Map(); // id do texto -> regra sugerida após uma correção
+// Não redesenha uma lista enquanto o perito edita um texto nela ou segura um botão de ditado.
+function busyIn(el) {
+  const ae = document.activeElement;
+  return mic.capturing || pressing || !!mic.tailTimer || !!(ae && ae.tagName === 'TEXTAREA' && el.contains(ae));
+}
 async function refresh() {
   if (refreshing) { refreshAgain = true; return; }
   refreshing = true;
   try {
-    freeUrls();
     const name = ls.get(K.active, '');
     const photos = name ? await photosOf(name) : [];
     const texts = name ? await textsOf(name) : [];
     const c = counts(photos);
     const nt = texts.filter(t => t.status === 'ok').length;
+    const secBusy = view === 'vSec' && busyIn($('secItems')), vwBusy = vw.open && busyIn($('vwDesc'));
+    if (!secBusy && !vwBusy) freeUrls();
     renderAcct();
     // Caso
-    $('noCase').hidden = !!name; $('caseBox').hidden = !name; $('syncCard').hidden = !name; $('secBox').hidden = !name; $('btnGoCam').hidden = !name;
+    $('noCase').hidden = !!name; $('caseBox').hidden = !name; $('syncCard').hidden = !name; $('secBox').hidden = !name; $('homeBar').hidden = !name;
     if (!name) renderRecent();
     else {
       $('caseNo').textContent = name;
       $('casePath').textContent = BETA_ROOT + ' / Morto / ' + name.slice(0, 4) + ' / ' + name;
-      $('syncTitle').textContent = c.total + (c.total === 1 ? ' foto' : ' fotos') + ' · ' + nt + (nt === 1 ? ' descrição' : ' descrições');
+      $('syncTitle').textContent = plural(c.total, 'foto', 'fotos') + ' · ' + plural(nt, 'descrição', 'descrições');
       $('syncQueue').textContent = c.queued ? c.queued + ' na fila' : '';
       $('syncBar').style.width = (c.total ? Math.round(c.verified / c.total * 100) : 0) + '%';
       $('syncSub').textContent = c.verified + ' no Drive com hash conferido' + (c.error ? ' · ' + c.error + ' com problema' : '');
       $('btnExport').hidden = !(optCopy() && c.toCopy);
-      $('btnExport').textContent = 'Salvar cópia do exame (' + c.toCopy + (c.toCopy === 1 ? ' foto)' : ' fotos)');
+      $('btnExport').textContent = 'Salvar cópia do exame (' + plural(c.toCopy, 'foto)', 'fotos)');
       const rel = releasable(await dbGet('cases', name), photos);
       $('btnRelease').hidden = !rel.length;
       $('btnRelease').textContent = rel.length === 1 ? 'Apagar cópia do celular' : 'Apagar cópias do celular (' + rel.length + ')';
-      const sl = $('secList'); sl.textContent = '';
+      const sl = $('secRows'); sl.textContent = '';
       for (const s of SECTIONS) {
         const n = photos.filter(p => p.sec === s.id).length, m = texts.filter(t => t.sec === s.id && t.status === 'ok').length;
-        const lab = [n ? n + (n === 1 ? ' foto' : ' fotos') : '', m ? m + (m === 1 ? ' texto' : ' textos') : ''].filter(Boolean).join(' · ') || 'vazia';
-        sl.append(h('button', { class: 'sec' + (s.id === activeSec() ? ' active' : ''), onclick: () => { ls.set(K.sec, s.id); refresh(); } }, h('span', null, s.name), h('span', { class: 'n' }, lab)));
+        const lab = [n ? plural(n, 'foto', 'fotos') : '', m ? plural(m, 'texto', 'textos') : ''].filter(Boolean).join(' · ') || 'vazia';
+        sl.append(h('button', { class: 'sec' + (s.id === activeSec() ? ' active' : ''), onclick: () => openSection(s.id) },
+          h('span', null, s.name), h('span', { class: 'r' }, h('span', { class: 'n' }, lab), h('span', { class: 'chev', 'aria-hidden': 'true' }, '›'))));
       }
+      renderHomeLast(photos, texts);
     }
-    // Captura
-    const cs = $('capSec');
-    if (!cs.options.length) for (const s of SECTIONS) cs.append(h('option', { value: s.id }, s.name));
-    cs.value = activeSec();
+    for (const id of ['homeSec', 'capSec', 'vwSec']) { const sel = $(id); if (!sel.options.length) for (const s of SECTIONS) sel.append(h('option', { value: s.id }, s.name)); }
+    $('homeSec').value = activeSec();
+    // Câmera
+    $('capSec').value = activeSec();
     $('capDot').className = 'dot ' + (c.queued ? 'warn' : c.error ? 'err' : 'on');
     $('capStatus').textContent = (name ? name.slice(5) + ' · ' : '') + photos.filter(p => p.sec === activeSec()).length + ' nesta seção · ' + c.verified + ' no Drive' + (c.queued ? ' · ' + c.queued + ' na fila' : '');
-    lastShot = photos.slice().sort((a, b) => b.takenAt - a.takenAt)[0] || null;
-    renderBubble(photos, texts);
-    const strip = $('strip'); strip.textContent = '';
-    for (const p of photos.slice().sort((a, b) => b.takenAt - a.takenAt).slice(0, 5).reverse()) {
-      const th = h('div', { class: 'thumb' });
-      if (p.thumb) th.style.backgroundImage = 'url(' + blobUrl(p.thumb) + ')';
-      th.append(h('span', { class: 'st' + (p.status === 'verified' ? ' ok' : (p.status === 'mismatch' || p.status === 'error') ? ' err' : p.sending ? ' up' : '') }));
-      strip.append(th);
+    if (view === 'vCap') {
+      const strip = $('strip'); strip.textContent = '';
+      for (const p of photos.slice().sort((a, b) => b.takenAt - a.takenAt).slice(0, 5).reverse()) {
+        const th = h('button', { class: 'thumb', style: 'border:none;padding:0', 'aria-label': 'Ampliar ' + p.name, onclick: () => openViewer(p.id) });
+        if (p.thumb) th.style.backgroundImage = 'url(' + blobUrl(p.thumb) + ')';
+        th.append(h('span', { class: 'st' + (p.status === 'verified' ? ' ok' : (p.status === 'mismatch' || p.status === 'error') ? ' err' : p.sending ? ' up' : '') }));
+        strip.append(th);
+      }
     }
-    // Revisão
-    if (view === 'vRev') {
-      const editing = document.activeElement && document.activeElement.tagName === 'TEXTAREA' && $('revList').contains(document.activeElement);
-      if (mic.capturing || pressing || editing) revPending = true; else { revPending = false; renderRev(photos, texts); }
-    }
+    // Seção
+    if (view === 'vSec' && !secBusy) renderSec(photos, texts);
+    // Visualizador
+    if (vw.open) renderViewer(photos, texts, vwBusy);
   } finally {
     refreshing = false;
     if (refreshAgain) { refreshAgain = false; refresh(); }
   }
+}
+function renderHomeLast(photos, texts) {
+  const box = $('homeLast');
+  if (mic.capturing && mic.target && !mic.target.photoId && view === 'vCaso') {
+    box.hidden = false; box.classList.add('rec'); box.onclick = null;
+    $('homeLastWho').textContent = 'Gravando ditado em ' + secName(mic.target.sec) + '…'; $('homeLastTxt').textContent = ''; return;
+  }
+  box.classList.remove('rec');
+  const t = texts.slice().sort((a, b) => b.ts - a.ts)[0];
+  if (!t) { box.hidden = true; return; }
+  box.hidden = false; box.onclick = () => openSection(t.sec);
+  $('homeLastWho').textContent = 'Último ditado · ' + secName(t.sec) + (t.photoId ? ' · foto ' + photoIndex(photos, t.photoId) : ' · sem foto') +
+    (t.status === 'pending' ? ' · transcrevendo…' : t.status === 'failed' ? ' · falhou, toque para ver' : '');
+  $('homeLastTxt').textContent = t.status === 'ok' ? t.text : '';
+}
+function renderViewer(photos, texts, busy) {
+  const p = photos.find(x => x.id === vw.id);
+  if (!p) { closeViewer(); return; }
+  vw.sec = p.sec;
+  const list = sameSec(photos, p.sec), i = list.findIndex(x => x.id === p.id);
+  $('vwTitle').textContent = vw.review ? 'Foto nova' : 'Foto ' + (i + 1) + ' de ' + list.length;
+  $('vwSub').textContent = p.name + (p.width ? ' · ' + p.width + '×' + p.height : '');
+  $('vwSec').value = p.sec;
+  $('vwClose').textContent = vw.review ? 'Concluir' : 'Fechar';
+  $('vwPrev').hidden = vw.review || i <= 0; $('vwFwd').hidden = vw.review || i >= list.length - 1;
+  $('vwDiscard').hidden = $('vwNew').hidden = !vw.review;
+  $('vwActs').classList.toggle('normal', !vw.review);
+  if (busy) return;
+  const box = $('vwDesc'); box.textContent = '';
+  const ds = texts.filter(t => t.photoId === p.id).sort((a, b) => a.ts - b.ts);
+  if (!ds.length) box.append(h('span', { class: 'vw-meta', style: 'font-style:italic' }, 'Sem descrição. Segure "Descrever" e fale.'));
+  for (const t of ds) box.append(textWithDelete(t));
+  const [txt, cls] = statusLabel(p);
+  const meta = h('div', { class: 'row', style: 'justify-content:space-between' }, h('span', { class: 'vw-meta ' + cls }, hm(p.takenAt) + ' · ' + txt));
+  if (!vw.review && p.status === 'queued' && !p.sending) meta.append(h('button', { class: 'btn sm ghost', onclick: () => deletePhoto(p, ds) }, 'Excluir foto'));
+  box.append(meta);
 }
 
 function autoResize(ta) { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
@@ -1270,42 +1554,52 @@ async function deleteText(t) {
   await updateCase(t.caseName, r => { r.deleted = (r.deleted || []).concat([t.id]); });
   markDirty(t.caseName); refresh();
 }
-function renderRev(photos, texts) {
-  if (!revSec) revSec = activeSec();
-  const chips = $('revChips'); chips.textContent = '';
-  for (const s of SECTIONS) {
-    const n = photos.filter(p => p.sec === s.id).length + texts.filter(t => t.sec === s.id && !t.photoId).length;
-    chips.append(h('button', { class: 'chip' + (s.id === revSec ? ' on' : ''), onclick: () => { revSec = s.id; refresh(); } }, s.name + (n ? ' ' + n : '')));
-  }
-  const caseName = ls.get(K.active, '');
-  const list = $('revList'); list.textContent = '';
+function textWithDelete(t) {
+  const el = textEl(t);
+  if (t.status !== 'ok') return el;
+  const del = h('button', { class: 'tag', onclick: () => deleteText(t) }, 'excluir texto');
+  let tags = el.querySelector('.tags'); if (!tags) { tags = h('div', { class: 'tags' }); el.append(tags); }
+  tags.append(del);
+  return el;
+}
+async function deletePhoto(p, ds) {
+  if (!confirm('Excluir esta foto do celular? Ela ainda não foi enviada ao Drive.')) return;
+  await dbDel('photos', p.id);
+  for (const t of ds || []) await patchText(t.id, { photoId: null });
+  if (vw.open && vw.id === p.id) closeViewer(); else refresh();
+}
+function renderSec(photos, texts) {
+  const sec = secView || activeSec();
+  const list = $('secItems'); list.textContent = '';
   const byPhoto = new Map();
   for (const t of texts) if (t.photoId) { if (!byPhoto.has(t.photoId)) byPhoto.set(t.photoId, []); byPhoto.get(t.photoId).push(t); }
   const known = new Set(photos.map(p => p.id));
-  const items = photos.filter(p => p.sec === revSec).map(p => ({ k: 'p', at: p.takenAt, p }))
-    .concat(texts.filter(t => t.sec === revSec && (!t.photoId || !known.has(t.photoId))).map(t => ({ k: 't', at: t.ts, t })))
-    .sort((a, b) => a.at - b.at);
-  if (!items.length) list.append(h('div', { class: 'empty' }, 'Nada nesta seção ainda.'));
+  const sp = photos.filter(p => p.sec === sec), st = texts.filter(t => t.sec === sec && (!t.photoId || !known.has(t.photoId)));
+  $('secTitle').textContent = secName(sec);
+  $('secCount').textContent = [sp.length ? plural(sp.length, 'foto', 'fotos') : '', st.length ? plural(st.length, 'texto sem foto', 'textos sem foto') : ''].filter(Boolean).join(' · ') || 'vazia';
+  const items = sp.map(p => ({ k: 'p', at: p.takenAt, p })).concat(st.map(t => ({ k: 't', at: t.ts, t }))).sort((a, b) => a.at - b.at);
+  if (!items.length) list.append(h('div', { class: 'empty' }, 'Nada nesta seção ainda. Use a Câmera, ou segure Ditado para um texto sem foto.'));
+  const caseName = ls.get(K.active, '');
   let n = 0;
   for (const it of items) {
     if (it.k === 'p') {
       const p = it.p; n++;
       const [txt, cls] = statusLabel(p);
-      const ph = h('div', { class: 'ph' }); if (p.thumb) ph.style.backgroundImage = 'url(' + blobUrl(p.thumb) + ')';
+      const ph = h('button', { class: 'ph', style: 'border:none;padding:0', 'aria-label': 'Ver a foto ' + n + ' em tela cheia', onclick: () => openViewer(p.id) });
+      if (p.thumb) ph.style.backgroundImage = 'url(' + blobUrl(p.thumb) + ')';
+      const ds = (byPhoto.get(p.id) || []).sort((a, b) => a.ts - b.ts);
       const mv = sectionSelect(p.sec, async v => {
         await patchPhoto(p.id, { sec: v });
-        for (const t of byPhoto.get(p.id) || []) await patchText(t.id, { sec: v });
+        for (const t of ds) await patchText(t.id, { sec: v });
         markDirty(p.caseName); refresh();
       });
-      const actions = h('div', { class: 'row' }, mv, pttButton((byPhoto.get(p.id) || []).length ? 'Ditar mais' : 'Segurar e ditar', { caseName, sec: p.sec, photoId: p.id }));
-      if (p.status === 'queued' && !p.sending) actions.append(h('button', { class: 'btn sm ghost', onclick: async () => { if (confirm('Excluir esta foto do celular? Ela ainda não foi enviada ao Drive.')) { await dbDel('photos', p.id); for (const t of byPhoto.get(p.id) || []) await patchText(t.id, { photoId: null }); refresh(); } } }, 'Excluir foto'));
+      const actions = h('div', { class: 'row' }, mv, pttButton(ds.length ? 'Ditar mais' : 'Segurar e ditar', { caseName, sec: p.sec, photoId: p.id }));
       const body = h('div', { class: 'body' },
         h('span', { class: 'name' }, n + '. ' + p.name),
         h('span', { class: 'meta' }, hm(p.takenAt) + ' · ' + (p.width ? p.width + '×' + p.height : '') + ' · ' + (p.size / 1048576).toFixed(1) + ' MB' + (p.fallback ? ' · resolução reduzida' : '')),
         h('span', { class: 'meta ' + cls }, txt));
-      const ds = (byPhoto.get(p.id) || []).sort((a, b) => a.ts - b.ts);
       if (!ds.length) body.append(h('span', { class: 'meta', style: 'font-style:italic' }, 'sem descrição'));
-      for (const t of ds) { const el = textEl(t); if (t.status === 'ok') el.querySelector('.tags') || el.append(h('div', { class: 'tags' })); const del = h('button', { class: 'tag', onclick: () => deleteText(t) }, 'excluir texto'); (el.querySelector('.tags') || el).append(del); body.append(el); }
+      for (const t of ds) body.append(textWithDelete(t));
       body.append(actions);
       list.append(h('div', { class: 'item' }, ph, body));
     } else {
@@ -1317,24 +1611,11 @@ function renderRev(photos, texts) {
       list.append(h('div', { class: 'item' }, icon, body));
     }
   }
-}
-function renderBubble(photos, texts) {
-  const b = $('capBubble');
-  const last = photos.slice().sort((a, c) => c.takenAt - a.takenAt)[0];
-  if (mic.capturing && mic.target) {
-    b.hidden = false; $('capBubbleWho').textContent = mic.target.photoId ? 'Gravando a descrição da foto ' + photoIndex(photos, mic.target.photoId) + '…' : 'Gravando ditado sem foto…'; $('capBubbleTxt').textContent = ''; return;
-  }
-  if (!last) { b.hidden = true; return; }
-  const ts = texts.filter(t => t.photoId === last.id).sort((a, c) => c.ts - a.ts);
-  if (!ts.length) { b.hidden = true; return; }
-  const t = ts[0];
-  b.hidden = false;
-  $('capBubbleWho').textContent = 'Descrição da foto ' + photoIndex(photos, last.id) + (t.status === 'pending' ? ' · transcrevendo…' : t.status === 'failed' ? ' · falhou (ver Revisão)' : '');
-  $('capBubbleTxt').textContent = t.status === 'ok' ? t.text : '';
+  if (scrollSecEnd) { scrollSecEnd = false; list.scrollTop = list.scrollHeight; }
 }
 function photoIndex(photos, id) {
   const p = photos.find(x => x.id === id); if (!p) return '?';
-  return photos.filter(x => x.sec === p.sec).sort((a, b) => a.takenAt - b.takenAt).findIndex(x => x.id === id) + 1;
+  return sameSec(photos, p.sec).findIndex(x => x.id === id) + 1;
 }
 
 async function renderRecent() {
@@ -1348,9 +1629,9 @@ async function openCase(raw) {
   const err = caseError(name);
   if (err) { banner('case', 'warn', err, [], 5000); return; }
   if (!(await dbGet('cases', name))) await dbPut('cases', { name, createdAt: Date.now() });
-  ls.set(K.active, name); ls.set(K.sec, SECTIONS[0].id); revSec = null;
+  ls.set(K.active, name); ls.set(K.sec, SECTIONS[0].id); secView = null;
   dropBanner('case'); $('newCase').value = '';
-  refresh(); kickQueue();
+  syncMic(); refresh(); kickQueue();
 }
 
 // Cópias (.zip) cujas fotos já estão todas no Drive com hash conferido.
@@ -1363,7 +1644,7 @@ let exporting = false;
 async function exportCopy() {
   if (exporting) return;
   const name = ls.get(K.active, '');
-  const ps = (await photosOf(name)).filter(p => !p.copied && p.blob).sort((a, b) => a.takenAt - b.takenAt);
+  const ps = (await photosOf(name)).filter(p => !p.copied && p.blob && p.status !== 'review').sort((a, b) => a.takenAt - b.takenAt);
   if (!ps.length) return;
   exporting = true; $('btnExport').disabled = true; $('btnExport').textContent = 'Preparando cópia…';
   try {
@@ -1404,7 +1685,7 @@ async function release() {
 }
 
 // ── Configuração ────────────────────────────────────────────────────────────
-function openSheet() { renderAcct(); $('groqKey').value = groqKey(); $('optDelay').value = ls.get(K.delay, '500'); renderRules(); renderCtx(); $('sheet').hidden = false; storageInfo(); }
+function openSheet() { renderAcct(); $('groqKey').value = groqKey(); $('optDelay').value = ls.get(K.delay, '500'); renderRules(); renderCtx(); $('sheet').hidden = false; storageInfo(); syncHistory(); }
 function renderRules() {
   const box = $('ruleList'); if (!box) return; box.textContent = '';
   const rs = getRules();
@@ -1441,7 +1722,7 @@ function importDictation(silent) {
   renderRules(); if (!$('sheet').hidden) renderCtx();
   return got.length > 0;
 }
-function closeSheet() { $('sheet').hidden = true; }
+function closeSheet() { $('sheet').hidden = true; syncHistory(); syncMic(); }
 async function storageInfo() {
   try {
     const e = await navigator.storage.estimate();
@@ -1452,7 +1733,6 @@ async function storageInfo() {
 
 // ── Início ──────────────────────────────────────────────────────────────────
 function bind() {
-  document.querySelectorAll('nav.tabs button').forEach(b => b.addEventListener('click', () => show(b.dataset.v)));
   $('acct').addEventListener('click', openSheet);
   $('btnSheetClose').addEventListener('click', closeSheet);
   $('btnLogin').addEventListener('click', login);
@@ -1467,19 +1747,39 @@ function bind() {
     if (pend && !confirm('Há ' + pend + (pend === 1 ? ' foto' : ' fotos') + ' sem cópia salva no celular. Trocar de caso mesmo assim? As fotos continuam guardadas no app e o botão de cópia volta quando você reabrir este caso.')) return;
     ls.set(K.active, ''); refresh();
   });
-  $('btnGoCam').addEventListener('click', () => show('vCap'));
+  $('btnCam').addEventListener('click', () => show('vCap'));
+  $('homeSec').addEventListener('change', e => { ls.set(K.sec, e.target.value); refresh(); });
+  $('btnSecBack').addEventListener('click', goBack);
+  $('btnSecCam').addEventListener('click', () => { ls.set(K.sec, secView || activeSec()); show('vCap'); });
+  $('btnCapSec').addEventListener('click', () => openSection(activeSec()));
   $('btnRelease').addEventListener('click', release);
   $('btnExport').addEventListener('click', exportCopy);
-  $('btnCapBack').addEventListener('click', () => show('vCaso'));
-  $('btnCapRev').addEventListener('click', () => { revSec = activeSec(); show('vRev'); });
+  $('btnCapBack').addEventListener('click', goBack);
   $('capSec').addEventListener('change', e => { ls.set(K.sec, e.target.value); refresh(); });
   $('btnTorch').addEventListener('click', () => setTorch(!cam.torch));
   $('shutter').addEventListener('click', shoot);
   $('video').addEventListener('click', focusAt);
-  $('revList').addEventListener('focusout', () => setTimeout(() => { if (revPending) refresh(); }, 0));
+  for (const id of ['secItems', 'vwDesc']) $(id).addEventListener('focusout', () => setTimeout(refresh, 0));
   $('expo').addEventListener('input', e => setExposure(e.target.value));
-  bindPTT($('capMic'), () => lastShot ? { caseName: lastShot.caseName, sec: lastShot.sec, photoId: lastShot.id } : null);
-  bindPTT($('btnDictNoPhoto'), () => { const name = ls.get(K.active, ''); return name ? { caseName: name, sec: revSec || activeSec(), photoId: null } : null; });
+  const caseTarget = (sec, photoId) => { const name = ls.get(K.active, ''); return name ? { caseName: name, sec, photoId: photoId || null } : null; };
+  bindPTT($('btnDict'), () => caseTarget(activeSec()));
+  bindPTT($('btnSecDict'), () => caseTarget(secView || activeSec()));
+  bindPTT($('vwMic'), () => vw.open && vw.id ? caseTarget(vw.sec, vw.id) : null);
+  $('vwClose').addEventListener('click', goBack);
+  $('vwNew').addEventListener('click', () => finishReview('new'));
+  $('vwDiscard').addEventListener('click', discardReview);
+  $('vwPrev').addEventListener('click', () => stepViewer(-1));
+  $('vwFwd').addEventListener('click', () => stepViewer(1));
+  $('vwSec').addEventListener('change', e => moveViewerPhoto(e.target.value));
+  bindViewerGestures();
+  window.addEventListener('popstate', () => {
+    if (ignorePop) { ignorePop--; return; }
+    histEntry = !!(history.state && history.state.fz);
+    if (isDeep()) goBack();
+    syncHistory();
+  });
+  // O Chrome só deixa o áudio rodar depois de um toque na página: retoma no primeiro toque.
+  document.addEventListener('pointerdown', () => { if (mic.ctx && mic.ctx.state === 'suspended') mic.ctx.resume().catch(() => {}); }, true);
   $('groqKey').addEventListener('input', e => ls.set(K.groq, e.target.value.trim()));
   $('btnImport').addEventListener('click', () => importDictation(false));
   $('optDelay').addEventListener('change', e => ls.set(K.delay, e.target.value));
@@ -1496,7 +1796,7 @@ function bind() {
   });
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') { if (pressing) { pressing = false; endCapture('release'); } stopCamera(); stopMic(); }
-    else { if (view === 'vCap') startCamera(); if (view !== 'vCaso' && groqKey()) initMic(); kickQueue(); runTranscribe(); }
+    else { syncCamera(); if (vw.open) requestWakeLock(); syncMic(); kickQueue(); runTranscribe(); }
   });
   setInterval(() => { renderAcct(); if (!queueBusy) kickQueue(); }, 30000);
 }
@@ -1507,7 +1807,10 @@ function bind() {
   try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (e) {}
   try {
     await db();
-    for (const p of await dbAll('photos')) if (p.sending) await patchPhoto(p.id, { sending: false }); // envio interrompido: volta para a fila
+    for (const p of await dbAll('photos')) {
+      if (p.sending) await patchPhoto(p.id, { sending: false }); // envio interrompido: volta para a fila
+      if (p.status === 'review') await patchPhoto(p.id, { status: 'queued' }); // app fechado durante a conferência: a foto é mantida
+    }
   } catch (e) { banner('db', 'err', 'O armazenamento do aparelho não está disponível. As fotos não poderão ser guardadas.'); }
   if (!groqKey()) importDictation(true);
   if (!/\.apps\.googleusercontent\.com$/.test(clientId())) openSheet();
