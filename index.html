@@ -361,7 +361,7 @@ body.vw-open .banners { position:fixed; left:0; right:0; z-index:16; max-width:6
 <script>
 'use strict';
 /*PURE-START*/
-const VERSION = '0.3.0';
+const VERSION = '0.3.1';
 const BETA_ROOT = 'DPT_BETA';
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -485,7 +485,7 @@ function isoLocal(d) {
   return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + sign + pad(Math.floor(a / 60)) + ':' + pad(a % 60);
 }
 // Manifesto do caso. Registros remotos que este aparelho não conhece são preservados.
-function buildManifest(caseName, photos, remote, texts, deleted) {
+function buildManifest(caseName, photos, remote, texts, deleted, removed) {
   const textRecs = (texts || []).filter(t => t.status === 'ok' && String(t.text || '').trim()).map(t => ({
     id: t.id, tipo: 'texto', secao: t.sec, texto: t.text, textoOriginal: t.raw || t.text, fotoId: t.photoId || null,
     capturadaEm: t.tsLocal, correcoes: (t.fix || []).reduce((a, f) => a + f.n, 0), conferir: !!t.low,
@@ -503,7 +503,14 @@ function buildManifest(caseName, photos, remote, texts, deleted) {
     formato: 'forensis-caso', versao: 1, caso: caseName,
     secoes: SECTIONS.map(s => ({ id: s.id, nome: s.name })),
     atualizadoEm: new Date().toISOString(), registros,
+    excluidos: mergeRemoved((remote && remote.excluidos) || [], removed || []),
   };
+}
+// Fotos excluídas pelo perito: ficam registradas (nome, hash, horário) mesmo depois de irem para a lixeira do Drive.
+function mergeRemoved(a, b) {
+  const m = new Map();
+  for (const r of a.concat(b)) if (r && r.id && !m.has(r.id)) m.set(r.id, r);
+  return [...m.values()].sort((x, y) => String(x.excluidaEm).localeCompare(String(y.excluidaEm)));
 }
 // CRC-32 e ZIP sem compressão (fotos JPEG não ganham com compressão).
 const CRC_TABLE = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
@@ -675,7 +682,7 @@ async function api(method, url, body, headers, raw) {
   if (!res.ok) {
     const msg = (data && data.error && data.error.message) || ('HTTP ' + res.status);
     if (res.status >= 500 || res.status === 429) throw new Offline(msg);
-    throw new Error(msg);
+    const err = new Error(msg); err.status = res.status; throw err;
   }
   return data;
 }
@@ -734,6 +741,12 @@ async function runQueue() {
       await sendOne(p);
       refresh();
     }
+    for (const c of (await dbAll('cases')).filter(c => (c.trashQueue || []).length)) {
+      for (const x of c.trashQueue) {
+        if (!tokenValid()) { needLogin(); break; }
+        await trashOne(c.name, x);
+      }
+    }
     for (const c of (await dbAll('cases')).filter(c => c.dirtyAt && !(c.syncedAt >= c.dirtyAt))) {
       if (!tokenValid()) { needLogin(); break; }
       const started = Date.now();
@@ -760,6 +773,8 @@ function setNet(ok) {
   else if (!bannersByKey.has('net')) banner('net', 'warn', 'Sem conexão com o Drive. As fotos ficam na fila e sobem quando a conexão voltar.');
 }
 async function sendOne(p) {
+  p = await dbGet('photos', p.id);
+  if (!p || (p.status !== 'queued' && p.status !== 'uploaded')) return; // excluída ou já tratada
   const c = await ensureCase(p.caseName);
   if (p.status === 'queued') {
     await patchPhoto(p.id, { sending: true }); refresh();
@@ -774,6 +789,7 @@ async function sendOne(p) {
     p = await patchPhoto(p.id, { status: 'uploaded', driveId: r.id, remoteSha: r.sha256Checksum || null, sending: false });
     }
     setNet(true);
+    if (!p) return; // excluída durante o envio: a fila de lixeira cuida do arquivo
   }
   // Conferência de integridade
   let remote = p.remoteSha;
@@ -788,10 +804,26 @@ async function sendOne(p) {
     banner('mm-' + p.id, 'err', 'O arquivo ' + p.name + ' chegou ao Drive diferente do original. A cópia local foi mantida.');
     return;
   }
+  if (!(await dbGet('photos', p.id))) return;
   const changes = { status: 'verified', remoteSha: remote, verifiedAt: Date.now() };
   if (p.copied || !optCopy()) changes.blob = null; // Drive confirmado e cópia no celular feita: libera o espaço do app
   await patchPhoto(p.id, changes);
   await writeManifest(p.caseName);
+}
+// Move para a lixeira do Drive (recuperável por 30 dias) a foto excluída, achada pelo id ou pelo registro.
+async function trashOne(caseName, x) {
+  let ids = x.driveId ? [x.driveId] : [];
+  const found = await api('GET', API + '/files?spaces=drive&fields=files(id)&q=' + encodeURIComponent("appProperties has { key='registro' and value=" + q(x.id) + " } and trashed = false"));
+  for (const f of found.files || []) if (!ids.includes(f.id)) ids.push(f.id);
+  for (const id of ids) {
+    try { await api('PATCH', API + '/files/' + encodeURIComponent(id) + '?fields=id', JSON.stringify({ trashed: true }), { 'Content-Type': 'application/json; charset=UTF-8' }); }
+    catch (e) { if (e.status !== 404) throw e; } // já não existe: nada a fazer
+  }
+  await updateCase(caseName, r => {
+    r.trashQueue = (r.trashQueue || []).filter(y => y.id !== x.id);
+    for (const y of r.removed || []) if (y.id === x.id) y.lixeiraDrive = ids.length > 0;
+    r.dirtyAt = Date.now();
+  });
 }
 async function writeManifest(caseName) {
   const c = await ensureCase(caseName);
@@ -799,7 +831,7 @@ async function writeManifest(caseName) {
     try { const res = await api('GET', API + '/files/' + encodeURIComponent(c.manifestId) + '?alt=media', null, null, true); remoteManifests.set(caseName, await res.json()); }
     catch (e) { if (e instanceof NeedLogin || e instanceof Offline) throw e; remoteManifests.set(caseName, null); }
   }
-  const man = buildManifest(caseName, await photosOf(caseName), remoteManifests.get(caseName), await textsOf(caseName), c.deleted);
+  const man = buildManifest(caseName, await photosOf(caseName), remoteManifests.get(caseName), await textsOf(caseName), c.deleted, c.removed);
   const json = new Blob([JSON.stringify(man, null, 2)], { type: 'application/json' });
   if (c.manifestId) {
     await api('PATCH', UPL + '/' + encodeURIComponent(c.manifestId) + '?uploadType=media&fields=id', json, { 'Content-Type': 'application/json' });
@@ -1487,7 +1519,7 @@ function renderViewer(photos, texts, busy) {
   for (const t of ds) box.append(textWithDelete(t));
   const [txt, cls] = statusLabel(p);
   const meta = h('div', { class: 'row', style: 'justify-content:space-between' }, h('span', { class: 'vw-meta ' + cls }, hm(p.takenAt) + ' · ' + txt));
-  if (!vw.review && p.status === 'queued' && !p.sending) meta.append(h('button', { class: 'btn sm ghost', onclick: () => deletePhoto(p, ds) }, 'Excluir foto'));
+  if (!vw.review) meta.append(h('button', { class: 'btn sm ghost', disabled: p.sending, onclick: () => deletePhoto(p, ds) }, 'Excluir foto'));
   box.append(meta);
 }
 
@@ -1563,9 +1595,25 @@ function textWithDelete(t) {
   return el;
 }
 async function deletePhoto(p, ds) {
-  if (!confirm('Excluir esta foto do celular? Ela ainda não foi enviada ao Drive.')) return;
+  if (p.sending) { banner('del', 'info', 'A foto está sendo enviada agora. Tente excluir em alguns segundos.', [], 5000); return; }
+  const inDrive = !!p.driveId || p.status !== 'queued';
+  const msg = 'Excluir ' + p.name + '?\n\n' + (inDrive
+    ? 'A foto vai para a lixeira do Google Drive, onde pode ser recuperada por 30 dias. A exclusão fica registrada no caso.json com o nome e o hash.'
+    : 'A foto ainda não foi enviada ao Drive e será apagada do celular.') +
+    (ds && ds.length ? '\n\n' + (ds.length === 1 ? 'A descrição continua' : 'As descrições continuam') + ' no caso como texto sem foto.' : '') +
+    (p.copied ? '\n\nA cópia já salva em Downloads não é alterada.' : '');
+  if (!confirm(msg)) return;
+  const now = new Date();
   await dbDel('photos', p.id);
   for (const t of ds || []) await patchText(t.id, { photoId: null });
+  await updateCase(p.caseName, r => {
+    r.deleted = (r.deleted || []).concat([p.id]);
+    // Mesmo sem driveId, procura pelo registro: o envio pode ter chegado ao Drive sem resposta.
+    r.trashQueue = (r.trashQueue || []).concat([{ id: p.id, driveId: p.driveId || null }]);
+    r.removed = (r.removed || []).concat([{ id: p.id, arquivo: 'Originais/' + p.name, sha256: p.sha256, secao: p.sec, capturadaEm: p.takenAtLocal, excluidaEm: isoLocal(now), lixeiraDrive: false }]);
+  });
+  markDirty(p.caseName);
+  banner('del', 'ok', 'Foto excluída' + (inDrive ? '; vai para a lixeira do Drive.' : '.'), [], 5000);
   if (vw.open && vw.id === p.id) closeViewer(); else refresh();
 }
 function renderSec(photos, texts) {
@@ -1654,7 +1702,8 @@ async function exportCopy() {
       sums.push(p.sha256 + '  Originais/' + p.name);
     }
     const all = await photosOf(name), texts = await textsOf(name);
-    const man = buildManifest(name, all.map(p => Object.assign({}, p, { status: 'verified' })), null, texts);
+    const crec = await dbGet('cases', name);
+    const man = buildManifest(name, all.filter(p => p.status !== 'review').map(p => Object.assign({}, p, { status: 'verified' })), null, texts, null, crec && crec.removed);
     man.observacao = 'Cópia local gerada no celular. Registros ainda não confirmados no Drive aparecem aqui com o hash calculado no celular.';
     entries.push({ name: 'caso.json', bytes: new TextEncoder().encode(JSON.stringify(man, null, 2)), date: now });
     entries.push({ name: 'transcricao.txt', bytes: new TextEncoder().encode(buildTranscript(name, all, texts)), date: now });
