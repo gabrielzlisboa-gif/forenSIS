@@ -154,6 +154,7 @@ nav.tabs button.on { color:var(--accent); font-weight:600; }
           <span class="help" id="syncSub"></span>
           <button class="btn sm warn" id="btnRelease" hidden></button>
         </div>
+        <button class="btn" id="btnExport" hidden></button>
       </div>
 
       <div id="secBox" hidden style="display:flex;flex-direction:column;gap:8px">
@@ -218,8 +219,8 @@ nav.tabs button.on { color:var(--accent); font-weight:600; }
     </div>
     <div class="card">
       <span class="label">Cópia no celular</span>
-      <label class="row" style="justify-content:space-between"><span>Salvar cada foto em Downloads</span><input type="checkbox" id="optCopy" style="width:22px;height:22px"></label>
-      <p class="help">A cópia aparece na galeria (pasta Download). Na primeira vez, o Chrome pergunta se o site pode baixar vários arquivos: permita.</p>
+      <label class="row" style="justify-content:space-between"><span>Guardar cópia do exame no celular</span><input type="checkbox" id="optCopy" style="width:22px;height:22px"></label>
+      <p class="help">No fim do exame, o botão "Salvar cópia do exame" grava todas as fotos num único arquivo .zip em Downloads, com um aviso só. O app guarda as fotos até essa cópia ser salva. Desligado, cada foto é apagada do app assim que é confirmada no Drive.</p>
     </div>
     <div class="card">
       <span class="label">Aparelho</span>
@@ -233,7 +234,7 @@ nav.tabs button.on { color:var(--accent); font-weight:600; }
 <script>
 'use strict';
 /*PURE-START*/
-const VERSION = '0.1.1';
+const VERSION = '0.1.2';
 const BETA_ROOT = 'DPT_BETA';
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -275,10 +276,40 @@ function buildManifest(caseName, photos, remote) {
     atualizadoEm: new Date().toISOString(), registros,
   };
 }
+// CRC-32 e ZIP sem compressão (fotos JPEG não ganham com compressão).
+const CRC_TABLE = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(bytes) { let c = 0xFFFFFFFF; for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+// entries: [{ name, bytes: Uint8Array, date: Date }] -> partes (Uint8Array) do arquivo .zip
+function zipParts(entries) {
+  const enc = new TextEncoder(), parts = [], central = []; let offset = 0;
+  const u16 = (v, a, o) => { a[o] = v & 255; a[o + 1] = (v >>> 8) & 255; };
+  const u32 = (v, a, o) => { a[o] = v & 255; a[o + 1] = (v >>> 8) & 255; a[o + 2] = (v >>> 16) & 255; a[o + 3] = (v >>> 24) & 255; };
+  for (const e of entries) {
+    const name = enc.encode(e.name), d = e.date || new Date(), crc = crc32(e.bytes), size = e.bytes.length;
+    const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+    const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    const lh = new Uint8Array(30 + name.length);
+    u32(0x04034b50, lh, 0); u16(20, lh, 4); u16(0x0800, lh, 6); u16(0, lh, 8); u16(time, lh, 10); u16(date, lh, 12);
+    u32(crc, lh, 14); u32(size, lh, 18); u32(size, lh, 22); u16(name.length, lh, 26); u16(0, lh, 28); lh.set(name, 30);
+    const ch = new Uint8Array(46 + name.length);
+    u32(0x02014b50, ch, 0); u16(20, ch, 4); u16(20, ch, 6); u16(0x0800, ch, 8); u16(0, ch, 10); u16(time, ch, 12); u16(date, ch, 14);
+    u32(crc, ch, 16); u32(size, ch, 20); u32(size, ch, 24); u16(name.length, ch, 28); u32(offset, ch, 42); ch.set(name, 46);
+    parts.push(lh, e.bytes); central.push(ch); offset += lh.length + size;
+  }
+  const cdSize = central.reduce((a, c) => a + c.length, 0);
+  const end = new Uint8Array(22);
+  u32(0x06054b50, end, 0); u16(entries.length, end, 8); u16(entries.length, end, 10); u32(cdSize, end, 12); u32(offset, end, 16);
+  return parts.concat(central, [end]);
+}
+// Nome do arquivo de cópia: forenSIS_2026-9002_20261111-1405.zip
+function exportName(caseName, d) {
+  return 'forenSIS_' + caseName.replace(' ', '-') + '_' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + '.zip';
+}
 function counts(photos) {
-  const c = { total: photos.length, verified: 0, queued: 0, error: 0, toRelease: 0 };
+  const c = { total: photos.length, verified: 0, queued: 0, error: 0, toCopy: 0 };
   for (const p of photos) {
-    if (p.status === 'verified') { c.verified++; if (p.copied && !p.released) c.toRelease++; }
+    if (!p.copied && p.blob) c.toCopy++;
+    if (p.status === 'verified') c.verified++;
     else if (p.status === 'error' || p.status === 'mismatch') c.error++;
     else c.queued++;
   }
@@ -630,11 +661,6 @@ async function makeThumb(blob) {
   const thumb = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.7));
   return { thumb, width: w, height: hh };
 }
-function saveCopy(blob, name) {
-  const a = h('a', { href: URL.createObjectURL(blob), download: name, style: 'display:none' });
-  document.body.append(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 30000);
-}
 async function shoot() {
   if (cam.busy || !cam.stream) return;
   const caseName = ls.get(K.active, ''); if (!caseName) return;
@@ -654,7 +680,6 @@ async function shoot() {
     };
     await dbPut('photos', rec);
     if (fallback) banner('fallback', 'warn', 'A câmera não entregou a foto em alta resolução; esta foi salva em resolução reduzida.', [], 8000);
-    if (optCopy()) { saveCopy(blob, rec.name); await patchPhoto(rec.id, { copied: true }); }
     refresh(); kickQueue();
   } catch (e) {
     vib([80, 60, 80]);
@@ -712,8 +737,11 @@ async function refresh() {
       $('syncQueue').textContent = c.queued ? c.queued + ' na fila' : '';
       $('syncBar').style.width = (c.total ? Math.round(c.verified / c.total * 100) : 0) + '%';
       $('syncSub').textContent = c.verified + ' no Drive com hash conferido' + (c.error ? ' · ' + c.error + ' com problema' : '');
-      $('btnRelease').hidden = !c.toRelease;
-      $('btnRelease').textContent = 'Liberar galeria (' + c.toRelease + ')';
+      $('btnExport').hidden = !(optCopy() && c.toCopy);
+      $('btnExport').textContent = 'Salvar cópia do exame (' + c.toCopy + (c.toCopy === 1 ? ' foto)' : ' fotos)');
+      const rel = releasable(await dbGet('cases', name), photos);
+      $('btnRelease').hidden = !rel.length;
+      $('btnRelease').textContent = rel.length === 1 ? 'Apagar cópia do celular' : 'Apagar cópias do celular (' + rel.length + ')';
       const sl = $('secList'); sl.textContent = '';
       for (const s of SECTIONS) {
         const n = photos.filter(p => p.sec === s.id).length;
@@ -784,12 +812,56 @@ async function openCase(raw) {
   refresh(); kickQueue();
 }
 
+// Cópias (.zip) cujas fotos já estão todas no Drive com hash conferido.
+function releasable(rec, photos) {
+  const st = new Map(photos.map(p => [p.id, p.status]));
+  return ((rec && rec.exports) || []).filter(x => !x.released && x.ids.every(id => st.get(id) === 'verified' || !st.has(id)));
+}
+
+let exporting = false;
+async function exportCopy() {
+  if (exporting) return;
+  const name = ls.get(K.active, '');
+  const ps = (await photosOf(name)).filter(p => !p.copied && p.blob).sort((a, b) => a.takenAt - b.takenAt);
+  if (!ps.length) return;
+  exporting = true; $('btnExport').disabled = true; $('btnExport').textContent = 'Preparando cópia…';
+  try {
+    const now = new Date(), entries = [], sums = [];
+    for (const p of ps) {
+      entries.push({ name: 'Originais/' + p.name, bytes: new Uint8Array(await p.blob.arrayBuffer()), date: new Date(p.takenAt) });
+      sums.push(p.sha256 + '  Originais/' + p.name);
+    }
+    const all = await photosOf(name);
+    const man = buildManifest(name, all.map(p => Object.assign({}, p, { status: 'verified' })), null);
+    man.observacao = 'Cópia local gerada no celular. Registros ainda não confirmados no Drive aparecem aqui com o hash calculado no celular.';
+    entries.push({ name: 'caso.json', bytes: new TextEncoder().encode(JSON.stringify(man, null, 2)), date: now });
+    entries.push({ name: 'SHA256SUMS.txt', bytes: new TextEncoder().encode(sums.join('\n') + '\n'), date: now });
+    const file = exportName(name, now);
+    const blob = new Blob(zipParts(entries), { type: 'application/zip' });
+    const a = h('a', { href: URL.createObjectURL(blob), download: file, style: 'display:none' });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    for (const p of ps) await patchPhoto(p.id, p.status === 'verified' ? { copied: true, blob: null } : { copied: true });
+    const rec = (await dbGet('cases', name)) || { name, createdAt: Date.now() };
+    rec.exports = (rec.exports || []).concat([{ file, ids: ps.map(p => p.id), at: now.getTime(), released: false }]);
+    await dbPut('cases', rec);
+    caseFolderCache.delete(name);
+    banner('export', 'ok', 'Cópia salva em Downloads: ' + file + ' (' + ps.length + (ps.length === 1 ? ' foto' : ' fotos') + ', ' + (blob.size / 1048576).toFixed(0) + ' MB).', [], 10000);
+  } catch (e) {
+    banner('export', 'err', 'Não foi possível salvar a cópia: ' + (e && e.message || e));
+  } finally { exporting = false; $('btnExport').disabled = false; refresh(); }
+}
+
 async function release() {
   const name = ls.get(K.active, '');
-  const ps = (await photosOf(name)).filter(p => p.status === 'verified' && p.copied && !p.released);
-  if (!ps.length) return;
-  const first = ps[0].name, last = ps[ps.length - 1].name;
-  banner('release', 'ok', ps.length + ' fotos estão confirmadas no Drive (de ' + first + ' a ' + last + '). Apague-as da galeria, na pasta Download, e depois esvazie a lixeira da galeria.', [{ label: 'Já apaguei', fn: async () => { for (const p of ps) await patchPhoto(p.id, { released: true, blob: null }); refresh(); } }]);
+  const rec = await dbGet('cases', name);
+  const xs = releasable(rec, await photosOf(name));
+  if (!xs.length) return;
+  banner('release', 'ok', 'Todas as fotos de ' + xs.map(x => x.file).join(', ') + ' estão no Drive com hash conferido. Pode apagar ' + (xs.length === 1 ? 'esse arquivo' : 'esses arquivos') + ' da pasta Download do celular.', [{ label: 'Já apaguei', fn: async () => {
+    const r = await dbGet('cases', name);
+    for (const x of r.exports) if (xs.some(y => y.file === x.file)) x.released = true;
+    await dbPut('cases', r); caseFolderCache.delete(name); refresh();
+  } }]);
 }
 
 // ── Configuração ────────────────────────────────────────────────────────────
@@ -815,9 +887,14 @@ function bind() {
   $('optCopy').addEventListener('change', e => ls.set(K.copy, e.target.checked ? '1' : '0'));
   $('btnOpenCase').addEventListener('click', () => openCase($('newCase').value));
   $('newCase').addEventListener('keydown', e => { if (e.key === 'Enter') openCase($('newCase').value); });
-  $('btnSwitch').addEventListener('click', () => { ls.set(K.active, ''); refresh(); });
+  $('btnSwitch').addEventListener('click', async () => {
+    const pend = optCopy() ? counts(await photosOf(ls.get(K.active, ''))).toCopy : 0;
+    if (pend && !confirm('Há ' + pend + (pend === 1 ? ' foto' : ' fotos') + ' sem cópia salva no celular. Trocar de caso mesmo assim? As fotos continuam guardadas no app e o botão de cópia volta quando você reabrir este caso.')) return;
+    ls.set(K.active, ''); refresh();
+  });
   $('btnGoCam').addEventListener('click', () => show('vCap'));
   $('btnRelease').addEventListener('click', release);
+  $('btnExport').addEventListener('click', exportCopy);
   $('btnCapBack').addEventListener('click', () => show('vCaso'));
   $('btnCapRev').addEventListener('click', () => { revSec = activeSec(); show('vRev'); });
   $('capSec').addEventListener('change', e => { ls.set(K.sec, e.target.value); refresh(); });
