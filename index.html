@@ -293,7 +293,7 @@ nav.tabs button.on { color:var(--accent); font-weight:600; }
 <script>
 'use strict';
 /*PURE-START*/
-const VERSION = '0.2.0';
+const VERSION = '0.2.1';
 const BETA_ROOT = 'DPT_BETA';
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -1424,6 +1424,8 @@ function renderCtx() {
 // O app de ditado fica no mesmo endereço (github.io), então os dados dele estão acessíveis aqui.
 function importDictation(silent) {
   let t = null; try { t = JSON.parse(localStorage.getItem('tf4_settings') || 'null'); } catch (e) {}
+  // Versões anteriores do app de ditado (até a v3) guardavam só a chave, em outro lugar.
+  if (!t || !t.apiKey) { try { const old = JSON.parse(localStorage.getItem('tf_settings') || 'null'); if (old && old.apiKey) t = Object.assign({}, t || {}, { apiKey: old.apiKey }); } catch (e) {} }
   if (!t) { if (!silent) banner('import', 'warn', 'Nenhuma configuração do app de ditado foi encontrada neste navegador.', [], 6000); return false; }
   const got = [];
   if (t.apiKey && (!groqKey() || !silent)) { ls.set(K.groq, t.apiKey); got.push('chave Groq'); }
