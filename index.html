@@ -6,6 +6,9 @@
 <title>forenSIS</title>
 <meta name="theme-color" content="#0f1117">
 <meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://accounts.google.com/gsi/client" async></script>
 <style>
@@ -351,6 +354,17 @@ body.vw-open .banners { position:fixed; left:0; right:0; z-index:16; max-width:6
       <p class="help" style="color:var(--amber)">Atenção: o .zip fica sem senha na pasta Downloads, que outros apps do celular conseguem ler. Use só se precisar de uma cópia fora do Drive e apague o arquivo assim que o app avisar que tudo foi conferido.</p>
     </div>
     <div class="card">
+      <span class="label">Aplicativo</span>
+      <p class="help" id="appInfo">—</p>
+      <button class="btn primary" id="btnInstall" hidden>Instalar o forenSIS na tela inicial</button>
+      <p class="help" id="appHint" hidden>Para instalar: menu ⋮ do Chrome › "Adicionar à tela inicial" › Instalar.</p>
+    </div>
+    <div class="card">
+      <span class="label">Teste de campo</span>
+      <p class="help" id="fieldInfo">—</p>
+      <button class="btn ghost" id="btnFieldReset">Zerar medições</button>
+    </div>
+    <div class="card">
       <span class="label">Aparelho</span>
       <p class="help" id="storageInfo">—</p>
       <a class="btn ghost" href="diagnostico.html" style="text-decoration:none">Abrir diagnóstico (fase 0)</a>
@@ -362,7 +376,7 @@ body.vw-open .banners { position:fixed; left:0; right:0; z-index:16; max-width:6
 <script>
 'use strict';
 /*PURE-START*/
-const VERSION = '0.3.2';
+const VERSION = '0.4.0';
 const BETA_ROOT = 'DPT_BETA';
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -560,7 +574,7 @@ const SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const API = 'https://www.googleapis.com/drive/v3';
 const UPL = 'https://www.googleapis.com/upload/drive/v3/files';
 const FOLDER = 'application/vnd.google-apps.folder';
-const K = { groq: 'forensis_groq', rules: 'forensis_rules', ctx: 'forensis_ctx', delay: 'forensis_delay', expo: 'forensis_expo', prev: 'forensis_preview_step', client: 'forensis_client_id', active: 'forensis_case', sec: 'forensis_sec', copy: 'forensis_copy', recent: 'forensis_recent' };
+const K = { hint: 'forensis_login_hint', field: 'forensis_field', groq: 'forensis_groq', rules: 'forensis_rules', ctx: 'forensis_ctx', delay: 'forensis_delay', expo: 'forensis_expo', prev: 'forensis_preview_step', client: 'forensis_client_id', active: 'forensis_case', sec: 'forensis_sec', copy: 'forensis_copy', recent: 'forensis_recent' };
 
 const $ = id => document.getElementById(id);
 function h(tag, attrs, ...kids) {
@@ -636,22 +650,28 @@ const tokenValid = () => !!token && Date.now() < tokenExp - 60000;
 function waitGis(ms) {
   return new Promise((res, rej) => { const t0 = Date.now(); (function p() { if (window.google && google.accounts && google.accounts.oauth2) return res(); if (Date.now() - t0 > ms) return rej(new Error('A biblioteca de login do Google não carregou. Verifique a conexão.')); setTimeout(p, 100); })(); });
 }
-async function login() {
-  if (!/\.apps\.googleusercontent\.com$/.test(clientId())) { openSheet(); banner('login', 'warn', 'Informe o ID do cliente OAuth.', [], 6000); return; }
-  try { await waitGis(8000); } catch (e) { banner('login', 'err', e.message); return; }
-  $('btnLogin').disabled = true;
+// silent: renovação feita pelo app num toque do perito (Câmera, abrir caso). Sem avisos de erro: se falhar,
+// vale o aviso normal de sessão expirada.
+let renewing = false;
+async function login(opts) {
+  const silent = !!(opts && opts.silent);
+  if (!/\.apps\.googleusercontent\.com$/.test(clientId())) { if (silent) return; openSheet(); banner('login', 'warn', 'Informe o ID do cliente OAuth.', [], 6000); return; }
+  try { await waitGis(silent ? 1500 : 8000); } catch (e) { if (!silent) banner('login', 'err', e.message); return; }
+  $('btnLogin').disabled = true; renewing = true;
   let answered = false;
-  const fail = msg => { $('btnLogin').disabled = false; banner('login', 'err', msg); renderAcct(); };
+  const fail = msg => { renewing = false; $('btnLogin').disabled = false; if (!silent) banner('login', 'err', msg); renderAcct(); };
   const tc = google.accounts.oauth2.initTokenClient({
     client_id: clientId(), scope: SCOPE,
     callback: async r => {
       answered = true; $('btnLogin').disabled = false;
       if (r.error) return fail(r.error_description || r.error);
       if (!google.accounts.oauth2.hasGrantedAllScopes(r, SCOPE)) return fail('A permissão do Google Drive não foi concedida.');
+      renewing = false;
       token = r.access_token; tokenExp = Date.now() + (Number(r.expires_in) || 3600) * 1000;
       dropBanner('login'); dropBanner('relogin');
-      try { const a = await api('GET', API + '/about?fields=user(emailAddress)'); acctEmail = a.user.emailAddress; } catch (e) {}
-      renderAcct(); closeSheet(); kickQueue();
+      try { const a = await api('GET', API + '/about?fields=user(emailAddress)'); acctEmail = a.user.emailAddress; ls.set(K.hint, acctEmail); } catch (e) {}
+      fieldNote(silent ? 'renew' : 'login');
+      renderAcct(); if (!silent) closeSheet(); kickQueue();
     },
     error_callback: e => {
       const t = e && e.type;
@@ -660,7 +680,17 @@ async function login() {
       fail((e && e.message) || 'Falha no login.');
     },
   });
-  tc.requestAccessToken({ prompt: '' });
+  const hint = ls.get(K.hint, '');
+  tc.requestAccessToken(hint ? { prompt: '', login_hint: hint } : { prompt: '' });
+}
+// Renova o login quando faltam menos de 20 min (ou entra de novo ao reabrir o app), aproveitando um toque
+// em que uma janela rápida do Google não atrapalha: abrir a câmera ou abrir um caso. Nunca durante a captura.
+const RENEW_MS = 20 * 60000;
+function maybeRenew() {
+  if (renewing || !navigator.onLine || !/\.apps\.googleusercontent\.com$/.test(clientId())) return;
+  if (!token && !ls.get(K.hint, '')) return; // nunca entrou neste aparelho: o perito usa "Entrar"
+  if (token && tokenExp - Date.now() > RENEW_MS) return;
+  login({ silent: true });
 }
 function renderAcct() {
   const ok = tokenValid();
@@ -936,12 +966,13 @@ async function startCamera() {
   if (cam.stream || cam.starting) return;
   cam.starting = true;
   $('capMsg').hidden = true;
+  const t0 = performance.now();
   try {
     let step = Math.min(Number(ls.get(K.prev, '0')) || 0, PREVIEW_STEPS.length - 1);
     for (; step < PREVIEW_STEPS.length; step++) {
       await openStream(PREVIEW_STEPS[step]);
       if (!camWanted()) { stopCamera(); return; }
-      if (await previewAlive(2500)) { ls.set(K.prev, String(step)); describeCam(step); requestWakeLock(); return; }
+      if (await previewAlive(2500)) { ls.set(K.prev, String(step)); describeCam(step); requestWakeLock(); fieldNote('cam', performance.now() - t0); return; }
       stopCamera();
     }
     // Nenhuma tentativa mostrou imagem: abre a menor e mantém a foto possível.
@@ -1680,14 +1711,81 @@ async function renderRecent() {
   for (const c of cases) box.append(h('button', { class: 'btn sm', onclick: () => openCase(c.name) }, c.name));
 }
 
+// ── Aplicativo instalável e funcionamento sem internet ──────────────────────
+let installEvt = null;
+const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function initPwa() {
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; renderApp(); });
+  window.addEventListener('appinstalled', () => {
+    installEvt = null; renderApp();
+    try { navigator.storage.persist(); } catch (e) {}
+    banner('inst', 'ok', 'forenSIS instalado. Abra pelo ícone na tela inicial.', [], 8000);
+  });
+  if (!('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
+  navigator.serviceWorker.register('sw.js').then(() => renderApp()).catch(() => {});
+  // O service worker informa a versão guardada para a próxima abertura; se for outra, avisa (sem recarregar sozinho).
+  navigator.serviceWorker.addEventListener('message', e => {
+    const d = e.data; if (!d || (d.type !== 'updated' && d.type !== 'version') || !d.version || d.version === VERSION) return;
+    banner('upd', 'info', 'Versão nova do forenSIS baixada (v' + d.version + '). Ela entra na próxima vez que o app abrir.', [{ label: 'Atualizar agora', fn: () => location.reload() }]);
+  });
+  navigator.serviceWorker.addEventListener('controllerchange', () => renderApp());
+  const check = () => { if (navigator.onLine) navigator.serviceWorker.ready.then(r => r.active && r.active.postMessage({ type: 'check' })).catch(() => {}); };
+  check();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+}
+async function renderApp() {
+  if (!$('appInfo')) return;
+  const sw = 'serviceWorker' in navigator && navigator.serviceWorker.controller;
+  let persisted = false; try { persisted = await navigator.storage.persisted(); } catch (e) {}
+  $('appInfo').textContent = (standalone() ? 'Aberto como aplicativo instalado. ' : 'Aberto no navegador. ') +
+    (sw ? 'Abre sem internet: sim, a cópia desta versão está guardada no aparelho. ' : 'Abre sem internet: ainda não; feche e abra o app uma vez com internet. ') +
+    (persisted ? 'Armazenamento protegido contra limpeza automática.' : 'Armazenamento ainda sem proteção contra limpeza automática (instalar o app costuma resolver).');
+  $('btnInstall').hidden = !installEvt || standalone();
+  $('appHint').hidden = !!installEvt || standalone();
+}
+
+// ── Teste de campo: bateria, tempo para religar a câmera e logins, por caso ──
+function field() { try { return JSON.parse(ls.get(K.field, '') || 'null'); } catch (e) { return null; } }
+async function battery() { try { const b = await navigator.getBattery(); return { level: b.level, charging: b.charging }; } catch (e) { return null; } }
+async function fieldStart() {
+  const name = ls.get(K.active, ''), f = field();
+  if (!name || (f && f.caseName === name)) return;
+  const b = await battery();
+  ls.set(K.field, JSON.stringify({ caseName: name, t0: Date.now(), b0: b ? b.level : null, cams: [], login: 0, renew: 0 }));
+}
+function fieldNote(kind, ms) {
+  const f = field(); if (!f) return;
+  if (kind === 'cam') { f.cams.push(Math.round(ms)); if (f.cams.length > 200) f.cams.shift(); }
+  else if (kind in f) f[kind]++;
+  ls.set(K.field, JSON.stringify(f));
+}
+async function renderField() {
+  const f = field(), el = $('fieldInfo');
+  if (!f) { el.textContent = 'As medições começam quando um caso é aberto.'; return; }
+  const min = Math.max(1, Math.round((Date.now() - f.t0) / 60000)), dur = min >= 60 ? Math.floor(min / 60) + ' h ' + (min % 60) + ' min' : min + ' min';
+  const parts = ['Caso ' + f.caseName + ', há ' + dur + '.'];
+  const b = await battery();
+  if (b && f.b0 != null) {
+    const used = Math.round((f.b0 - b.level) * 100);
+    parts.push('Bateria: ' + Math.round(f.b0 * 100) + '% → ' + Math.round(b.level * 100) + '%' + (min >= 10 && used > 0 ? ' (cerca de ' + Math.round(used / min * 60) + ' pontos por hora)' : '') + '.' + (b.charging ? ' Carregando agora: a medição não vale enquanto estiver na tomada.' : ''));
+  } else parts.push('Bateria: o navegador não informa.');
+  if (f.cams.length) {
+    const s = f.cams.slice().sort((a, x) => a - x), avg = s.reduce((a, x) => a + x, 0) / s.length;
+    parts.push('Câmera: abriu ' + s.length + (s.length === 1 ? ' vez' : ' vezes') + ', em média ' + (avg / 1000).toFixed(1).replace('.', ',') + ' s (máximo ' + (s[s.length - 1] / 1000).toFixed(1).replace('.', ',') + ' s).');
+  }
+  parts.push('Login: ' + f.login + (f.login === 1 ? ' entrada' : ' entradas') + ' e ' + f.renew + (f.renew === 1 ? ' renovação automática.' : ' renovações automáticas.'));
+  el.textContent = parts.join(' ');
+}
+
 async function openCase(raw) {
   const name = normalizeCase(raw);
   const err = caseError(name);
   if (err) { banner('case', 'warn', err, [], 5000); return; }
+  maybeRenew();
   if (!(await dbGet('cases', name))) await dbPut('cases', { name, createdAt: Date.now() });
   ls.set(K.active, name); ls.set(K.sec, SECTIONS[0].id); secView = null;
   dropBanner('case'); $('newCase').value = '';
-  syncMic(); refresh(); kickQueue();
+  fieldStart(); syncMic(); refresh(); kickQueue();
 }
 
 // Cópias (.zip) cujas fotos já estão todas no Drive com hash conferido.
@@ -1742,7 +1840,7 @@ async function release() {
 }
 
 // ── Configuração ────────────────────────────────────────────────────────────
-function openSheet() { renderAcct(); $('groqKey').value = groqKey(); $('optDelay').value = ls.get(K.delay, '500'); renderRules(); renderCtx(); $('sheet').hidden = false; storageInfo(); syncHistory(); }
+function openSheet() { renderAcct(); $('groqKey').value = groqKey(); $('optDelay').value = ls.get(K.delay, '500'); renderRules(); renderCtx(); $('sheet').hidden = false; storageInfo(); renderApp(); renderField(); syncHistory(); }
 function renderRules() {
   const box = $('ruleList'); if (!box) return; box.textContent = '';
   const rs = getRules();
@@ -1804,10 +1902,12 @@ function bind() {
     if (pend && !confirm('Há ' + pend + (pend === 1 ? ' foto' : ' fotos') + ' sem cópia salva no celular. Trocar de caso mesmo assim? As fotos continuam guardadas no app e o botão de cópia volta quando você reabrir este caso.')) return;
     ls.set(K.active, ''); refresh();
   });
-  $('btnCam').addEventListener('click', () => show('vCap'));
+  $('btnCam').addEventListener('click', () => { maybeRenew(); show('vCap'); });
   $('homeSec').addEventListener('change', e => { ls.set(K.sec, e.target.value); refresh(); });
   $('btnSecBack').addEventListener('click', goBack);
-  $('btnSecCam').addEventListener('click', () => { ls.set(K.sec, secView || activeSec()); show('vCap'); });
+  $('btnSecCam').addEventListener('click', () => { maybeRenew(); ls.set(K.sec, secView || activeSec()); show('vCap'); });
+  $('btnInstall').addEventListener('click', async () => { if (!installEvt) return; installEvt.prompt(); try { await installEvt.userChoice; } catch (e) {} installEvt = null; renderApp(); });
+  $('btnFieldReset').addEventListener('click', async () => { ls.set(K.field, ''); await fieldStart(); renderField(); });
   $('btnCapSec').addEventListener('click', () => openSection(activeSec()));
   $('btnRelease').addEventListener('click', release);
   $('btnExport').addEventListener('click', exportCopy);
@@ -1862,6 +1962,7 @@ function bind() {
   $('verTxt').textContent = 'forenSIS beta · v' + VERSION;
   bind();
   try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (e) {}
+  initPwa();
   try {
     await db();
     for (const p of await dbAll('photos')) {
@@ -1872,6 +1973,7 @@ function bind() {
   if (!groqKey()) importDictation(true);
   if (!/\.apps\.googleusercontent\.com$/.test(clientId())) openSheet();
   show('vCaso');
+  fieldStart();
   runTranscribe();
 })();
 </script>

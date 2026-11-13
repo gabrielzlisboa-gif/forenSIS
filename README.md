@@ -2,7 +2,7 @@
 
 App para o exame pericial: fotografias e ditado no mesmo registro, enviados direto do celular de serviço para o Google Drive, com conferência de integridade (SHA-256), e um hub no computador para revisar e editar.
 
-**Estado:** fase 2 concluída (v0.3.2); próxima: 2.1, uso em campo — tela do caso com as seções (tocar abre a página da seção) e os botões Câmera e Ditado; depois de cada foto a câmera desliga e a foto fica congelada em tela cheia para conferir e descrever (Descartar, Descrever, Nova foto); visualizador em tela cheia com zoom; transcrição com dicionário e contexto por seção; envio verificado ao Drive com `caso.json` e `transcricao.txt`. Usar apenas dados fictícios. A página da fase 0 continua em `diagnostico.html`.
+**Estado:** fase 2.1 em andamento (v0.4.0): o app abre sem internet e pode ser instalado; falta o teste de campo no Moto G100 — tela do caso com as seções (tocar abre a página da seção) e os botões Câmera e Ditado; depois de cada foto a câmera desliga e a foto fica congelada em tela cheia para conferir e descrever (Descartar, Descrever, Nova foto); visualizador em tela cheia com zoom; transcrição com dicionário e contexto por seção; envio verificado ao Drive com `caso.json` e `transcricao.txt`. Usar apenas dados fictícios. A página da fase 0 continua em `diagnostico.html`.
 
 ## Isolamento do beta
 
@@ -30,15 +30,16 @@ App para o exame pericial: fotografias e ditado no mesmo registro, enviados dire
 | 0 | Login, pastas de teste, envio com SHA-256, diagnóstico da câmera | feita |
 | 1 | Câmera no app, fila sem sinal | feita |
 | 2 | Ditado ligado à foto, seções, foto congelada, tela cheia, exclusão com lixeira do Drive | feita |
-| 2.1 | **Uso em campo** (ver abaixo) | próxima |
+| 2.1 | **Uso em campo** (ver abaixo) | em andamento |
 | 3 | Hub no computador | |
 | 4 | **Fechamento e selagem** (ver abaixo) | |
 | 5 | **Lançamento** (ver abaixo) | |
 
 ### 2.1 — Uso em campo
-- *Service worker* e instalação como aplicativo: o app abre sem internet na sala e o armazenamento ganha proteção contra limpeza automática.
-- Renovação automática do login do Google antes de vencer (hoje, a cada 1 hora).
-- Teste de campo no Moto G100: uso com luvas (toque, segurar para ditar, pinça), bateria num exame completo, tempo de religar a câmera.
+- ~~*Service worker* e instalação como aplicativo~~ — feito na v0.4.0: o app abre da cópia guardada no aparelho, mesmo sem internet; versão nova é baixada em segundo plano e só entra na próxima abertura (com aviso).
+- ~~Renovação do login~~ — feito na v0.4.0: quando faltam menos de 20 min, ou ao reabrir o app, o toque em Câmera ou em abrir caso renova com a conta guardada. Nunca durante a captura.
+- Teste de campo no Moto G100: uso com luvas (toque, segurar para ditar, pinça), bateria num exame completo, tempo de religar a câmera. Medições em Configurações › Teste de campo.
+- Se o login falhar no app instalado (janela do Google em modo aplicativo), usar o app pela aba do Chrome e avaliar o login por redirecionamento.
 - ~~Cópia local (.zip em Downloads, sem senha) desligada por padrão~~ — feito na v0.3.2.
 
 ### 4 — Fechamento e selagem
