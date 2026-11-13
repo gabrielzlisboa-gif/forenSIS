@@ -21,7 +21,8 @@
   --amber:#e8c27a; --amber-dim:rgba(224,176,80,.12); --amber-border:rgba(224,176,80,.45);
   --mono:'JetBrains Mono',ui-monospace,monospace; --sans:'Inter',system-ui,sans-serif;
 }
-html, body { height:100%; background:var(--bg); }
+/* Sem "puxar para atualizar" do Chrome: recarregar no meio do exame interrompia a sessão. */
+html, body { height:100%; background:var(--bg); overscroll-behavior-y:none; }
 body { font-family:var(--sans); color:var(--text); font-size:15px; line-height:1.45; -webkit-tap-highlight-color:transparent; overscroll-behavior:none; }
 button { font-family:inherit; color:inherit; cursor:pointer; }
 button:disabled { opacity:.45; cursor:not-allowed; }
@@ -45,7 +46,8 @@ input, select { font-family:inherit; color:var(--text); }
 .banner.err { border-color:var(--red-border); background:var(--red-dim); }
 .banner.ok { border-color:var(--accent-border); background:var(--accent-dim); }
 
-.view { flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.view { flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-y:contain; }
+.view .pad, .vw-desc, .sheet { overscroll-behavior-y:contain; }
 .pad { padding:16px; display:flex; flex-direction:column; gap:14px; }
 .label { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--text-sec); }
 .card { border:1px solid var(--border); border-radius:12px; background:var(--surface); padding:14px; display:flex; flex-direction:column; gap:10px; }
@@ -174,6 +176,11 @@ body.vw-open .banners { position:fixed; left:0; right:0; z-index:16; max-width:6
 .raw { font-family:var(--mono); font-size:12px; color:var(--text-sec); background:var(--bg); border-radius:6px; padding:6px 8px; }
 .suggest { font-size:12px; border:1px solid var(--accent-border); background:var(--accent-dim); border-radius:8px; padding:8px; display:flex; flex-direction:column; gap:6px; }
 .suggest b { font-family:var(--mono); font-weight:500; color:var(--accent); }
+.textph.grip { cursor:grab; touch-action:none; -webkit-user-select:none; user-select:none; flex-direction:column; gap:4px; font-size:10px; border-color:var(--accent-border); color:var(--accent); }
+.textph.grip svg { pointer-events:none; }
+.item.dragging { opacity:.35; }
+.item.drop { border-color:var(--accent); background:var(--accent-dim); box-shadow:0 0 0 2px var(--accent-border); }
+.dragghost { position:fixed; z-index:30; left:0; top:0; width:min(70vw,280px); padding:10px 12px; border-radius:10px; background:var(--surface2); border:1px solid var(--accent); font:13px/1.4 var(--mono); color:var(--text); box-shadow:0 8px 24px rgba(0,0,0,.5); pointer-events:none; max-height:4.5em; overflow:hidden; }
 .textph { width:76px; height:76px; border-radius:8px; border:1px dashed var(--border-strong); display:flex; align-items:center; justify-content:center; color:var(--text-muted); flex-shrink:0; }
 .sheet textarea.ctx { width:100%; min-height:96px; padding:8px 10px; border-radius:8px; border:1px solid var(--border-strong); background:var(--bg); color:var(--text); font:14px/1.5 var(--sans); resize:vertical; }
 .tok { font-family:var(--mono); font-size:11px; color:var(--text-muted); }
@@ -376,7 +383,7 @@ body.vw-open .banners { position:fixed; left:0; right:0; z-index:16; max-width:6
 <script>
 'use strict';
 /*PURE-START*/
-const VERSION = '0.4.0';
+const VERSION = '0.4.1';
 const BETA_ROOT = 'DPT_BETA';
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -645,6 +652,12 @@ async function patchPhoto(id, changes) { const p = await dbGet('photos', id); if
 
 // ── Login Google ─────────────────────────────────────────────────────────────
 let token = null, tokenExp = 0, acctEmail = '';
+// A sessão do Google sobrevive a uma recarga da página (só nesta aba, e só até vencer, no máximo 1 hora).
+const SESS = 'forensis_session';
+function saveSession() { try { sessionStorage.setItem(SESS, JSON.stringify({ token, tokenExp, acctEmail })); } catch (e) {} }
+(function restoreSession() {
+  try { const s = JSON.parse(sessionStorage.getItem(SESS) || 'null'); if (s && s.token && Date.now() < s.tokenExp - 60000) { token = s.token; tokenExp = s.tokenExp; acctEmail = s.acctEmail || ''; } else sessionStorage.removeItem(SESS); } catch (e) {}
+})();
 const clientId = () => ($('clientId').value || '').trim();
 const tokenValid = () => !!token && Date.now() < tokenExp - 60000;
 function waitGis(ms) {
@@ -670,6 +683,7 @@ async function login(opts) {
       token = r.access_token; tokenExp = Date.now() + (Number(r.expires_in) || 3600) * 1000;
       dropBanner('login'); dropBanner('relogin');
       try { const a = await api('GET', API + '/about?fields=user(emailAddress)'); acctEmail = a.user.emailAddress; ls.set(K.hint, acctEmail); } catch (e) {}
+      saveSession();
       fieldNote(silent ? 'renew' : 'login');
       renderAcct(); if (!silent) closeSheet(); kickQueue();
     },
@@ -707,7 +721,7 @@ async function api(method, url, body, headers, raw) {
   let res;
   try { res = await fetch(url, { method, body, headers: Object.assign({ Authorization: 'Bearer ' + token }, headers || {}) }); }
   catch (e) { throw new Offline('Sem conexão'); }
-  if (res.status === 401) { tokenExp = 0; renderAcct(); throw new NeedLogin('Sessão expirada'); }
+  if (res.status === 401) { tokenExp = 0; try { sessionStorage.removeItem(SESS); } catch (e) {} renderAcct(); throw new NeedLogin('Sessão expirada'); }
   if (raw && res.ok) return res;
   let data = null; try { data = await res.json(); } catch (e) {}
   if (!res.ok) {
@@ -1463,7 +1477,7 @@ const suggestions = new Map(); // id do texto -> regra sugerida após uma corre�
 // Não redesenha uma lista enquanto o perito edita um texto nela ou segura um botão de ditado.
 function busyIn(el) {
   const ae = document.activeElement;
-  return mic.capturing || pressing || !!mic.tailTimer || !!(ae && ae.tagName === 'TEXTAREA' && el.contains(ae));
+  return mic.capturing || pressing || !!mic.tailTimer || !!drag || !!(ae && ae.tagName === 'TEXTAREA' && el.contains(ae));
 }
 async function refresh() {
   if (refreshing) { refreshAgain = true; return; }
@@ -1576,7 +1590,7 @@ function sectionSelect(value, onchange) {
   return sel;
 }
 function textEl(t) {
-  const box = h('div', { class: 'desc' + (t.status === 'failed' ? ' failed' : '') });
+  const box = h('div', { class: 'desc' + (t.status === 'failed' ? ' failed' : ''), 'data-text': t.id });
   if (t.status === 'pending') { box.append(h('span', { class: 'st' }, 'transcrevendo…')); return box; }
   if (t.status === 'failed') {
     box.append(h('span', { class: 'st' }, (t.error || 'Falha na transcrição.') + ' O áudio está guardado.'),
@@ -1627,11 +1641,64 @@ async function deleteText(t) {
 }
 function textWithDelete(t) {
   const el = textEl(t);
-  if (t.status !== 'ok') return el;
-  const del = h('button', { class: 'tag', onclick: () => deleteText(t) }, 'excluir texto');
   let tags = el.querySelector('.tags'); if (!tags) { tags = h('div', { class: 'tags' }); el.append(tags); }
-  tags.append(del);
+  if (t.photoId) tags.append(h('button', { class: 'tag', onclick: () => linkText(t, null) }, 'desvincular'));
+  if (t.status === 'ok') tags.append(h('button', { class: 'tag', onclick: () => deleteText(t) }, 'excluir texto'));
+  if (!tags.children.length) tags.remove();
   return el;
+}
+// Vincula (ou desvincula, com photo = null) um texto a uma foto; o texto passa para a seção da foto.
+async function linkText(t, photo) {
+  const before = { photoId: t.photoId || null, sec: t.sec };
+  const after = photo ? { photoId: photo.id, sec: photo.sec } : { photoId: null };
+  if (!(await patchText(t.id, after))) return;
+  markDirty(t.caseName); vib(25); refresh();
+  const photos = await photosOf(t.caseName);
+  const msg = photo ? 'Texto vinculado à foto ' + photoIndex(photos, photo.id) + ' de ' + secName(photo.sec) + '.' : 'Texto desvinculado; ficou como texto sem foto.';
+  banner('link', 'ok', msg, [{ label: 'Desfazer', fn: async () => { await patchText(t.id, before); markDirty(t.caseName); refresh(); } }], 8000);
+}
+// Arrastar e soltar (dedo ou mouse): a alça do texto avulso é solta sobre o cartão de uma foto.
+let drag = null;
+function bindTextDrag(handle, t) {
+  handle.addEventListener('pointerdown', e => {
+    if (drag || e.button > 0) return;
+    e.preventDefault();
+    try { handle.setPointerCapture(e.pointerId); } catch (x) {}
+    const item = handle.closest('.item'), list = $('secItems');
+    const ghost = h('div', { class: 'dragghost' }, t.text || (t.status === 'pending' ? 'transcrevendo…' : 'texto sem foto'));
+    document.body.append(ghost); item.classList.add('dragging');
+    drag = { id: e.pointerId, t, item, ghost, list, target: null, x: e.clientX, y: e.clientY, raf: 0 };
+    const place = () => { ghost.style.transform = 'translate(' + (drag.x - 20) + 'px,' + (drag.y - 24) + 'px)'; };
+    place();
+    // Rolagem automática perto das bordas da lista, para alcançar fotos fora da tela.
+    const tick = () => {
+      if (!drag) return;
+      const r = list.getBoundingClientRect(), edge = 70;
+      const v = drag.y < r.top + edge ? -Math.ceil((r.top + edge - drag.y) / 6) : drag.y > r.bottom - edge ? Math.ceil((drag.y - (r.bottom - edge)) / 6) : 0;
+      if (v) { list.scrollTop += v; hover(); }
+      drag.raf = requestAnimationFrame(tick);
+    };
+    const hover = () => {
+      const el = document.elementFromPoint(drag.x, drag.y), tgt = el && el.closest('.item[data-photo]');
+      if (tgt !== drag.target) { if (drag.target) drag.target.classList.remove('drop'); drag.target = tgt; if (tgt) { tgt.classList.add('drop'); vib(10); } }
+    };
+    drag.place = place; drag.hover = hover; drag.raf = requestAnimationFrame(tick);
+  });
+  handle.addEventListener('pointermove', e => {
+    if (!drag || drag.id !== e.pointerId) return;
+    drag.x = e.clientX; drag.y = e.clientY; drag.place(); drag.hover();
+  });
+  const end = async (e, ok) => {
+    if (!drag || drag.id !== e.pointerId) return;
+    const d = drag; drag = null;
+    cancelAnimationFrame(d.raf); d.ghost.remove(); d.item.classList.remove('dragging');
+    if (d.target) d.target.classList.remove('drop');
+    const pid = ok && d.target && d.target.dataset.photo;
+    if (pid) { const p = await dbGet('photos', pid); if (p) { await linkText(d.t, p); return; } }
+    refresh();
+  };
+  handle.addEventListener('pointerup', e => end(e, true));
+  handle.addEventListener('pointercancel', e => end(e, false));
 }
 async function deletePhoto(p, ds) {
   if (p.sending) { banner('del', 'info', 'A foto está sendo enviada agora. Tente excluir em alguns segundos.', [], 5000); return; }
@@ -1688,14 +1755,17 @@ function renderSec(photos, texts) {
       if (!ds.length) body.append(h('span', { class: 'meta', style: 'font-style:italic' }, 'sem descrição'));
       for (const t of ds) body.append(textWithDelete(t));
       body.append(actions);
-      list.append(h('div', { class: 'item' }, ph, body));
+      list.append(h('div', { class: 'item', 'data-photo': p.id }, ph, body));
     } else {
       const t = it.t;
-      const icon = h('div', { class: 'textph' }); icon.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 6h14M5 11h14M5 16h9"/></svg>';
+      // Alça para arrastar o texto até uma foto e vinculá-lo a ela.
+      const icon = h('div', { class: 'textph grip', role: 'button', 'aria-label': 'Arrastar este texto até uma foto para vincular' });
+      icon.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg><span>arraste até a foto</span>';
+      bindTextDrag(icon, t);
       const body = h('div', { class: 'body' }, h('span', { class: 'meta' }, hm(t.ts) + ' · texto sem foto'), textEl(t),
         h('div', { class: 'row' }, sectionSelect(t.sec, async v => { await patchText(t.id, { sec: v }); markDirty(t.caseName); refresh(); }),
           h('button', { class: 'btn sm ghost', onclick: () => deleteText(t) }, 'Excluir')));
-      list.append(h('div', { class: 'item' }, icon, body));
+      list.append(h('div', { class: 'item', 'data-loose': t.id }, icon, body));
     }
   }
   if (scrollSecEnd) { scrollSecEnd = false; list.scrollTop = list.scrollHeight; }
