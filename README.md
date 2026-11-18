@@ -2,7 +2,7 @@
 
 App para o exame pericial: fotografias e ditado no mesmo registro, enviados direto do celular de serviço para o Google Drive, com conferência de integridade (SHA-256), e um hub no computador para revisar e editar.
 
-**Estado:** fase 3 — hub no computador, v1 em `hub.html`. App do celular v0.4.1 testado em campo.
+**Estado:** fase 4 — fechamento e sanitizador no hub (v0.3). App do celular v0.4.3.
 
 ## Isolamento do beta
 
@@ -32,7 +32,7 @@ App para o exame pericial: fotografias e ditado no mesmo registro, enviados dire
 | 2 | Ditado ligado à foto, seções, foto congelada, tela cheia, exclusão com lixeira do Drive | feita |
 | 2.1 | **Uso em campo** (ver abaixo) | feita |
 | 3 | **Hub no computador** (ver abaixo) | v1 publicada |
-| 4 | **Fechamento e selagem** (ver abaixo) | |
+| 4 | **Fechamento e selagem** (ver abaixo) | fechamento e sanitizador feitos; falta a selagem |
 | 5 | **Lançamento** (ver abaixo) | |
 
 ### 2.1 — Uso em campo
@@ -55,11 +55,14 @@ App para o exame pericial: fotografias e ditado no mesmo registro, enviados dire
 - **Anexo para o Word:** cada página vira uma imagem JPEG a 300 dpi do tamanho da área útil (padrão 16 × 24,7 cm), com 6, 4, 2 ou 1 foto e espaço fixo para legenda de até duas linhas; copiar e colar no Word, baixar .jpg ou todas em .zip, ou imprimir/PDF. A última página termina na última linha usada. Só entram as fotos escolhidas (na janela do anexo ou na caixa "Vai para o anexo do laudo" da foto); a numeração e o "(foto N)" do laudo seguem só as escolhidas, e a escolha fica salva no `hub.json`.
 - Próximos: ditado pelo microfone do computador, anexo em formato de documento, escala métrica.
 
-### 4 — Fechamento e selagem
-- Pacote 7z com senha, verificação dos hashes e versão sanitizada.
-- Selagem do caso: lista de hashes enviada ao e-mail institucional e/ou carimbo de tempo externo (RFC 3161), para provar data e integridade além do `caso.json`.
-- Senha fora do código do script de fechamento.
-- Se a cópia local continuar existindo, gerá-la com senha.
+### 4 — Fechamento e selagem (hub, "Fechar caso")
+- ~~Fechar e trancar o caso no hub~~ — feito no hub v0.3: baixa todos os arquivos do caso do Drive e confere cada hash; monta `laudo_pericial.7z` (7-Zip, AES-256, nomes cifrados) com `Originais/`, `Editadas/`, `caso.json`, `hub.json`, `transcricao.txt`, o laudo final completo, `laudo_prototipo.txt` e `SHA256SUMS.txt`; testa com a senha, extrai e confere cada arquivo; envia (envio retomável) e confere o hash no Drive; marca a pasta como fechada e só então manda os soltos para a lixeira do Drive. Na pasta ficam só o `.7z` e o `_sanitizado.docx`. Se algo falhar antes do fim, nada é apagado e o que a tentativa enviou vai para a lixeira.
+- A senha é digitada duas vezes na hora e não é gravada em lugar nenhum (nem no código).
+- Foto com hash divergente ou sem hash bloqueia o fechamento.
+- O celular (v0.4.3) para de enviar para um caso fechado e avisa; o que for feito nele fica só no aparelho.
+- ~~Sanitizador~~ — no hub ("Sanitizar laudo" e dentro do fechamento), com prévia: mesma regra do script (de "QUESITOS" em diante, sem preâmbulo e descrição do fato, sem tabelas pequenas e imagens, nome do periciando por [VÍTIMA]); além disso, tabelas dentro das partes removidas saem junto, as imagens saem de dentro do arquivo, o nome é trocado também em cabeçalho, rodapé, notas e comentários (sem diferenciar maiúsculas), o título/assunto do arquivo ficam em branco, e há "Outros termos" trocados por [OCULTO]. Só `.docx` (o `.doc` antigo precisa ser salvo como `.docx` no Word).
+- Pendente: selagem (lista de hashes ao e-mail institucional e/ou carimbo de tempo RFC 3161); melhoria da sanitização (outros nomes, CPF, endereços); reabrir caso fechado.
+- 7-Zip no navegador: `vendor/7z-wasm-1.2.0` (7-Zip 24.09, licença GNU LGPL + restrição unRAR, ver `License.txt`), servido pelo próprio site.
 
 ### 5 — Lançamento
 - Endereço próprio para o app (domínio próprio), separado de `gabrielzlisboa-gif.github.io`, que é compartilhado com os outros projetos e dá acesso ao armazenamento local.

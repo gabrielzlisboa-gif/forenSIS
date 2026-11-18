@@ -155,6 +155,24 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 .axpage { display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--text-sec); }
 .axpage img { width:100%; background:#fff; border-radius:4px; box-shadow:0 2px 10px rgba(0,0,0,.4); }
 .axpage .r { display:flex; gap:6px; }
+.mbody { flex:1; min-height:0; overflow-y:auto; padding:12px 16px; display:flex; flex-direction:column; gap:12px; }
+.dropz { border:2px dashed var(--border-strong); border-radius:10px; padding:18px; text-align:center; color:var(--text-sec); cursor:pointer; font-size:13px; }
+.dropz.drop, .dropz:hover { border-color:var(--accent); color:var(--accent); }
+.sanprev:empty { display:none; }
+.sanfacts { font-size:13px; } .sanfacts p { margin:0 0 4px; }
+.sandoc { margin-top:8px; max-height:40vh; overflow-y:auto; background:#fff; color:#111; border-radius:8px; padding:14px 18px; font:13px/1.55 Georgia, serif; }
+.sandoc p { margin:0 0 8px; white-space:pre-wrap; color:#111; font-size:13px; }
+.sandoc mark { background:#ffe58a; padding:0 2px; }
+.steps { margin:0; padding-left:20px; display:flex; flex-direction:column; gap:14px; }
+.steps > li > b { display:block; margin-bottom:6px; }
+.steps p { margin:0 0 6px; font-size:13px; color:var(--text-sec); }
+.pwrow { display:flex; gap:8px; flex-wrap:wrap; }
+.pwrow input { height:36px; border-radius:8px; border:1px solid var(--border-strong); background:var(--surface); padding:0 10px; min-width:220px; }
+.fclog:empty { display:none; }
+.fclog { border:1px solid var(--border); border-radius:8px; padding:10px 12px; font:12px/1.5 var(--mono); background:var(--surface); }
+.fclog p { margin:0 0 4px; } .fclog .ok { color:var(--accent); } .fclog .bad { color:var(--red); }
+#fcProbs p { color:var(--red); margin:0 0 4px; font-size:13px; }
+.btn.danger { background:var(--red-dim); border-color:var(--red-border); color:var(--red); }
 .hint { font-size:12px; color:var(--text-muted); }
 
 /* Editor de anotações */
@@ -179,8 +197,10 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
     <span class="grow"></span>
     <span class="save" id="saveState"></span>
     <button class="btn ghost" id="btnReload" hidden title="Busca no Drive o que o celular enviou depois">Atualizar</button>
-    <button class="btn ghost" id="btnDrive" hidden>Abrir pasta no Drive</button>
+    <button class="btn ghost" id="btnDrive" hidden>Pasta no Drive</button>
     <button class="btn" id="btnAnexo" hidden>Anexo para o Word</button>
+    <button class="btn ghost" id="btnSan">Sanitizar laudo</button>
+    <button class="btn danger" id="btnClose" hidden title="Tranca o caso num .7z com senha e deixa na pasta só o pacote e o laudo sanitizado">Fechar caso</button>
     <span class="acct"><span class="dot" id="acctDot"></span><span id="acctTxt">desconectado</span></span>
     <button class="btn primary" id="btnLogin">Entrar</button>
   </header>
@@ -279,6 +299,39 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
   </div>
 </div>
 
+<div class="modal" id="sanBox" hidden>
+  <div class="mcard">
+    <div class="mhead"><b>Sanitizador de laudo</b><span class="grow"></span><button class="btn sm ghost" id="szClose" aria-label="Fechar">×</button></div>
+    <div class="mbody">
+      <p class="hint">Gera a versão sem dados pessoais, com o mesmo critério do script: fica de "QUESITOS" em diante, sem o preâmbulo e a descrição do fato, sem tabelas pequenas e sem imagens, com o nome do periciando trocado por [VÍTIMA]. O laudo é lido aqui no computador; nada é enviado.</p>
+      <div class="dropz" id="szDrop">Arraste o laudo (.docx) aqui ou clique para escolher<input type="file" id="szFile" accept=".docx,.doc" hidden></div>
+      <label class="f">Outros termos para ocultar (separados por vírgula), trocados por [OCULTO]<input type="text" id="szExtra" placeholder="Ex.: apelido, nome da mãe, endereço"></label>
+      <div class="sanprev" id="szPrev"></div>
+    </div>
+    <div class="mfoot"><span class="grow"></span><button class="btn primary" id="szDl" disabled>Baixar sanitizado (.docx)</button></div>
+  </div>
+</div>
+
+<div class="modal" id="closeBox" hidden>
+  <div class="mcard">
+    <div class="mhead"><b>Fechar e trancar o caso <span id="fcCase"></span></b><span class="grow"></span></div>
+    <div class="mbody">
+      <ol class="steps">
+        <li><b>Conferência</b><p id="fcSummary"></p><div id="fcProbs"></div>
+          <label class="ck2"><input type="checkbox" id="fcSync"> Conferi no celular: a fila está zerada e tudo deste caso foi enviado.</label></li>
+        <li><b>Laudo final</b><p>O laudo completo vai só para dentro do pacote com senha. O sanitizado fica solto na pasta.</p>
+          <div class="dropz" id="fcDrop">Arraste o laudo final (.docx) aqui ou clique para escolher<input type="file" id="fcFile" accept=".docx,.doc" hidden></div>
+          <label class="f" style="margin-top:8px">Outros termos para ocultar no sanitizado (separados por vírgula)<input type="text" id="fcExtra" placeholder="Ex.: apelido, nome da mãe, endereço"></label>
+          <div class="sanprev" id="fcPrev"></div></li>
+        <li><b>Senha do pacote</b><p>Use a mesma senha dos casos anteriores. Ela não é gravada em lugar nenhum; digite duas vezes para evitar erro de digitação.</p>
+          <div class="pwrow"><input type="password" id="fcPw1" autocomplete="new-password" placeholder="Senha" aria-label="Senha"><input type="password" id="fcPw2" autocomplete="new-password" placeholder="Repita a senha" aria-label="Repita a senha"></div></li>
+      </ol>
+      <div class="fclog" id="fcLog" aria-live="polite"></div>
+    </div>
+    <div class="mfoot"><span class="hint" id="fcWhy"></span><span class="grow"></span><button class="btn ghost" id="fcCancel">Cancelar</button><button class="btn danger" id="fcGo" disabled>Fechar e trancar</button></div>
+  </div>
+</div>
+
 <div class="editor" id="editor" hidden>
   <div class="etools">
     <strong id="edTitle" style="margin-right:8px"></strong>
@@ -302,7 +355,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 <script>
 'use strict';
 /*PURE-START*/
-const HUB_VERSION = '0.2.1';
+const HUB_VERSION = '0.3.0';
 // Mesmas seções do app do celular (o teste confere que continuam iguais).
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -514,12 +567,12 @@ async function loadCases() {
     const morto = root && await child('Morto', root.id, FOLDER);
     const years = morto ? await list(q(morto.id) + ' in parents and mimeType = ' + q(FOLDER)) : [];
     const cases = [];
-    for (const y of years) for (const c of await list(q(y.id) + ' in parents and mimeType = ' + q(FOLDER))) cases.push({ name: c.name, id: c.id });
+    for (const y of years) for (const c of await list(q(y.id) + ' in parents and mimeType = ' + q(FOLDER), 'id,name,appProperties')) cases.push({ name: c.name, id: c.id, closed: (c.appProperties || {}).forensis_fechado || null, zipSha: (c.appProperties || {}).forensis_pacote_sha256 || '' });
     S.cases = cases.sort((a, b) => b.name.localeCompare(a.name));
   } catch (e) { if (e instanceof NeedLogin) return needLogin(); banner('cases', 'err', 'Não foi possível listar os casos: ' + e.message); return; }
   const sel = $('caseSel'); sel.textContent = '';
   if (!S.cases.length) { $('stateTxt').textContent = 'Nenhum caso encontrado em ' + BETA_ROOT + '. Os casos aparecem aqui depois que o celular envia a primeira foto.'; return; }
-  for (const c of S.cases) sel.append(h('option', { value: c.name }, c.name));
+  for (const c of S.cases) sel.append(h('option', { value: c.name }, c.name + (c.closed ? ' · fechado' : '')));
   sel.hidden = false;
   const want = ls.get('forensis_hub_case', '');
   sel.value = S.cases.some(c => c.name === want) ? want : S.cases[0].name;
@@ -530,11 +583,22 @@ async function openCase(name) {
   ls.set('forensis_hub_case', name);
   Object.assign(S, { name, caseId: c.id, sel: null, ver: 0, manifest: null, hub: null, hubId: null, files: new Map() });
   $('stateBox').hidden = false; $('layout').hidden = true; $('stateTxt').textContent = 'Abrindo o caso ' + name + '…';
+  for (const id of ['btnReload', 'btnAnexo', 'btnClose']) $(id).hidden = true;
+  $('btnDrive').hidden = false;
+  if (c.closed) return showClosed(c);
   try { await fetchCase(); } catch (e) { if (e instanceof NeedLogin) return needLogin(); $('stateTxt').textContent = 'Não foi possível abrir o caso: ' + e.message; return; }
   $('stateBox').hidden = true; $('layout').hidden = false;
-  for (const id of ['btnReload', 'btnDrive', 'btnAnexo']) $(id).hidden = false;
+  for (const id of ['btnReload', 'btnDrive', 'btnAnexo', 'btnClose']) $(id).hidden = false;
   const first = numberedPhotos()[0]; S.sel = first ? first.id : null;
   render();
+}
+// Caso fechado: só leitura; mostra o que ficou na pasta.
+async function showClosed(c) {
+  let names = [];
+  try { names = (await list(q(c.id) + ' in parents', 'id,name')).map(f => f.name).sort(); } catch (e) { if (e instanceof NeedLogin) return needLogin(); }
+  const stray = names.filter(n => n !== ZIP_NAME && !/_sanitizado\.docx$/i.test(n));
+  $('stateTxt').textContent = 'Caso ' + c.name + ' fechado e trancado em ' + new Date(c.closed).toLocaleString('pt-BR') + '. Na pasta: ' + (names.join(', ') || 'nada') + '. SHA-256 do pacote: ' + (c.zipSha || '—') + '. Para ver o conteúdo, baixe o ' + ZIP_NAME + ' e abra com o 7-Zip e a senha.' +
+    (stray.length ? ' ATENÇÃO: há arquivos soltos que chegaram depois do fechamento (' + stray.join(', ') + '); eles não estão no pacote.' : '');
 }
 // Lê do Drive: caso.json (celular), hub.json (hub) e a lista de arquivos com o hash calculado pelo Drive.
 async function fetchCase() {
@@ -1063,6 +1127,320 @@ async function saveEdit() {
   finally { $('edSave').disabled = false; if (!$('editor').hidden) setTool(ed.tool); }
 }
 
+// ── Sanitizador de laudo (.docx), mesma lógica do script rotina_pericial.py, com prévia ──
+// Remove tudo antes de "QUESITOS", as seções PREÂMBULO e DESCRIÇÃO DO FATO, tabelas pequenas e imagens,
+// e troca o nome do periciando por [VÍTIMA]. Também: tabelas dentro das partes removidas saem junto,
+// as imagens saem de dentro do arquivo (não só da página), e o nome é trocado também em cabeçalho,
+// rodapé, notas e comentários, sem diferenciar maiúsculas.
+const WNS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+const SAN = {
+  remover: ['PREÂMBULO', 'PREAMBU', 'DESCRIÇÃO DO FATO', 'DESCRICAO DO FATO'],
+  manter: ['EXPOSIÇÃO', 'EXPOSI', 'EXAMES COMPLEMENTARES', 'COMENTÁRIO', 'COMENT', 'CONCLUSÃO', 'CONCLUSAO', 'RESPOSTAS', 'QUESITOS'],
+};
+const normU = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+function wText(el) {
+  let s = '';
+  for (const n of el.getElementsByTagNameNS(WNS, '*')) {
+    if (n.localName === 't') s += n.textContent;
+    else if (n.localName === 'tab') s += '\t';
+    else if (n.localName === 'br' || n.localName === 'cr') s += '\n';
+  }
+  return s;
+}
+async function unzip(buf) {
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength), dec = new TextDecoder();
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65557); i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error('o arquivo não é um .docx válido');
+  const n = dv.getUint16(eocd + 10, true), out = [];
+  let p = dv.getUint32(eocd + 16, true);
+  for (let k = 0; k < n; k++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) throw new Error('o arquivo não é um .docx válido');
+    const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), nlen = dv.getUint16(p + 28, true), xlen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+    const name = dec.decode(buf.subarray(p + 46, p + 46 + nlen));
+    const start = off + 30 + dv.getUint16(off + 26, true) + dv.getUint16(off + 28, true), raw = buf.subarray(start, start + csize);
+    let bytes;
+    if (method === 0) bytes = raw.slice();
+    else if (method === 8) bytes = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+    else throw new Error('compressão do .docx não suportada');
+    out.push({ name, bytes });
+    p += 46 + nlen + xlen + clen;
+  }
+  return out;
+}
+function findVictim(doc) {
+  for (const p of doc.getElementsByTagNameNS(WNS, 'p')) {
+    const t = wText(p), m = t.match(/PERICIAND[OA]\s*:|PERICIAD[OA]\s*:/i);
+    if (!m) continue;
+    const name = t.slice(m.index + m[0].length).split(/[,;\t\n]| {2,}/)[0].trim().replace(/[.,;]+$/, '');
+    if (name && !/^(IGNORAD[OA]|N[ÃA]O IDENTIFICAD[OA])$/i.test(name)) return name;
+  }
+  return null;
+}
+const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// Troca termos em cada parágrafo; se o termo estiver partido entre trechos, o parágrafo inteiro vai para o primeiro trecho.
+function replaceTerms(doc, terms) {
+  let n = 0;
+  for (const p of [...doc.getElementsByTagNameNS(WNS, 'p')]) {
+    const ts = [...p.getElementsByTagNameNS(WNS, 't')]; if (!ts.length) continue;
+    for (const { term, ph } of terms) {
+      const re = new RegExp(escRe(term), 'gi');
+      if (!re.test(ts.map(t => t.textContent).join(''))) continue;
+      let hit = 0;
+      for (const t of ts) { re.lastIndex = 0; if (re.test(t.textContent)) { re.lastIndex = 0; t.textContent = t.textContent.replace(re, () => { hit++; return ph; }); } }
+      const all = ts.map(t => t.textContent).join(''); re.lastIndex = 0;
+      if (re.test(all)) { re.lastIndex = 0; ts[0].textContent = all.replace(re, () => { hit++; return ph; }); for (const t of ts.slice(1)) t.textContent = ''; ts[0].setAttributeNS('http://www.w3.org/XML/1998/namespace', 'xml:space', 'preserve'); }
+      n += hit;
+    }
+  }
+  return n;
+}
+async function sanitizeDocx(bytes, extraTerms) {
+  const entries = await unzip(bytes), dec = new TextDecoder(), enc = new TextEncoder();
+  const get = name => entries.find(e => e.name === name);
+  const parse = e => new DOMParser().parseFromString(dec.decode(e.bytes), 'application/xml');
+  const ser = d => enc.encode(new XMLSerializer().serializeToString(d));
+  const de = get('word/document.xml'); if (!de) throw new Error('o .docx não tem o corpo do documento');
+  const doc = parse(de), body = doc.getElementsByTagNameNS(WNS, 'body')[0];
+  const victim = findVictim(doc);
+  const rep = { victim, removed: 0, tables: 0, images: 0, names: 0, others: 0, foundQuesitos: false };
+  let removing = false;
+  for (const el of [...body.childNodes].filter(x => x.nodeType === 1 && x.localName !== 'sectPr')) {
+    const tn = normU(wText(el)), isTbl = el.localName === 'tbl';
+    let drop = false;
+    if (!rep.foundQuesitos) { if (!isTbl && tn.includes('QUESITOS')) rep.foundQuesitos = true; else drop = true; }
+    else if (!isTbl && SAN.remover.some(s => tn.includes(normU(s)))) { removing = true; drop = true; }
+    else if (removing) { if (!isTbl && SAN.manter.some(s => tn.includes(normU(s)))) removing = false; else drop = true; }
+    if (!drop && isTbl && wText(el).trim().length < 300) drop = true;
+    if (drop) { if (isTbl) rep.tables++; else rep.removed++; el.remove(); }
+  }
+  for (const tag of ['drawing', 'pict', 'object']) for (const x of [...doc.getElementsByTagNameNS(WNS, tag)]) { rep.images++; x.remove(); }
+  const terms = []; if (victim) terms.push({ term: victim, ph: '[VÍTIMA]' });
+  for (const t of extraTerms || []) if (t.trim().length >= 3) terms.push({ term: t.trim(), ph: '[OCULTO]' });
+  if (terms.length) rep.names += replaceTerms(doc, terms);
+  de.bytes = ser(doc);
+  const kept = [...body.childNodes].filter(x => x.nodeType === 1 && x.localName !== 'sectPr').map(x => ({ tbl: x.localName === 'tbl', text: wText(x) })).filter(x => x.text.trim());
+  // Demais partes com texto: cabeçalhos, rodapés, notas, comentários.
+  for (const e of entries) if (/^word\/(header|footer|footnotes|endnotes|comments)\d*\.xml$/.test(e.name) && terms.length) { const d = parse(e); const k = replaceTerms(d, terms); if (k) { rep.names += k; e.bytes = ser(d); } }
+  // Imagens: some a ligação no corpo e o arquivo de imagem que nada mais usa.
+  const rels = get('word/_rels/document.xml.rels');
+  if (rels) { const d = parse(rels); for (const r of [...d.getElementsByTagName('Relationship')]) if (/\/(image|oleObject)$/.test(r.getAttribute('Type'))) r.remove(); rels.bytes = ser(d); }
+  const used = new Set();
+  for (const e of entries) if (e.name.endsWith('.rels')) { const base = e.name.replace(/_rels\/[^/]+\.rels$/, ''); for (const r of parse(e).getElementsByTagName('Relationship')) used.add((base + r.getAttribute('Target')).replace(/[^/]+\/\.\.\//g, '')); }
+  const keepEntries = entries.filter(e => !(/^word\/(media|embeddings)\//.test(e.name) && !used.has(e.name)));
+  // Propriedades do arquivo: título, assunto, palavras-chave e descrição em branco.
+  const core = get('docProps/core.xml');
+  if (core) { const d = parse(core); for (const tag of ['title', 'subject', 'keywords', 'description']) for (const x of [...d.getElementsByTagName('*')].filter(x => x.localName === tag)) x.textContent = ''; core.bytes = ser(d); }
+  const out = new Blob(zipParts(keepEntries.map(e => ({ name: e.name, bytes: e.bytes }))), { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+  return { blob: out, rep, kept };
+}
+
+// ── Sanitizador avulso (ferramenta) e no fechamento ──────────────────────────
+const san = { file: null, bytes: null, res: null };
+async function runSanitize(prefix) {
+  if (!san.bytes) return;
+  const terms = $(prefix + 'Extra').value.split(/[,;\n]/).map(s => s.trim()).filter(Boolean);
+  try { san.res = await sanitizeDocx(san.bytes, terms); }
+  catch (e) { san.res = null; $(prefix + 'Prev').textContent = 'Não foi possível sanitizar: ' + e.message; return; }
+  renderSanPreview(prefix);
+}
+function renderSanPreview(prefix) {
+  const r = san.res.rep, box = $(prefix + 'Prev'); box.textContent = '';
+  const facts = [
+    r.victim ? 'Periciando identificado e trocado por [VÍTIMA]: ' + r.victim + ' (' + r.names + ' ocorrência' + (r.names === 1 ? ')' : 's)') : 'Nome do periciando não encontrado no campo PERICIANDO/PERICIADO (caso ignorado?). Confira o texto abaixo e use "Outros termos" se preciso.',
+    r.removed + ' parágrafo(s) e ' + r.tables + ' tabela(s) removidos; ' + r.images + ' imagem(ns) removida(s).',
+  ];
+  if (!r.foundQuesitos) facts.push('ATENÇÃO: não achei "QUESITOS"; pela regra, tudo foi removido. Confira se é o laudo certo.');
+  box.append(h('div', { class: 'sanfacts' }, ...facts.map(f => h('p', null, f))));
+  const doc = h('div', { class: 'sandoc' });
+  const mark = s => { const el = h('p'); const parts = s.split(/(\[VÍTIMA\]|\[OCULTO\])/); for (const pt of parts) el.append(/^\[(VÍTIMA|OCULTO)\]$/.test(pt) ? h('mark', null, pt) : pt); return el; };
+  for (const k of san.res.kept) doc.append(mark(k.tbl ? '[tabela] ' + k.text : k.text));
+  if (!san.res.kept.length) doc.append(h('p', { class: 'hint' }, 'O sanitizado ficou vazio.'));
+  box.append(doc);
+  if (prefix === 'sz') $('szDl').disabled = false;
+  if (prefix === 'fc') fcCheck();
+}
+function sanName() { return san.file ? san.file.name.replace(/\.docx$/i, '') + '_sanitizado.docx' : 'laudo_sanitizado.docx'; }
+async function loadLaudoFile(file, prefix) {
+  san.file = file; san.bytes = null; san.res = null;
+  if (/\.docx$/i.test(file.name)) { san.bytes = new Uint8Array(await file.arrayBuffer()); await runSanitize(prefix); }
+  else $(prefix + 'Prev').textContent = 'Arquivo .doc (formato antigo): o navegador não consegue sanitizar. Abra no Word e use Salvar como › .docx; depois escolha o .docx aqui.';
+  if (prefix === 'fc') fcCheck();
+}
+function bindDrop(zone, input, fn) {
+  zone.addEventListener('click', () => input.click());
+  input.addEventListener('change', () => { if (input.files[0]) fn(input.files[0]); input.value = ''; });
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drop'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drop'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drop'); const f = e.dataTransfer.files[0]; if (f) fn(f); });
+}
+
+// ── 7-Zip no navegador (carregado só quando necessário, servido por este site) ──
+let szPromise = null;
+function load7z() {
+  if (szPromise) return szPromise;
+  szPromise = new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = 'vendor/7z-wasm-1.2.0/7zz.umd.js';
+    s.onload = () => res(); s.onerror = () => rej(new Error('não foi possível carregar o 7-Zip'));
+    document.head.append(s);
+  }).catch(e => { szPromise = null; throw e; });
+  return szPromise;
+}
+async function new7z() {
+  await load7z();
+  const log = [];
+  const sz = await window.SevenZip({ locateFile: f => 'vendor/7z-wasm-1.2.0/' + f, print: s => log.push(s), printErr: s => log.push(s) });
+  sz.run = args => { log.length = 0; let rc; try { rc = sz.callMain(args); } catch (e) { rc = typeof e.status === 'number' ? e.status : 99; } return { rc, out: log.join('\n') }; };
+  return sz;
+}
+
+// ── Envio retomável (arquivos grandes, como o .7z) ───────────────────────────
+async function uploadResumable(meta, blob, onProg) {
+  const init = await api('POST', UPL + '?uploadType=resumable&fields=id,sha256Checksum', JSON.stringify(meta), { 'Content-Type': 'application/json; charset=UTF-8', 'X-Upload-Content-Type': blob.type || 'application/octet-stream', 'X-Upload-Content-Length': String(blob.size) }, true);
+  const url = init.headers.get('Location'); if (!url) throw new Error('o Drive não abriu a sessão de envio');
+  const CH = 8 * 1024 * 1024; let pos = 0;
+  while (pos < blob.size) {
+    const end = Math.min(pos + CH, blob.size);
+    let res = null;
+    for (let tent = 0; tent < 4 && !res; tent++) {
+      try { res = await fetch(url, { method: 'PUT', headers: { 'Content-Range': 'bytes ' + pos + '-' + (end - 1) + '/' + blob.size }, body: blob.slice(pos, end) }); }
+      catch (e) { await new Promise(r => setTimeout(r, 1500 * (tent + 1))); }
+    }
+    if (!res) throw new Error('conexão perdida durante o envio');
+    if (res.status === 308) { const rg = res.headers.get('Range'); pos = rg ? Number(rg.split('-')[1]) + 1 : end; onProg && onProg(pos / blob.size); continue; }
+    if (res.ok) { onProg && onProg(1); return res.json(); }
+    throw new Error('o Drive recusou o envio (HTTP ' + res.status + ')');
+  }
+  throw new Error('envio incompleto');
+}
+async function driveSha(id) {
+  for (let i = 0; i < 12; i++) { const r = await api('GET', API + '/files/' + encodeURIComponent(id) + '?fields=sha256Checksum'); if (r.sha256Checksum) return r.sha256Checksum; await new Promise(x => setTimeout(x, 1500)); }
+  return null;
+}
+const trash = id => api('PATCH', API + '/files/' + encodeURIComponent(id) + '?fields=id', JSON.stringify({ trashed: true }), { 'Content-Type': 'application/json; charset=UTF-8' });
+
+// ── Fechar e trancar o caso ─────────────────────────────────────────────────
+const ZIP_NAME = 'laudo_pericial.7z';
+function fcProblems() {
+  const v = S.view, out = [];
+  const bad = v.photos.filter(p => hashState(p).ok === false), wait = v.photos.filter(p => hashState(p).ok === null);
+  if (bad.length) out.push(bad.length + ' foto(s) com hash divergente ou ausente no Drive (' + bad.map(p => p.name).join(', ') + '). Resolva antes de fechar.');
+  if (wait.length) out.push(wait.length + ' foto(s) ainda sem hash calculado pelo Drive. Aguarde um pouco e use Atualizar.');
+  return out;
+}
+function openClose() {
+  if (dirty || saving) flushSave();
+  san.file = san.bytes = san.res = null;
+  $('fcPrev').textContent = ''; $('fcExtra').value = ''; $('fcPw1').value = $('fcPw2').value = ''; $('fcSync').checked = false; $('fcLog').textContent = '';
+  $('fcCase').textContent = S.name;
+  const v = S.view, probs = fcProblems();
+  $('fcSummary').textContent = v.photos.length + ' fotos originais, ' + v.photos.reduce((a, p) => a + p.editadas.length, 0) + ' cópias anotadas, ' + v.texts.length + ' descrições. Último envio do celular: ' + (S.manifest && S.manifest.atualizadoEm ? new Date(S.manifest.atualizadoEm).toLocaleString('pt-BR') : 'sem registro') + '.';
+  const pb = $('fcProbs'); pb.textContent = ''; for (const p of probs) pb.append(h('p', null, p));
+  $('closeBox').hidden = false; fcCheck();
+}
+function fcCheck() {
+  const pw1 = $('fcPw1').value, pw2 = $('fcPw2').value, probs = fcProblems();
+  const msgs = [];
+  if (probs.length) msgs.push('Há problemas nas fotos (acima).');
+  if (!$('fcSync').checked) msgs.push('Confirme que o celular enviou tudo.');
+  if (!san.file) msgs.push('Escolha o laudo final.');
+  else if (!san.res) msgs.push('O laudo precisa estar em .docx para gerar o sanitizado.');
+  if (pw1.length < 8) msgs.push('Senha com pelo menos 8 caracteres.');
+  else if (pw1 !== pw2) msgs.push('As duas senhas não conferem.');
+  $('fcGo').disabled = msgs.length > 0;
+  $('fcWhy').textContent = msgs.join(' ');
+}
+function fcLog(msg, kind) { const el = h('p', { class: kind || '' }, msg); $('fcLog').append(el); el.scrollIntoView({ block: 'nearest' }); return el; }
+const sha256Bytes = async b => [...new Uint8Array(await crypto.subtle.digest('SHA-256', b))].map(x => x.toString(16).padStart(2, '0')).join('');
+async function closeCase() {
+  const pw = $('fcPw1').value;
+  if (!confirm('Fechar e trancar o caso ' + S.name + '?\n\nTudo vai para ' + ZIP_NAME + ' com senha. Depois da verificação, as fotos, os .json e a transcrição soltos vão para a lixeira do Drive. Na pasta ficam só o ' + ZIP_NAME + ' e o laudo sanitizado.\n\nSem a senha, o pacote não abre. Guarde-a.')) return;
+  for (const id of ['fcGo', 'fcCancel', 'fcPw1', 'fcPw2']) $(id).disabled = true;
+  $('fcLog').textContent = '';
+  let zipId = null, sanId = null, ok = false;
+  try {
+    await flushSave();
+    // 1. Reúne tudo do Drive, conferindo o hash de cada arquivo.
+    const kids = await list(q(S.caseId) + ' in parents', 'id,name,mimeType,sha256Checksum');
+    if (kids.some(k => k.name === ZIP_NAME)) throw new Error('já existe ' + ZIP_NAME + ' na pasta; nada foi alterado');
+    const files = []; // { path, bytes, sha }
+    const take = async (f, path) => {
+      const bytes = new Uint8Array(await (await media(f.id)).arrayBuffer()), sha = await sha256Bytes(bytes);
+      if (f.sha256Checksum && f.sha256Checksum !== sha) throw new Error(path + ': o arquivo baixado não confere com o hash do Drive');
+      files.push({ path, bytes, sha, id: f.id });
+    };
+    const folders = kids.filter(k => k.mimeType === FOLDER && (k.name === 'Originais' || k.name === 'Editadas'));
+    const loose = kids.filter(k => k.mimeType !== FOLDER && /^(caso\.json|hub\.json|transcricao\.txt)$/.test(k.name));
+    let n = 0, total = 0; const sub = [];
+    for (const fo of folders) for (const f of await list(q(fo.id) + ' in parents', 'id,name,mimeType,sha256Checksum')) if (f.mimeType !== FOLDER) sub.push({ f, path: fo.name + '/' + f.name });
+    total = sub.length + loose.length;
+    const line = fcLog('Baixando e conferindo os arquivos do Drive… 0 de ' + total);
+    for (const s of sub) { await take(s.f, s.path); line.textContent = 'Baixando e conferindo os arquivos do Drive… ' + (++n) + ' de ' + total; }
+    for (const f of loose) { await take(f, f.name); line.textContent = 'Baixando e conferindo os arquivos do Drive… ' + (++n) + ' de ' + total; }
+    for (const p of S.view.photos) { const f = files.find(x => x.path === p.arquivo); if (!f) throw new Error(p.arquivo + ' não está no Drive'); if (f.sha !== p.sha256) throw new Error(p.arquivo + ': hash diferente do registrado no celular'); }
+    line.textContent = total + ' arquivos baixados; hashes conferidos com o Drive e com o registro do celular.'; line.className = 'ok';
+    // 2. Laudo final (original, completo) e protótipo do laudo entram no pacote.
+    files.push({ path: san.file.name, bytes: new Uint8Array(await san.file.arrayBuffer()) });
+    files.push({ path: 'laudo_prototipo.txt', bytes: new TextEncoder().encode(concatLaudo(S.view, LAUDO_DEFAULTS) + '\n') });
+    for (const f of files) if (!f.sha) f.sha = await sha256Bytes(f.bytes);
+    files.push({ path: 'SHA256SUMS.txt', bytes: new TextEncoder().encode(files.map(f => f.sha + '  ' + f.path).join('\n') + '\n') });
+    files[files.length - 1].sha = await sha256Bytes(files[files.length - 1].bytes);
+    // 3. Cria o .7z (AES-256, nomes cifrados), testa com a senha e extrai para conferir cada hash.
+    fcLog('Carregando o 7-Zip…');
+    const sz = await new7z();
+    sz.FS.mkdir('/in'); sz.FS.mkdir('/in/Originais'); sz.FS.mkdir('/in/Editadas');
+    for (const f of files) { sz.FS.writeFile('/in/' + f.path, f.bytes); f.bytes = null; } // libera memória: a cópia fica no 7-Zip
+    sz.FS.chdir('/in');
+    const names = [...new Set(files.map(f => f.path.split('/')[0]))];
+    fcLog('Criando ' + ZIP_NAME + ' com senha…');
+    let r = sz.run(['a', '-t7z', '-mhe=on', '-mx=1', '-sccUTF-8', '-p' + pw, '/' + ZIP_NAME, ...names]);
+    if (r.rc !== 0) throw new Error('o 7-Zip não criou o pacote');
+    for (const f of files) sz.FS.unlink('/in/' + f.path);
+    r = sz.run(['t', '-p' + pw, '/' + ZIP_NAME]);
+    if (r.rc !== 0 || !/Everything is Ok/.test(r.out)) throw new Error('o teste do pacote com a senha falhou');
+    sz.FS.mkdir('/x'); r = sz.run(['x', '-p' + pw, '-o/x', '-y', '-sccUTF-8', '/' + ZIP_NAME]);
+    if (r.rc !== 0) throw new Error('não foi possível extrair o pacote para conferência');
+    for (const f of files) { const b = sz.FS.readFile('/x/' + f.path); if (await sha256Bytes(b) !== f.sha) throw new Error(f.path + ': hash diferente depois de extrair do pacote'); sz.FS.unlink('/x/' + f.path); }
+    const zbytes = sz.FS.readFile('/' + ZIP_NAME), zsha = await sha256Bytes(zbytes);
+    fcLog(ZIP_NAME + ' criado (' + (zbytes.length / 1048576).toFixed(1).replace('.', ',') + ' MB): testado com a senha e ' + files.length + ' arquivos extraídos conferem.', 'ok');
+    // 4. Envia o pacote e o sanitizado; confere o hash calculado pelo Drive.
+    const upLine = fcLog('Enviando ' + ZIP_NAME + ' ao Drive… 0%');
+    const up = await uploadResumable({ name: ZIP_NAME, parents: [S.caseId], appProperties: { forensis: 'pacote', sha256: zsha } }, new Blob([zbytes], { type: 'application/x-7z-compressed' }), f => { upLine.textContent = 'Enviando ' + ZIP_NAME + ' ao Drive… ' + Math.round(f * 100) + '%'; });
+    zipId = up.id;
+    const remote = up.sha256Checksum || await driveSha(zipId);
+    if (remote !== zsha) throw new Error('o hash do ' + ZIP_NAME + ' no Drive não confere');
+    upLine.textContent = ZIP_NAME + ' no Drive, hash conferido.'; upLine.className = 'ok';
+    const sanBlob = san.res.blob, sanSha = await sha256Hex(sanBlob);
+    const mp = multipart({ name: sanName(), parents: [S.caseId], mimeType: sanBlob.type, appProperties: { forensis: 'sanitizado', sha256: sanSha } }, sanBlob, sanBlob.type);
+    const su = await api('POST', UPL + '?uploadType=multipart&fields=id,sha256Checksum', mp.body, { 'Content-Type': mp.ct });
+    sanId = su.id;
+    if ((su.sha256Checksum || await driveSha(sanId)) !== sanSha) throw new Error('o hash do laudo sanitizado no Drive não confere');
+    fcLog(sanName() + ' no Drive, hash conferido.', 'ok');
+    // 5. Marca a pasta como fechada (o celular para de enviar para ela) e só então manda os soltos para a lixeira.
+    const when = new Date().toISOString();
+    await api('PATCH', API + '/files/' + encodeURIComponent(S.caseId) + '?fields=id', JSON.stringify({ appProperties: { forensis_fechado: when, forensis_pacote_sha256: zsha } }), { 'Content-Type': 'application/json; charset=UTF-8' });
+    ok = true;
+    const toTrash = folders.concat(loose);
+    for (const f of toTrash) await trash(f.id);
+    const left = (await list(q(S.caseId) + ' in parents', 'id,name')).map(f => f.name).sort();
+    fcLog('Originais, Editadas, caso.json, hub.json e transcricao.txt foram para a lixeira do Drive. Na pasta ficaram: ' + left.join(', ') + '.', 'ok');
+    fcLog('Caso fechado e trancado. SHA-256 do pacote: ' + zsha, 'ok');
+    $('fcGo').hidden = true; $('fcCancel').textContent = 'Concluir'; $('fcCancel').disabled = false;
+    $('fcCancel').onclick = () => { $('fcCancel').onclick = null; $('closeBox').hidden = true; loadCases(); };
+    blobs.clear();
+  } catch (e) {
+    if (e instanceof NeedLogin) needLogin();
+    fcLog('Parou: ' + e.message + '.', 'bad');
+    if (!ok) {
+      // Nada dos originais foi mexido; desfaz só o que esta tentativa criou.
+      for (const id of [zipId, sanId].filter(Boolean)) { try { await trash(id); } catch (x) {} }
+      fcLog('Nada foi apagado. ' + (zipId || sanId ? 'O que esta tentativa enviou foi para a lixeira. ' : '') + 'Corrija e tente de novo.', 'bad');
+    } else fcLog('O pacote já está verificado no Drive, mas a limpeza não terminou. Use Atualizar e confira a pasta; os arquivos que sobraram podem ir para a lixeira à mão.', 'bad');
+    for (const id of ['fcGo', 'fcCancel', 'fcPw1', 'fcPw2']) $(id).disabled = false;
+    fcCheck();
+  }
+}
+
 // ── Ligações ────────────────────────────────────────────────────────────────
 function bind() {
   $('btnLogin').addEventListener('click', login);
@@ -1070,6 +1448,17 @@ function bind() {
   $('btnReload').addEventListener('click', reloadCase);
   $('btnDrive').addEventListener('click', () => window.open('https://drive.google.com/drive/folders/' + S.caseId, '_blank', 'noopener'));
   $('btnAnexo').addEventListener('click', openAnexo);
+  $('btnSan').addEventListener('click', () => { san.file = san.bytes = san.res = null; $('szPrev').textContent = ''; $('szDl').disabled = true; $('sanBox').hidden = false; });
+  $('szClose').addEventListener('click', () => { $('sanBox').hidden = true; san.file = san.bytes = san.res = null; $('szPrev').textContent = ''; });
+  bindDrop($('szDrop'), $('szFile'), f => loadLaudoFile(f, 'sz'));
+  $('szExtra').addEventListener('change', () => runSanitize('sz'));
+  $('szDl').addEventListener('click', () => { if (!san.res) return; const a = h('a', { href: URL.createObjectURL(san.res.blob), download: sanName() }); document.body.append(a); a.click(); a.remove(); });
+  $('btnClose').addEventListener('click', openClose);
+  bindDrop($('fcDrop'), $('fcFile'), f => loadLaudoFile(f, 'fc'));
+  $('fcExtra').addEventListener('change', () => runSanitize('fc'));
+  for (const id of ['fcSync', 'fcPw1', 'fcPw2']) $(id).addEventListener('input', fcCheck);
+  $('fcCancel').addEventListener('click', () => { if ($('fcCancel').onclick) return; $('closeBox').hidden = true; $('fcPw1').value = $('fcPw2').value = ''; san.file = san.bytes = san.res = null; });
+  $('fcGo').addEventListener('click', closeCase);
   $('axClose').addEventListener('click', () => { $('anexoBox').hidden = true; clearAnexo(); });
   $('axGen').addEventListener('click', genAnexo);
   $('axAll').addEventListener('click', () => setAnexo(S.view.photos.map(p => p.id), true));
@@ -1102,6 +1491,8 @@ function bind() {
   document.addEventListener('keydown', e => {
     if (!$('editor').hidden) { if (e.key === 'Escape') closeEditor(); if ((e.ctrlKey || e.metaKey) && e.key === 'z') $('edUndo').click(); return; }
     if (!$('anexoBox').hidden) { if (e.key === 'Escape') $('axClose').click(); return; }
+    if (!$('sanBox').hidden) { if (e.key === 'Escape') $('szClose').click(); return; }
+    if (!$('closeBox').hidden) return;
     if (tab === 'pLaudo' && e.key === 'Escape' && lsel) { lsel = null; renderLaudo(); return; }
     if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || tab !== 'pFoto') return;
     if (e.key === 'ArrowLeft') step(-1); if (e.key === 'ArrowRight') step(1);
