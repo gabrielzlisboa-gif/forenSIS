@@ -68,6 +68,17 @@ aside { border-right:1px solid var(--border); overflow-y:auto; padding:12px 14px
 .tiles { display:grid; grid-template-columns:repeat(auto-fill, minmax(72px, 1fr)); gap:6px; }
 .tile { position:relative; aspect-ratio:1; border-radius:8px; border:2px solid transparent; background:var(--surface2) center/cover no-repeat; padding:0; }
 .tile.sel { border-color:var(--accent); }
+.tile.out { opacity:.45; border-style:dashed; border-color:var(--border-strong); }
+.tile.out.sel { opacity:.8; border-color:var(--accent); }
+.ck2 { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text); }
+.axsel { padding:0 16px 12px; border-bottom:1px solid var(--border); }
+.axselh { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px; }
+.axgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(84px, 1fr)); gap:8px; max-height:210px; overflow-y:auto; }
+.axs { position:relative; aspect-ratio:1; border-radius:8px; border:2px solid var(--border-strong); background:var(--surface2) center/cover no-repeat; padding:0; opacity:.4; }
+.axs.on { border-color:var(--accent); opacity:1; }
+.axs .n { position:absolute; left:3px; top:3px; font-size:11px; font-weight:600; padding:0 5px; border-radius:4px; background:rgba(7,8,11,.8); }
+.axs .c { position:absolute; right:4px; top:4px; width:20px; height:20px; border-radius:10px; border:2px solid #fff; background:rgba(7,8,11,.6); font-size:12px; line-height:16px; text-align:center; color:var(--on-accent); }
+.axs.on .c { background:var(--accent); border-color:var(--accent); }
 .tile.drop { border-color:var(--amber); box-shadow:0 0 0 3px var(--amber-dim); }
 .tile .n { position:absolute; left:3px; top:3px; font-size:11px; font-weight:600; padding:0 5px; border-radius:4px; background:rgba(7,8,11,.8); }
 .tile .b { position:absolute; right:3px; bottom:3px; display:flex; gap:3px; }
@@ -209,6 +220,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
             </div>
             <div class="meta">
               <label class="f">Seção<select id="phSecSel"></select></label>
+              <label class="ck2"><input type="checkbox" id="phAnexo"> Vai para o anexo do laudo</label>
               <label class="f">Legenda do anexo<input type="text" id="phCaption" placeholder="Ex.: Orifício de entrada no tórax anterior esquerdo"></label>
               <dl id="phMeta"></dl>
             </div>
@@ -257,6 +269,11 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
       <button class="btn primary" id="axGen">Gerar páginas</button>
     </div>
     <p class="hint" style="padding:0 16px">Cada página vira uma imagem do tamanho da área útil (300 dpi), com espaço para a legenda de cada foto. No Word: <b>Copiar</b> e Ctrl+V, ou Inserir › Imagens com o arquivo baixado. Para mudar uma legenda, edite na aba Fotos e gere de novo.</p>
+    <div class="axsel">
+      <div class="axselh"><b id="axCount"></b><span class="hint">Clique na foto para incluir ou tirar do anexo. A numeração e o "(foto N)" do laudo seguem só as escolhidas.</span><span class="grow"></span>
+        <button class="btn sm ghost" id="axAll">Todas</button><button class="btn sm ghost" id="axNone">Nenhuma</button></div>
+      <div class="axgrid" id="axGrid"></div>
+    </div>
     <div class="axpages" id="axPages"></div>
     <div class="mfoot"><span class="hint" id="axInfo"></span><span class="grow"></span><button class="btn ghost" id="axPrint" disabled>Imprimir ou PDF</button><button class="btn" id="axZip" disabled>Baixar todas (.zip)</button></div>
   </div>
@@ -285,7 +302,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 <script>
 'use strict';
 /*PURE-START*/
-const HUB_VERSION = '0.2.0';
+const HUB_VERSION = '0.2.1';
 // Mesmas seções do app do celular (o teste confere que continuam iguais).
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -303,7 +320,7 @@ function mergeView(manifest, hub) {
   const regs = (manifest && manifest.registros) || [];
   const photos = regs.filter(r => r.tipo === 'foto').map(r => {
     const o = (hub.fotos || {})[r.id] || {};
-    return Object.assign({}, r, { secao: o.secao || r.secao, legenda: o.legenda || '', editadas: o.editadas || [], name: String(r.arquivo || '').split('/').pop() });
+    return Object.assign({}, r, { secao: o.secao || r.secao, legenda: o.legenda || '', editadas: o.editadas || [], anexo: o.anexo !== false, name: String(r.arquivo || '').split('/').pop() });
   });
   const pids = new Set(photos.map(p => p.id));
   const texts = regs.filter(r => r.tipo === 'texto').map(r => {
@@ -317,11 +334,11 @@ function mergeView(manifest, hub) {
   }).filter(t => !(hub.textos[t.id] && hub.textos[t.id].oculto));
   return { photos, texts };
 }
-// Numeração do anexo: ordem das seções, depois ordem de captura.
-function numberPhotos(photos) {
-  const sorted = photos.slice().sort((a, b) => secIdx(a.secao) - secIdx(b.secao) || String(a.capturadaEm).localeCompare(String(b.capturadaEm)));
-  return new Map(sorted.map((p, i) => [p.id, i + 1]));
-}
+// Ordem das fotos: seções, depois ordem de captura.
+function orderPhotos(photos) { return photos.slice().sort((a, b) => secIdx(a.secao) - secIdx(b.secao) || String(a.capturadaEm).localeCompare(String(b.capturadaEm))); }
+// Numeração do anexo: só as fotos escolhidas para o laudo. O "(foto N)" do texto segue a mesma numeração.
+function numberPhotos(photos) { return new Map(orderPhotos(photos).filter(p => p.anexo !== false).map((p, i) => [p.id, i + 1])); }
+const photoLabel = (p, nums) => nums.has(p.id) ? 'Foto ' + nums.get(p.id) : 'Fora do anexo';
 function sentence(s) {
   s = String(s || '').trim().replace(/\s+/g, ' ');
   if (!s) return '';
@@ -581,7 +598,7 @@ function linkText(textId, photoId) {
   if (p) o.secao = p.secao;
   changed();
   const nums = numberPhotos(S.view.photos);
-  banner('link', 'ok', p ? 'Texto vinculado à foto ' + nums.get(p.id) + '.' : 'Texto desvinculado; ficou como texto sem foto.',
+  banner('link', 'ok', p ? 'Texto vinculado à ' + (nums.has(p.id) ? 'foto ' + nums.get(p.id) : 'foto ' + p.name + ' (fora do anexo)') + '.' : 'Texto desvinculado; ficou como texto sem foto.',
     [{ label: 'Desfazer', fn: () => { S.hub.textos[textId] = JSON.parse(before); changed(); } }], 8000);
 }
 function setPhotoSection(p, sec) {
@@ -627,7 +644,8 @@ function pumpThumbs() {
 }
 
 // ── Desenho da tela ─────────────────────────────────────────────────────────
-function numberedPhotos() { const n = numberPhotos(S.view.photos); return S.view.photos.slice().sort((a, b) => n.get(a.id) - n.get(b.id)); }
+function numberedPhotos() { return orderPhotos(S.view.photos); }
+function setAnexo(ids, on) { for (const id of ids) { const o = pOv(id); if (on) delete o.anexo; else o.anexo = false; } clearAnexo(); changed(); }
 function hashState(p) {
   const f = p.driveId && S.files.get(p.driveId);
   if (!f) return { ok: false, txt: 'arquivo não encontrado no Drive' };
@@ -645,9 +663,10 @@ function render() {
   $('stats').append(v.photos.length + (v.photos.length === 1 ? ' foto · ' : ' fotos · ') + v.texts.length + (v.texts.length === 1 ? ' descrição · ' : ' descrições · '), h('b', null, 'hash conferido em ' + okHash + ' de ' + v.photos.length));
   // filtros
   const fl = $('filters'); fl.textContent = '';
-  for (const [k, lab] of [['all', 'Todos'], ['nodesc', 'Sem descrição (' + noDesc.length + ')'], ['loose', 'Texto sem foto (' + loose.length + ')'], ['edited', 'Editadas (' + edited.length + ')']])
+  const outA = v.photos.filter(p => !p.anexo);
+  for (const [k, lab] of [['all', 'Todos'], ['nodesc', 'Sem descrição (' + noDesc.length + ')'], ['loose', 'Texto sem foto (' + loose.length + ')'], ['edited', 'Editadas (' + edited.length + ')'], ['out', 'Fora do anexo (' + outA.length + ')']])
     fl.append(h('button', { class: 'chip' + (S.filter === k ? ' on' : ''), onclick: () => { S.filter = k; render(); } }, lab));
-  const showP = p => S.filter === 'all' || (S.filter === 'nodesc' && !linked.has(p.id)) || (S.filter === 'edited' && p.editadas.length);
+  const showP = p => S.filter === 'all' || (S.filter === 'nodesc' && !linked.has(p.id)) || (S.filter === 'edited' && p.editadas.length) || (S.filter === 'out' && !p.anexo);
   const showT = () => S.filter === 'all' || S.filter === 'loose';
   // seções
   const box = $('secs'); box.textContent = '';
@@ -659,8 +678,8 @@ function render() {
     const tiles = h('div', { class: 'tiles' });
     for (const p of ps) {
       const nd = v.texts.filter(t => t.fotoId === p.id).length, hs = hashState(p);
-      const tl = h('button', { class: 'tile' + (S.sel === p.id ? ' sel' : ''), 'data-photo': p.id, 'data-thumb': p.driveId, 'aria-label': 'Foto ' + nums.get(p.id), onclick: () => select(p.id) },
-        h('span', { class: 'n' }, String(nums.get(p.id))),
+      const tl = h('button', { class: 'tile' + (S.sel === p.id ? ' sel' : '') + (p.anexo ? '' : ' out'), 'data-photo': p.id, 'data-thumb': p.driveId, 'aria-label': photoLabel(p, nums), title: p.anexo ? '' : 'Fora do anexo do laudo', onclick: () => select(p.id) },
+        h('span', { class: 'n' }, nums.has(p.id) ? String(nums.get(p.id)) : '–'),
         h('span', { class: 'b' }, nd ? h('i', { class: 't' }, nd + ' txt') : null, p.editadas.length ? h('i', { class: 'e' }, 'ed.') : null, hs.ok === false ? h('i', { class: 'x' }, 'hash') : null));
       dropTarget(tl, id => linkText(id, p.id));
       if (p.driveId) wantThumb(p.driveId, tl);
@@ -678,6 +697,7 @@ function render() {
   }
   if (!box.children.length) box.append(h('div', { class: 'empty' }, 'Caso sem fotos nem descrições ainda.'));
   renderPhoto(); renderLaudo();
+  if (!$('anexoBox').hidden) renderAxSel();
 }
 function looseCard(t) {
   const c = h('div', { class: 'ltext', draggable: 'true', 'data-text': t.id, title: 'Arraste até a miniatura de uma foto' }, h('span', { class: 'g' }, '⋮⋮'), h('span', { class: 'tx' }, t.texto));
@@ -702,7 +722,8 @@ function renderPhoto() {
   $('noPhoto').hidden = !!p; $('photoBox').hidden = !p;
   if (!p) return;
   const nums = numberPhotos(S.view.photos);
-  $('phTitle').textContent = 'Foto ' + nums.get(p.id);
+  $('phTitle').textContent = photoLabel(p, nums);
+  $('phAnexo').checked = p.anexo;
   $('phSec').textContent = secName(p.secao);
   if (S.ver > p.editadas.length) S.ver = 0;
   const vers = $('vers'); vers.textContent = '';
@@ -787,7 +808,7 @@ function renderLaudoSide() {
   if (!p) return;
   const nums = numberPhotos(S.view.photos);
   if (lsVer < 0 || lsVer > p.editadas.length) lsVer = p.editadas.length; // abre na última versão anotada, se houver
-  $('lsTitle').textContent = 'Foto ' + nums.get(p.id) + ' · ' + secName(p.secao);
+  $('lsTitle').textContent = photoLabel(p, nums) + ' · ' + secName(p.secao);
   $('lsVer').hidden = !p.editadas.length;
   $('lsVer').textContent = lsVer ? 'Ver original' : 'Ver anotada';
   $('lsSize').textContent = lsize === 'half' ? '⅓' : '½';
@@ -805,7 +826,20 @@ const ax = { pages: [] }; // [{ blob, url, name, first, last }]
 function axOpts() { return { per: Number($('axPer').value), wcm: Number($('axW').value) || 16, hcm: Number($('axH').value) || 24.7, pt: Number($('axPt').value), ed: $('axEd').checked, sec: $('axSec').checked }; }
 function openAnexo() {
   try { const o = JSON.parse(ls.get('forensis_hub_anexo', 'null')); if (o) { $('axPer').value = String(o.per); $('axW').value = o.wcm; $('axH').value = o.hcm; $('axPt').value = String(o.pt); $('axEd').checked = !!o.ed; $('axSec').checked = !!o.sec; } } catch (e) {}
-  $('anexoBox').hidden = false; clearAnexo(); $('axInfo').textContent = numberedPhotos().length + ' fotos no caso.';
+  $('anexoBox').hidden = false; clearAnexo(); renderAxSel();
+}
+function renderAxSel() {
+  const all = orderPhotos(S.view.photos), nums = numberPhotos(S.view.photos), grid = $('axGrid');
+  $('axCount').textContent = nums.size + ' de ' + all.length + ' fotos no anexo';
+  $('axInfo').textContent = nums.size ? '' : 'Nenhuma foto escolhida para o anexo.';
+  const keep = grid.scrollTop; grid.textContent = '';
+  for (const p of all) {
+    const b = h('button', { class: 'axs' + (p.anexo ? ' on' : ''), 'data-photo': p.id, 'data-thumb': p.driveId, title: p.name + (p.legenda ? ' — ' + p.legenda : '') + ' (' + secName(p.secao) + ')', 'aria-pressed': p.anexo ? 'true' : 'false', onclick: () => setAnexo([p.id], !p.anexo) },
+      h('span', { class: 'n' }, nums.has(p.id) ? String(nums.get(p.id)) : '–'), h('span', { class: 'c' }, p.anexo ? '✓' : ''));
+    if (p.driveId) wantThumb(p.driveId, b);
+    grid.append(b);
+  }
+  grid.scrollTop = keep;
 }
 function clearAnexo() { for (const p of ax.pages) URL.revokeObjectURL(p.url); ax.pages = []; $('axPages').textContent = ''; $('axZip').disabled = $('axPrint').disabled = true; }
 function wrapLines(ctx, text, maxW, maxLines) {
@@ -820,7 +854,8 @@ function wrapLines(ctx, text, maxW, maxLines) {
 }
 async function genAnexo() {
   const o = axOpts(); ls.set('forensis_hub_anexo', JSON.stringify(o));
-  const ps = numberedPhotos(); if (!ps.length) return;
+  const ps = orderPhotos(S.view.photos).filter(p => p.anexo);
+  if (!ps.length) { banner('anexo', 'warn', 'Escolha ao menos uma foto para o anexo.', [], 4000); return; }
   clearAnexo(); $('axGen').disabled = true;
   const g = anexoGeom(o), nums = numberPhotos(S.view.photos), font = '"Times New Roman", Times, serif';
   try {
@@ -896,7 +931,7 @@ async function openEditor() {
   const p = S.view.photos.find(x => x.id === S.sel); if (!p) return;
   const base = S.ver ? p.editadas[S.ver - 1] : null;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); // nada digitado no editor vai para a legenda
-  $('edTitle').textContent = 'Foto ' + numberPhotos(S.view.photos).get(p.id) + ' · anotações';
+  $('edTitle').textContent = photoLabel(p, numberPhotos(S.view.photos)) + ' · anotações';
   $('editor').hidden = false; $('edHint').textContent = 'Carregando o original…';
   try { ed.bmp = await createImageBitmap(await getBlob(p.driveId)); }
   catch (e) { $('editor').hidden = true; if (e instanceof NeedLogin) return needLogin(); banner('ed', 'err', 'Não foi possível abrir a foto: ' + e.message); return; }
@@ -1037,6 +1072,9 @@ function bind() {
   $('btnAnexo').addEventListener('click', openAnexo);
   $('axClose').addEventListener('click', () => { $('anexoBox').hidden = true; clearAnexo(); });
   $('axGen').addEventListener('click', genAnexo);
+  $('axAll').addEventListener('click', () => setAnexo(S.view.photos.map(p => p.id), true));
+  $('axNone').addEventListener('click', () => setAnexo(S.view.photos.map(p => p.id), false));
+  $('phAnexo').addEventListener('change', e => { if (S.sel) setAnexo([S.sel], e.target.checked); });
   $('axZip').addEventListener('click', zipAnexo);
   $('axPrint').addEventListener('click', printAnexo);
   for (const id of ['axPer', 'axW', 'axH', 'axPt', 'axEd', 'axSec']) $(id).addEventListener('change', clearAnexo);

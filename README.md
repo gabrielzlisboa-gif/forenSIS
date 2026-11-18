@@ -52,7 +52,7 @@ App para o exame pericial: fotografias e ditado no mesmo registro, enviados dire
 - **Protótipo do laudo:** concatenador que junta as descrições em texto único, na ordem das seções e do exame, com maiúscula inicial, ponto final e "(foto N)"; copiar ou baixar .txt.
 - **Anotações:** seta, círculo, texto e recorte; a cópia vai para `Editadas/` com hash conferido; o original nunca muda; as marcações ficam guardadas para editar de novo.
 - **Laudo clicável:** clicar num trecho do protótipo destaca a descrição (e, de leve, as outras da mesma foto) e abre a foto ao lado, em 1/3 ou metade da tela, na versão anotada ou original.
-- **Anexo para o Word:** cada página vira uma imagem JPEG a 300 dpi do tamanho da área útil (padrão 16 × 24,7 cm), com 6, 4, 2 ou 1 foto e espaço fixo para legenda de até duas linhas; copiar e colar no Word, baixar .jpg ou todas em .zip, ou imprimir/PDF. A última página termina na última linha usada.
+- **Anexo para o Word:** cada página vira uma imagem JPEG a 300 dpi do tamanho da área útil (padrão 16 × 24,7 cm), com 6, 4, 2 ou 1 foto e espaço fixo para legenda de até duas linhas; copiar e colar no Word, baixar .jpg ou todas em .zip, ou imprimir/PDF. A última página termina na última linha usada. Só entram as fotos escolhidas (na janela do anexo ou na caixa "Vai para o anexo do laudo" da foto); a numeração e o "(foto N)" do laudo seguem só as escolhidas, e a escolha fica salva no `hub.json`.
 - Próximos: ditado pelo microfone do computador, anexo em formato de documento, escala métrica.
 
 ### 4 — Fechamento e selagem
