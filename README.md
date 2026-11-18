@@ -2,7 +2,7 @@
 
 App para o exame pericial: fotografias e ditado no mesmo registro, enviados direto do celular de serviço para o Google Drive, com conferência de integridade (SHA-256), e um hub no computador para revisar e editar.
 
-**Estado:** fase 2.1 em andamento (v0.4.1): abre sem internet, instalável, sessão mantida na recarga, arrastar texto avulso até a foto; primeiro teste de campo feito — tela do caso com as seções (tocar abre a página da seção) e os botões Câmera e Ditado; depois de cada foto a câmera desliga e a foto fica congelada em tela cheia para conferir e descrever (Descartar, Descrever, Nova foto); visualizador em tela cheia com zoom; transcrição com dicionário e contexto por seção; envio verificado ao Drive com `caso.json` e `transcricao.txt`. Usar apenas dados fictícios. A página da fase 0 continua em `diagnostico.html`.
+**Estado:** fase 3 — hub no computador, v1 em `hub.html`. App do celular v0.4.1 testado em campo.
 
 ## Isolamento do beta
 
@@ -30,8 +30,8 @@ App para o exame pericial: fotografias e ditado no mesmo registro, enviados dire
 | 0 | Login, pastas de teste, envio com SHA-256, diagnóstico da câmera | feita |
 | 1 | Câmera no app, fila sem sinal | feita |
 | 2 | Ditado ligado à foto, seções, foto congelada, tela cheia, exclusão com lixeira do Drive | feita |
-| 2.1 | **Uso em campo** (ver abaixo) | em andamento |
-| 3 | Hub no computador (inclui vincular texto avulso a foto arrastando e soltando com o mouse, como no celular) | |
+| 2.1 | **Uso em campo** (ver abaixo) | feita |
+| 3 | **Hub no computador** (ver abaixo) | v1 publicada |
 | 4 | **Fechamento e selagem** (ver abaixo) | |
 | 5 | **Lançamento** (ver abaixo) | |
 
@@ -43,6 +43,16 @@ App para o exame pericial: fotografias e ditado no mesmo registro, enviados dire
 - ~~Vincular texto avulso a uma foto~~ — feito na v0.4.1: na página da seção, arrastar a alça do texto até o cartão da foto (a lista rola sozinha nas bordas); "desvincular" e "Desfazer" para reverter.
 - Se o login falhar no app instalado (janela do Google em modo aplicativo), usar o app pela aba do Chrome e avaliar o login por redirecionamento.
 - ~~Cópia local (.zip em Downloads, sem senha) desligada por padrão~~ — feito na v0.3.2.
+
+### 3 — Hub no computador (`hub.html`)
+- Abre no Chrome do computador, com a mesma conta e o mesmo ID de cliente do celular; lê os casos de `DPT_BETA` direto do Drive.
+- **Sem conflito com o celular:** o celular grava `caso.json`; o hub grava só `hub.json` (correções de texto, vínculos, seção, legendas, edições). A tela mostra `caso.json` com `hub.json` por cima. O texto original do celular continua no `caso.json` e pode ser restaurado ("voltar ao do celular").
+- Fotos por seção (numeração do anexo: ordem das seções, depois ordem do exame), filtros, hash conferido com o do Drive.
+- Corrigir descrições; arrastar e soltar texto sem foto até a miniatura (ou para "sem foto"); legenda por foto; trocar seção (as descrições acompanham).
+- **Protótipo do laudo:** concatenador que junta as descrições em texto único, na ordem das seções e do exame, com maiúscula inicial, ponto final e "(foto N)"; copiar ou baixar .txt.
+- **Anotações:** seta, círculo, texto e recorte; a cópia vai para `Editadas/` com hash conferido; o original nunca muda; as marcações ficam guardadas para editar de novo.
+- **Anexo fotográfico (simples):** página com as fotos em ordem e legendas, para imprimir ou salvar em PDF. A aprimorar.
+- Próximos: ditado pelo microfone do computador, anexo em formato de documento, escala métrica.
 
 ### 4 — Fechamento e selagem
 - Pacote 7z com senha, verificação dos hashes e versão sanitizada.

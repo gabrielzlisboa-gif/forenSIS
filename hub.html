@@ -1,0 +1,858 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>forenSIS · Hub</title>
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root {
+  --bg:#0f1117; --surface:#1a1d26; --surface2:#222533; --border:#2e3145; --border-strong:#3d4160;
+  --text:#e8eaf0; --text-sec:#a3a8bf; --text-muted:#8a8fa6;
+  --accent:#00c9a7; --accent-dim:rgba(0,201,167,.12); --accent-border:rgba(0,201,167,.4); --on-accent:#06231d;
+  --red:#e86a6a; --red-dim:rgba(232,106,106,.14); --red-border:rgba(232,106,106,.5);
+  --amber:#e8c27a; --amber-dim:rgba(224,176,80,.12); --amber-border:rgba(224,176,80,.45);
+  --mono:'JetBrains Mono',ui-monospace,monospace; --sans:'Inter',system-ui,sans-serif;
+}
+* { box-sizing:border-box; }
+html, body { height:100%; margin:0; background:var(--bg); }
+body { font-family:var(--sans); color:var(--text); font-size:14px; line-height:1.45; }
+button { font-family:inherit; color:inherit; cursor:pointer; }
+button:disabled { opacity:.45; cursor:not-allowed; }
+input, select, textarea { font-family:inherit; color:var(--text); }
+[hidden] { display:none !important; }
+.mono { font-family:var(--mono); }
+.btn { height:36px; padding:0 14px; border-radius:8px; border:1px solid var(--border-strong); background:var(--surface2); font-size:13px; font-weight:500; white-space:nowrap; }
+.btn:hover:not(:disabled) { border-color:var(--text-muted); }
+.btn.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+.btn.ghost { background:transparent; }
+.btn.sm { height:30px; padding:0 10px; font-size:12px; }
+.btn.on { border-color:var(--accent-border); background:var(--accent-dim); color:var(--accent); }
+select, input[type=text] { height:36px; border-radius:8px; border:1px solid var(--border-strong); background:var(--surface); padding:0 10px; font-size:13px; }
+label.f { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--text-sec); }
+
+/* Cabeçalho */
+.top { display:flex; align-items:center; gap:12px; padding:10px 16px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+.brand { font-weight:600; font-size:17px; white-space:nowrap; } .brand span { color:var(--accent); }
+.beta { font-size:10px; font-weight:600; letter-spacing:.08em; padding:2px 6px; border-radius:4px; color:var(--amber); background:var(--amber-dim); border:1px solid var(--amber-border); margin-left:6px; vertical-align:2px; }
+.stats { font-size:12px; color:var(--text-sec); }
+.stats b { color:var(--accent); font-weight:500; }
+.grow { flex:1; }
+.save { font-size:12px; color:var(--text-muted); white-space:nowrap; }
+.save.err { color:var(--red); } .save.busy { color:var(--amber); }
+.acct { font-size:12px; color:var(--text-sec); display:flex; align-items:center; gap:6px; }
+.dot { width:8px; height:8px; border-radius:4px; background:var(--text-muted); display:inline-block; }
+.dot.on { background:var(--accent); }
+
+.banners { display:flex; flex-direction:column; gap:6px; padding:0 16px; }
+.banners:not(:empty) { padding-top:8px; }
+.banner { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; font-size:13px; border:1px solid var(--border-strong); background:var(--surface2); }
+.banner .msg { flex:1; }
+.banner.warn { border-color:var(--amber-border); background:var(--amber-dim); }
+.banner.err { border-color:var(--red-border); background:var(--red-dim); }
+.banner.ok { border-color:var(--accent-border); background:var(--accent-dim); }
+
+/* Layout */
+.shell { height:100vh; display:flex; flex-direction:column; }
+.layout { flex:1; min-height:0; display:grid; grid-template-columns:minmax(300px, 380px) 1fr; }
+aside { border-right:1px solid var(--border); overflow-y:auto; padding:12px 14px 40px; display:flex; flex-direction:column; gap:14px; }
+.filters { display:flex; flex-wrap:wrap; gap:6px; }
+.chip { height:30px; padding:0 10px; border-radius:15px; border:1px solid var(--border-strong); background:transparent; color:var(--text-sec); font-size:12px; }
+.chip.on { border-color:var(--accent-border); background:var(--accent-dim); color:var(--accent); font-weight:500; }
+.sec h2 { margin:0 0 8px; font-size:13px; font-weight:600; display:flex; justify-content:space-between; color:var(--text); }
+.sec h2 span { color:var(--text-muted); font-weight:400; }
+.tiles { display:grid; grid-template-columns:repeat(auto-fill, minmax(72px, 1fr)); gap:6px; }
+.tile { position:relative; aspect-ratio:1; border-radius:8px; border:2px solid transparent; background:var(--surface2) center/cover no-repeat; padding:0; }
+.tile.sel { border-color:var(--accent); }
+.tile.drop { border-color:var(--amber); box-shadow:0 0 0 3px var(--amber-dim); }
+.tile .n { position:absolute; left:3px; top:3px; font-size:11px; font-weight:600; padding:0 5px; border-radius:4px; background:rgba(7,8,11,.8); }
+.tile .b { position:absolute; right:3px; bottom:3px; display:flex; gap:3px; }
+.tile .b i { font-style:normal; font-size:10px; font-weight:600; padding:1px 4px; border-radius:4px; background:rgba(7,8,11,.8); }
+.tile .b i.t { color:var(--accent); } .tile .b i.e { color:var(--amber); } .tile .b i.x { color:var(--red); }
+.loose { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+.ltext { display:flex; gap:8px; align-items:flex-start; padding:8px 10px; border-radius:8px; border:1px dashed var(--border-strong); background:var(--surface); font-size:12px; cursor:grab; }
+.ltext .g { color:var(--accent); flex-shrink:0; line-height:1; padding-top:2px; }
+.ltext .tx { font-family:var(--mono); line-height:1.4; max-height:4.2em; overflow:hidden; }
+.ltext.dragging { opacity:.4; }
+.unlinkzone { border:1px dashed var(--border-strong); border-radius:8px; padding:8px; text-align:center; font-size:12px; color:var(--text-muted); }
+.unlinkzone.drop { border-color:var(--amber); color:var(--amber); }
+.empty { color:var(--text-muted); font-size:13px; padding:12px 0; }
+
+main { min-width:0; display:flex; flex-direction:column; overflow:hidden; }
+.tabs { display:flex; gap:4px; padding:10px 16px 0; border-bottom:1px solid var(--border); }
+.tab { height:36px; padding:0 14px; border:none; border-bottom:2px solid transparent; background:transparent; color:var(--text-sec); font-size:13px; font-weight:500; }
+.tab.on { color:var(--accent); border-bottom-color:var(--accent); }
+.pane { flex:1; min-height:0; overflow-y:auto; padding:14px 16px 40px; }
+.phead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+.phead h1 { margin:0; font-size:20px; font-weight:600; }
+.phead .s { color:var(--text-sec); font-size:13px; }
+.vers { display:flex; gap:4px; }
+.stage { position:relative; background:#000; border-radius:10px; height:min(58vh, 640px); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.stage.drop { outline:3px solid var(--amber); }
+.stage img { max-width:100%; max-height:100%; object-fit:contain; }
+.stage .ld { position:absolute; color:var(--text-sec); font-size:13px; }
+.details { display:grid; grid-template-columns:minmax(0, 1.5fr) minmax(260px, 1fr); gap:16px; margin-top:14px; }
+.descs { display:flex; flex-direction:column; gap:8px; }
+.desc { border:1px solid var(--border); border-radius:8px; background:var(--surface); padding:8px; display:flex; flex-direction:column; gap:6px; }
+.desc textarea { width:100%; min-height:64px; resize:vertical; border:1px solid var(--border); border-radius:6px; background:var(--bg); padding:8px; font:13px/1.5 var(--mono); }
+.desc .row { display:flex; gap:6px; align-items:center; flex-wrap:wrap; font-size:11px; color:var(--text-muted); }
+.desc .row .grip { cursor:grab; color:var(--accent); font-size:12px; }
+.tag { font-size:11px; padding:1px 6px; border-radius:4px; border:1px solid var(--border-strong); background:transparent; color:var(--text-sec); }
+.tag.amber { color:var(--amber); border-color:var(--amber-border); }
+.meta { display:flex; flex-direction:column; gap:10px; }
+dl { margin:0; display:grid; grid-template-columns:auto 1fr; gap:4px 10px; font-size:12px; }
+dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
+.ok { color:var(--accent); } .bad { color:var(--red); }
+
+/* Protótipo do laudo */
+.lopts { display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-bottom:10px; font-size:13px; color:var(--text-sec); }
+.lopts label { display:flex; gap:6px; align-items:center; }
+#laudoTxt { width:100%; min-height:60vh; resize:vertical; border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); padding:16px; font:14px/1.7 var(--sans); }
+.hint { font-size:12px; color:var(--text-muted); }
+
+/* Editor de anotações */
+.editor { position:fixed; inset:0; z-index:20; background:#06070a; display:flex; flex-direction:column; }
+.etools { display:flex; gap:6px; align-items:center; padding:10px 14px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+.etools .sep { width:1px; height:24px; background:var(--border); margin:0 4px; }
+.swatch { width:26px; height:26px; border-radius:13px; border:2px solid var(--border-strong); padding:0; }
+.swatch.on { border-color:var(--text); box-shadow:0 0 0 2px var(--accent); }
+.ecanvas { flex:1; min-height:0; position:relative; }
+.ecanvas canvas { position:absolute; inset:0; width:100%; height:100%; cursor:crosshair; }
+.ecanvas input { position:absolute; z-index:2; height:32px; min-width:220px; }
+.state { max-width:520px; margin:12vh auto; text-align:center; display:flex; flex-direction:column; gap:12px; align-items:center; color:var(--text-sec); }
+.state h2 { color:var(--text); margin:0; font-size:20px; font-weight:600; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="top">
+    <span class="brand">foren<span>SIS</span><span class="beta">HUB · BETA</span></span>
+    <select id="caseSel" aria-label="Caso" hidden></select>
+    <span class="stats" id="stats"></span>
+    <span class="grow"></span>
+    <span class="save" id="saveState"></span>
+    <button class="btn ghost" id="btnReload" hidden title="Busca no Drive o que o celular enviou depois">Atualizar</button>
+    <button class="btn ghost" id="btnDrive" hidden>Abrir pasta no Drive</button>
+    <button class="btn" id="btnAnexo" hidden>Gerar anexo fotográfico</button>
+    <span class="acct"><span class="dot" id="acctDot"></span><span id="acctTxt">desconectado</span></span>
+    <button class="btn primary" id="btnLogin">Entrar</button>
+  </header>
+  <div class="banners" id="banners"></div>
+
+  <div class="state" id="stateBox">
+    <h2>Hub do forenSIS</h2>
+    <p id="stateTxt">Entre com a mesma conta Google do celular para ver os casos.</p>
+  </div>
+
+  <div class="layout" id="layout" hidden>
+    <aside>
+      <div class="filters" id="filters"></div>
+      <div id="secs"></div>
+    </aside>
+    <main>
+      <div class="tabs">
+        <button class="tab on" data-tab="pFoto">Fotos</button>
+        <button class="tab" data-tab="pLaudo">Laudo (protótipo)</button>
+      </div>
+      <section class="pane" id="pFoto">
+        <div class="empty" id="noPhoto">Escolha uma foto à esquerda.</div>
+        <div id="photoBox" hidden>
+          <div class="phead">
+            <h1 id="phTitle"></h1><span class="s" id="phSec"></span>
+            <span class="grow"></span>
+            <div class="vers" id="vers"></div>
+            <button class="btn" id="btnAnnotate">Anotar</button>
+            <button class="btn ghost sm" id="btnPrev" title="Foto anterior (←)">‹</button>
+            <button class="btn ghost sm" id="btnNext" title="Próxima foto (→)">›</button>
+          </div>
+          <div class="stage" id="stage"><img id="stageImg" alt=""><span class="ld" id="stageLd"></span></div>
+          <div class="details">
+            <div class="descs">
+              <span class="hint">Descrições desta foto. Arraste um texto sem foto da lista à esquerda para cá, ou para a miniatura.</span>
+              <div id="descs"></div>
+            </div>
+            <div class="meta">
+              <label class="f">Seção<select id="phSecSel"></select></label>
+              <label class="f">Legenda do anexo<input type="text" id="phCaption" placeholder="Ex.: Orifício de entrada no tórax anterior esquerdo"></label>
+              <dl id="phMeta"></dl>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="pane" id="pLaudo" hidden>
+        <div class="lopts">
+          <label><input type="checkbox" id="lHead" checked> Títulos das seções</label>
+          <label><input type="checkbox" id="lRefs" checked> Referência às fotos</label>
+          <label>Parágrafos <select id="lPara"><option value="secao">um por seção</option><option value="desc">um por descrição</option></select></label>
+          <span class="grow"></span>
+          <button class="btn" id="btnCopy">Copiar texto</button>
+          <button class="btn ghost" id="btnTxt">Baixar .txt</button>
+        </div>
+        <textarea id="laudoTxt" readonly aria-label="Protótipo do laudo"></textarea>
+        <p class="hint" id="laudoInfo"></p>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div class="editor" id="editor" hidden>
+  <div class="etools">
+    <strong id="edTitle" style="margin-right:8px"></strong>
+    <button class="btn sm on" data-tool="arrow">Seta</button>
+    <button class="btn sm" data-tool="circle">Círculo</button>
+    <button class="btn sm" data-tool="text">Texto</button>
+    <button class="btn sm" data-tool="crop">Recorte</button>
+    <span class="sep"></span>
+    <span id="swatches" style="display:flex;gap:6px"></span>
+    <span class="sep"></span>
+    <button class="btn sm ghost" id="edUndo">Desfazer</button>
+    <button class="btn sm ghost" id="edClear">Limpar</button>
+    <span class="grow"></span>
+    <span class="hint" id="edHint">Arraste para desenhar a seta.</span>
+    <button class="btn sm ghost" id="edCancel">Cancelar</button>
+    <button class="btn sm primary" id="edSave">Salvar cópia editada</button>
+  </div>
+  <div class="ecanvas" id="ecanvas"><canvas id="edCanvas"></canvas></div>
+</div>
+
+<script>
+'use strict';
+/*PURE-START*/
+const HUB_VERSION = '0.1.0';
+// Mesmas seções do app do celular (o teste confere que continuam iguais).
+const SECTIONS = [
+  { id: 'ext', name: 'Exame externo' },
+  { id: 'fen', name: 'Fenômenos cadavéricos' },
+  { id: 'les', name: 'Lesões externas' },
+  { id: 'int', name: 'Exame interno' },
+  { id: 'obs', name: 'Observações' },
+];
+const secIdx = id => { const i = SECTIONS.findIndex(s => s.id === id); return i < 0 ? 99 : i; };
+const secName = id => (SECTIONS.find(s => s.id === id) || { name: id }).name;
+// O celular grava caso.json; o hub grava só hub.json (correções, vínculos, legendas, edições).
+// A visão do hub é caso.json com hub.json por cima: nenhum dos dois apaga o trabalho do outro.
+function emptyHub(caseName) { return { formato: 'forensis-hub', versao: 1, caso: caseName, atualizadoEm: null, textos: {}, fotos: {} }; }
+function mergeView(manifest, hub) {
+  const regs = (manifest && manifest.registros) || [];
+  const photos = regs.filter(r => r.tipo === 'foto').map(r => {
+    const o = (hub.fotos || {})[r.id] || {};
+    return Object.assign({}, r, { secao: o.secao || r.secao, legenda: o.legenda || '', editadas: o.editadas || [], name: String(r.arquivo || '').split('/').pop() });
+  });
+  const pids = new Set(photos.map(p => p.id));
+  const texts = regs.filter(r => r.tipo === 'texto').map(r => {
+    const o = (hub.textos || {})[r.id] || {};
+    const t = Object.assign({}, r, { textoCelular: r.texto, editado: 'texto' in o && o.texto !== r.texto });
+    if ('texto' in o) t.texto = o.texto;
+    if ('fotoId' in o) t.fotoId = o.fotoId;
+    if (o.secao) t.secao = o.secao;
+    if (t.fotoId && !pids.has(t.fotoId)) t.fotoId = null; // foto excluída no celular: o texto fica sem foto
+    return t;
+  }).filter(t => !(hub.textos[t.id] && hub.textos[t.id].oculto));
+  return { photos, texts };
+}
+// Numeração do anexo: ordem das seções, depois ordem de captura.
+function numberPhotos(photos) {
+  const sorted = photos.slice().sort((a, b) => secIdx(a.secao) - secIdx(b.secao) || String(a.capturadaEm).localeCompare(String(b.capturadaEm)));
+  return new Map(sorted.map((p, i) => [p.id, i + 1]));
+}
+function sentence(s) {
+  s = String(s || '').trim().replace(/\s+/g, ' ');
+  if (!s) return '';
+  s = s.charAt(0).toLocaleUpperCase('pt-BR') + s.slice(1);
+  if (!/[.!?…:;]$/.test(s)) s += '.';
+  return s;
+}
+function withRef(s, ref) { return ref ? s.replace(/([.!?…:;])$/, ' (' + ref + ')$1') : s; }
+// Concatenador: as descrições viram um texto único, na ordem das seções e do exame.
+function concatLaudo(view, opts) {
+  opts = Object.assign({ heads: true, refs: true, para: 'secao' }, opts || {});
+  const nums = numberPhotos(view.photos);
+  const out = [];
+  for (const s of SECTIONS) {
+    const ts = view.texts.filter(t => t.secao === s.id && String(t.texto || '').trim())
+      .sort((a, b) => String(a.capturadaEm).localeCompare(String(b.capturadaEm)));
+    if (!ts.length) continue;
+    const parts = ts.map(t => withRef(sentence(t.texto), opts.refs && t.fotoId && nums.has(t.fotoId) ? 'foto ' + nums.get(t.fotoId) : ''));
+    if (opts.heads) out.push(s.name.toUpperCase());
+    out.push(opts.para === 'desc' ? parts.join('\n\n') : parts.join(' '));
+    out.push('');
+  }
+  return out.join('\n').trim();
+}
+function wordCount(s) { return (String(s).match(/\S+/g) || []).length; }
+function editName(original, n) { return String(original).replace(/\.jpe?g$/i, '') + '_ed' + n + '.jpg'; }
+/*PURE-END*/
+
+const $ = id => document.getElementById(id);
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k.startsWith('on')) el.addEventListener(k.slice(2), v); else if (k === 'class') el.className = v; else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids) if (c != null) el.append(c);
+  return el;
+}
+const ls = { get: (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
+function banner(key, kind, msg, actions, ms) {
+  const box = $('banners'); const old = box.querySelector('[data-key="' + key + '"]'); if (old) old.remove();
+  const el = h('div', { class: 'banner ' + (kind || ''), 'data-key': key }, h('span', { class: 'msg' }, msg));
+  for (const a of actions || []) el.append(h('button', { class: 'btn sm', onclick: () => { el.remove(); a.fn(); } }, a.label));
+  el.append(h('button', { class: 'btn sm ghost', 'aria-label': 'Fechar aviso', onclick: () => el.remove() }, '×'));
+  box.append(el);
+  if (ms) setTimeout(() => el.remove(), ms);
+}
+
+// ── Google Drive ────────────────────────────────────────────────────────────
+const SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const API = 'https://www.googleapis.com/drive/v3';
+const UPL = 'https://www.googleapis.com/upload/drive/v3/files';
+const FOLDER = 'application/vnd.google-apps.folder';
+const BETA_ROOT = 'DPT_BETA';
+const SESS = 'forensis_hub_session';
+let token = null, tokenExp = 0, acctEmail = '';
+const tokenValid = () => !!token && Date.now() < tokenExp - 60000;
+(function restore() { try { const s = JSON.parse(sessionStorage.getItem(SESS) || 'null'); if (s && Date.now() < s.tokenExp - 60000) { token = s.token; tokenExp = s.tokenExp; acctEmail = s.acctEmail || ''; } } catch (e) {} })();
+class NeedLogin extends Error {}
+async function api(method, url, body, headers, raw) {
+  if (!tokenValid()) throw new NeedLogin('Sessão expirada');
+  let res;
+  try { res = await fetch(url, { method, body, headers: Object.assign({ Authorization: 'Bearer ' + token }, headers || {}) }); }
+  catch (e) { throw new Error('Sem conexão com o Google Drive.'); }
+  if (res.status === 401) { tokenExp = 0; renderAcct(); throw new NeedLogin('Sessão expirada'); }
+  if (raw && res.ok) return res;
+  let data = null; try { data = await res.json(); } catch (e) {}
+  if (!res.ok) throw new Error((data && data.error && data.error.message) || ('HTTP ' + res.status));
+  return data;
+}
+const q = s => "'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+async function list(query, fields) {
+  const out = []; let page = '';
+  do {
+    const r = await api('GET', API + '/files?spaces=drive&pageSize=1000&fields=nextPageToken,files(' + (fields || 'id,name') + ')&q=' + encodeURIComponent(query + ' and trashed = false') + (page ? '&pageToken=' + page : ''));
+    out.push(...(r.files || [])); page = r.nextPageToken || '';
+  } while (page);
+  return out;
+}
+const child = async (name, parent, mime) => (await list('name = ' + q(name) + ' and ' + q(parent) + ' in parents' + (mime ? ' and mimeType = ' + q(mime) : '')))[0] || null;
+const media = async id => (await api('GET', API + '/files/' + encodeURIComponent(id) + '?alt=media', null, null, true)).blob();
+function multipart(meta, blob, type) {
+  const b = 'forensis' + Math.random().toString(36).slice(2);
+  return { body: new Blob(['--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(meta) + '\r\n--' + b + '\r\nContent-Type: ' + type + '\r\n\r\n', blob, '\r\n--' + b + '--']), ct: 'multipart/related; boundary=' + b };
+}
+async function sha256Hex(blob) { const d = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()); return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, '0')).join(''); }
+
+function waitGis(ms) {
+  return new Promise((res, rej) => { const t0 = Date.now(); (function p() { if (window.google && google.accounts && google.accounts.oauth2) return res(); if (Date.now() - t0 > ms) return rej(new Error('A biblioteca de login do Google não carregou.')); setTimeout(p, 100); })(); });
+}
+async function login() {
+  const cid = ls.get('forensis_client_id', '');
+  if (!/\.apps\.googleusercontent\.com$/.test(cid)) { banner('login', 'warn', 'Abra o forenSIS uma vez neste computador e informe o ID do cliente em Configurações; o hub usa o mesmo.'); return; }
+  try { await waitGis(8000); } catch (e) { banner('login', 'err', e.message); return; }
+  $('btnLogin').disabled = true;
+  const tc = google.accounts.oauth2.initTokenClient({
+    client_id: cid, scope: SCOPE,
+    callback: async r => {
+      $('btnLogin').disabled = false;
+      if (r.error) { banner('login', 'err', 'Login não concluído: ' + r.error); return; }
+      token = r.access_token; tokenExp = Date.now() + (Number(r.expires_in) || 3600) * 1000;
+      try { const a = await api('GET', API + '/about?fields=user(emailAddress)'); acctEmail = a.user.emailAddress; ls.set('forensis_login_hint', acctEmail); } catch (e) {}
+      try { sessionStorage.setItem(SESS, JSON.stringify({ token, tokenExp, acctEmail })); } catch (e) {}
+      $('banners').querySelectorAll('[data-key=login]').forEach(e => e.remove());
+      renderAcct(); loadCases();
+    },
+    error_callback: e => { $('btnLogin').disabled = false; if (e && e.type !== 'popup_closed') banner('login', 'err', 'Login não concluído.'); },
+  });
+  const hint = ls.get('forensis_login_hint', '');
+  tc.requestAccessToken(hint ? { prompt: '', login_hint: hint } : { prompt: '' });
+}
+function renderAcct() {
+  const on = tokenValid();
+  $('acctDot').className = 'dot' + (on ? ' on' : '');
+  $('acctTxt').textContent = on ? (acctEmail || 'conectado') : 'desconectado';
+  $('btnLogin').hidden = on;
+}
+function needLogin() { renderAcct(); banner('login', 'warn', 'Sessão do Google expirada. Entre de novo; nada do que foi editado se perde.', [{ label: 'Entrar', fn: login }]); }
+
+// ── Estado do caso ──────────────────────────────────────────────────────────
+const S = { cases: [], name: '', caseId: null, originais: null, editadas: null, manifest: null, hub: null, hubId: null, files: new Map(), view: { photos: [], texts: [] }, sel: null, ver: 0, filter: 'all' };
+async function loadCases() {
+  $('stateTxt').textContent = 'Procurando casos no Drive…';
+  try {
+    const root = await child(BETA_ROOT, 'root', FOLDER);
+    const morto = root && await child('Morto', root.id, FOLDER);
+    const years = morto ? await list(q(morto.id) + ' in parents and mimeType = ' + q(FOLDER)) : [];
+    const cases = [];
+    for (const y of years) for (const c of await list(q(y.id) + ' in parents and mimeType = ' + q(FOLDER))) cases.push({ name: c.name, id: c.id });
+    S.cases = cases.sort((a, b) => b.name.localeCompare(a.name));
+  } catch (e) { if (e instanceof NeedLogin) return needLogin(); banner('cases', 'err', 'Não foi possível listar os casos: ' + e.message); return; }
+  const sel = $('caseSel'); sel.textContent = '';
+  if (!S.cases.length) { $('stateTxt').textContent = 'Nenhum caso encontrado em ' + BETA_ROOT + '. Os casos aparecem aqui depois que o celular envia a primeira foto.'; return; }
+  for (const c of S.cases) sel.append(h('option', { value: c.name }, c.name));
+  sel.hidden = false;
+  const want = ls.get('forensis_hub_case', '');
+  sel.value = S.cases.some(c => c.name === want) ? want : S.cases[0].name;
+  openCase(sel.value);
+}
+async function openCase(name) {
+  const c = S.cases.find(x => x.name === name); if (!c) return;
+  ls.set('forensis_hub_case', name);
+  Object.assign(S, { name, caseId: c.id, sel: null, ver: 0, manifest: null, hub: null, hubId: null, files: new Map() });
+  $('stateBox').hidden = false; $('layout').hidden = true; $('stateTxt').textContent = 'Abrindo o caso ' + name + '…';
+  try { await fetchCase(); } catch (e) { if (e instanceof NeedLogin) return needLogin(); $('stateTxt').textContent = 'Não foi possível abrir o caso: ' + e.message; return; }
+  $('stateBox').hidden = true; $('layout').hidden = false;
+  for (const id of ['btnReload', 'btnDrive', 'btnAnexo']) $(id).hidden = false;
+  const first = numberedPhotos()[0]; S.sel = first ? first.id : null;
+  render();
+}
+// Lê do Drive: caso.json (celular), hub.json (hub) e a lista de arquivos com o hash calculado pelo Drive.
+async function fetchCase() {
+  const kids = await list(q(S.caseId) + ' in parents', 'id,name,mimeType');
+  const byName = n => kids.find(k => k.name === n);
+  S.originais = (byName('Originais') || {}).id || null;
+  S.editadas = (byName('Editadas') || {}).id || null;
+  const man = byName('caso.json');
+  S.manifest = man ? JSON.parse(await (await media(man.id)).text()) : { registros: [] };
+  const hf = byName('hub.json');
+  S.hubId = hf ? hf.id : null;
+  S.hub = hf ? Object.assign(emptyHub(S.name), JSON.parse(await (await media(hf.id)).text())) : emptyHub(S.name);
+  S.files = new Map();
+  for (const fid of [S.originais, S.editadas].filter(Boolean))
+    for (const f of await list(q(fid) + ' in parents', 'id,name,sha256Checksum,size,appProperties')) S.files.set(f.id, f);
+  S.view = mergeView(S.manifest, S.hub);
+}
+async function reloadCase() {
+  try { await flushSave(); await fetchCase(); render(); banner('reload', 'ok', 'Caso atualizado com o que está no Drive.', [], 3000); }
+  catch (e) { if (e instanceof NeedLogin) return needLogin(); banner('reload', 'err', 'Não foi possível atualizar: ' + e.message); }
+}
+
+// ── Gravação do hub.json (com espera curta para juntar várias edições) ─────
+let saveTimer = null, saving = null, dirty = false;
+function changed() { S.view = mergeView(S.manifest, S.hub); dirty = true; setSave('busy', 'alterações não salvas'); clearTimeout(saveTimer); saveTimer = setTimeout(flushSave, 1200); render(); }
+function setSave(k, t) { const el = $('saveState'); el.className = 'save ' + (k || ''); el.textContent = t; }
+async function flushSave() {
+  clearTimeout(saveTimer);
+  if (saving) await saving;
+  if (!dirty) return;
+  dirty = false;
+  saving = (async () => {
+    setSave('busy', 'salvando…');
+    S.hub.atualizadoEm = new Date().toISOString();
+    const blob = new Blob([JSON.stringify(S.hub, null, 2)], { type: 'application/json' });
+    try {
+      if (S.hubId) await api('PATCH', UPL + '/' + encodeURIComponent(S.hubId) + '?uploadType=media&fields=id', blob, { 'Content-Type': 'application/json' });
+      else { const mp = multipart({ name: 'hub.json', parents: [S.caseId], mimeType: 'application/json', appProperties: { forensis: 'hub' } }, blob, 'application/json'); S.hubId = (await api('POST', UPL + '?uploadType=multipart&fields=id', mp.body, { 'Content-Type': mp.ct })).id; }
+      const d = new Date(); setSave('', 'salvo no Drive às ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'));
+    } catch (e) {
+      dirty = true; setSave('err', 'não salvo');
+      if (e instanceof NeedLogin) needLogin(); else banner('save', 'err', 'Não foi possível salvar no Drive: ' + e.message, [{ label: 'Tentar de novo', fn: flushSave }]);
+    }
+  })();
+  await saving; saving = null;
+}
+window.addEventListener('beforeunload', e => { if (dirty || saving) { e.preventDefault(); e.returnValue = ''; } });
+const tOv = id => (S.hub.textos[id] = S.hub.textos[id] || {});
+const pOv = id => (S.hub.fotos[id] = S.hub.fotos[id] || {});
+function setText(t, value) {
+  const o = tOv(t.id);
+  if (value === t.textoCelular) delete o.texto; else o.texto = value;
+  changed();
+}
+function linkText(textId, photoId) {
+  const t = S.view.texts.find(x => x.id === textId); if (!t) return;
+  const p = photoId && S.view.photos.find(x => x.id === photoId);
+  const before = JSON.stringify(S.hub.textos[textId] || {});
+  const o = tOv(textId);
+  o.fotoId = p ? p.id : null;
+  if (p) o.secao = p.secao;
+  changed();
+  const nums = numberPhotos(S.view.photos);
+  banner('link', 'ok', p ? 'Texto vinculado à foto ' + nums.get(p.id) + '.' : 'Texto desvinculado; ficou como texto sem foto.',
+    [{ label: 'Desfazer', fn: () => { S.hub.textos[textId] = JSON.parse(before); changed(); } }], 8000);
+}
+function setPhotoSection(p, sec) {
+  pOv(p.id).secao = sec;
+  for (const t of S.view.texts.filter(x => x.fotoId === p.id)) tOv(t.id).secao = sec; // as descrições acompanham a foto
+  changed();
+}
+
+// ── Imagens: miniaturas sob demanda e originais em memória (nada fica gravado no computador) ──
+const blobs = new Map(); // driveId -> Blob (últimos 8)
+const thumbs = new Map(); // driveId -> object URL pequeno
+async function getBlob(driveId) {
+  if (blobs.has(driveId)) { const b = blobs.get(driveId); blobs.delete(driveId); blobs.set(driveId, b); return b; }
+  const b = new Blob([await media(driveId)], { type: 'image/jpeg' });
+  blobs.set(driveId, b); while (blobs.size > 8) blobs.delete(blobs.keys().next().value);
+  return b;
+}
+let thumbQ = [], thumbActive = 0;
+const thumbPending = new Set();
+function wantThumb(driveId, el) {
+  if (thumbs.has(driveId)) { el.style.backgroundImage = 'url(' + thumbs.get(driveId) + ')'; return; }
+  if (thumbPending.has(driveId)) return; // já na fila: o elemento novo recebe a miniatura pelo data-thumb
+  thumbPending.add(driveId); thumbQ.push({ driveId, el }); pumpThumbs();
+}
+function pumpThumbs() {
+  while (thumbActive < 3 && thumbQ.length) {
+    const { driveId, el } = thumbQ.shift();
+    if (thumbs.has(driveId)) { el.style.backgroundImage = 'url(' + thumbs.get(driveId) + ')'; continue; }
+    thumbActive++;
+    (async () => {
+      try {
+        const bmp = await createImageBitmap(await getBlob(driveId));
+        const s = 220 / Math.max(bmp.width, bmp.height), c = document.createElement('canvas');
+        c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+        c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+        const tb = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.8));
+        thumbs.set(driveId, URL.createObjectURL(tb));
+        document.querySelectorAll('[data-thumb="' + driveId + '"]').forEach(x => { x.style.backgroundImage = 'url(' + thumbs.get(driveId) + ')'; });
+      } catch (e) { if (e instanceof NeedLogin) needLogin(); }
+      finally { thumbActive--; thumbPending.delete(driveId); pumpThumbs(); }
+    })();
+  }
+}
+
+// ── Desenho da tela ─────────────────────────────────────────────────────────
+function numberedPhotos() { const n = numberPhotos(S.view.photos); return S.view.photos.slice().sort((a, b) => n.get(a.id) - n.get(b.id)); }
+function hashState(p) {
+  const f = p.driveId && S.files.get(p.driveId);
+  if (!f) return { ok: false, txt: 'arquivo não encontrado no Drive' };
+  if (!f.sha256Checksum) return { ok: null, txt: 'o Drive ainda não calculou o hash' };
+  return f.sha256Checksum === p.sha256 ? { ok: true, txt: 'confere' } : { ok: false, txt: 'DIVERGE do registrado no celular' };
+}
+let tab = 'pFoto';
+function render() {
+  const v = S.view, nums = numberPhotos(v.photos);
+  const linked = new Set(v.texts.filter(t => t.fotoId).map(t => t.fotoId));
+  const loose = v.texts.filter(t => !t.fotoId);
+  const noDesc = v.photos.filter(p => !linked.has(p.id)), edited = v.photos.filter(p => p.editadas.length);
+  const okHash = v.photos.filter(p => hashState(p).ok === true).length;
+  $('stats').innerHTML = '';
+  $('stats').append(v.photos.length + (v.photos.length === 1 ? ' foto · ' : ' fotos · ') + v.texts.length + (v.texts.length === 1 ? ' descrição · ' : ' descrições · '), h('b', null, 'hash conferido em ' + okHash + ' de ' + v.photos.length));
+  // filtros
+  const fl = $('filters'); fl.textContent = '';
+  for (const [k, lab] of [['all', 'Todos'], ['nodesc', 'Sem descrição (' + noDesc.length + ')'], ['loose', 'Texto sem foto (' + loose.length + ')'], ['edited', 'Editadas (' + edited.length + ')']])
+    fl.append(h('button', { class: 'chip' + (S.filter === k ? ' on' : ''), onclick: () => { S.filter = k; render(); } }, lab));
+  const showP = p => S.filter === 'all' || (S.filter === 'nodesc' && !linked.has(p.id)) || (S.filter === 'edited' && p.editadas.length);
+  const showT = () => S.filter === 'all' || S.filter === 'loose';
+  // seções
+  const box = $('secs'); box.textContent = '';
+  for (const s of SECTIONS) {
+    const ps = numberedPhotos().filter(p => p.secao === s.id && showP(p)), ts = loose.filter(t => t.secao === s.id && showT());
+    const all = v.photos.filter(p => p.secao === s.id).length + v.texts.filter(t => t.secao === s.id).length;
+    if (!all) continue;
+    const sec = h('section', { class: 'sec' }, h('h2', null, s.name, h('span', null, (n => n + (n === 1 ? ' foto' : ' fotos'))(v.photos.filter(p => p.secao === s.id).length))));
+    const tiles = h('div', { class: 'tiles' });
+    for (const p of ps) {
+      const nd = v.texts.filter(t => t.fotoId === p.id).length, hs = hashState(p);
+      const tl = h('button', { class: 'tile' + (S.sel === p.id ? ' sel' : ''), 'data-photo': p.id, 'data-thumb': p.driveId, 'aria-label': 'Foto ' + nums.get(p.id), onclick: () => select(p.id) },
+        h('span', { class: 'n' }, String(nums.get(p.id))),
+        h('span', { class: 'b' }, nd ? h('i', { class: 't' }, nd + ' txt') : null, p.editadas.length ? h('i', { class: 'e' }, 'ed.') : null, hs.ok === false ? h('i', { class: 'x' }, 'hash') : null));
+      dropTarget(tl, id => linkText(id, p.id));
+      if (p.driveId) wantThumb(p.driveId, tl);
+      tiles.append(tl);
+    }
+    if (ps.length) sec.append(tiles);
+    if (ts.length) {
+      const lz = h('div', { class: 'loose' });
+      for (const t of ts.sort((a, b) => String(a.capturadaEm).localeCompare(String(b.capturadaEm)))) lz.append(looseCard(t));
+      sec.append(lz);
+    }
+    const uz = h('div', { class: 'unlinkzone' }, 'Solte aqui para deixar o texto sem foto');
+    dropTarget(uz, id => linkText(id, null)); sec.append(uz);
+    box.append(sec);
+  }
+  if (!box.children.length) box.append(h('div', { class: 'empty' }, 'Caso sem fotos nem descrições ainda.'));
+  renderPhoto(); renderLaudo();
+}
+function looseCard(t) {
+  const c = h('div', { class: 'ltext', draggable: 'true', 'data-text': t.id, title: 'Arraste até a miniatura de uma foto' }, h('span', { class: 'g' }, '⋮⋮'), h('span', { class: 'tx' }, t.texto));
+  dragSource(c, t.id);
+  return c;
+}
+function dragSource(el, textId) {
+  el.addEventListener('dragstart', e => { e.dataTransfer.setData('text/x-forensis-texto', textId); e.dataTransfer.effectAllowed = 'move'; el.classList.add('dragging'); });
+  el.addEventListener('dragend', () => el.classList.remove('dragging'));
+}
+function dropTarget(el, fn) {
+  el.addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('text/x-forensis-texto')) { e.preventDefault(); el.classList.add('drop'); } });
+  el.addEventListener('dragleave', () => el.classList.remove('drop'));
+  el.addEventListener('drop', e => { e.preventDefault(); el.classList.remove('drop'); const id = e.dataTransfer.getData('text/x-forensis-texto'); if (id) fn(id); });
+}
+function select(id) { S.sel = id; S.ver = 0; tab = 'pFoto'; showTab(); render(); }
+function step(d) { const ps = numberedPhotos(), i = ps.findIndex(p => p.id === S.sel) + d; if (ps[i]) select(ps[i].id); }
+
+let stageSeq = 0, stageUrl = null;
+function renderPhoto() {
+  const p = S.view.photos.find(x => x.id === S.sel);
+  $('noPhoto').hidden = !!p; $('photoBox').hidden = !p;
+  if (!p) return;
+  const nums = numberPhotos(S.view.photos);
+  $('phTitle').textContent = 'Foto ' + nums.get(p.id);
+  $('phSec').textContent = secName(p.secao);
+  if (S.ver > p.editadas.length) S.ver = 0;
+  const vers = $('vers'); vers.textContent = '';
+  if (p.editadas.length) {
+    vers.append(h('button', { class: 'btn sm' + (S.ver === 0 ? ' on' : ''), onclick: () => { S.ver = 0; renderPhoto(); } }, 'Original'));
+    p.editadas.forEach((e, i) => vers.append(h('button', { class: 'btn sm' + (S.ver === i + 1 ? ' on' : ''), onclick: () => { S.ver = i + 1; renderPhoto(); } }, 'Editada ' + (i + 1))));
+  }
+  $('btnAnnotate').textContent = S.ver ? 'Editar a partir desta' : 'Anotar';
+  // imagem
+  const id = S.ver ? p.editadas[S.ver - 1].driveId : p.driveId;
+  const img = $('stageImg');
+  if (img.dataset.id !== id) {
+    const seq = ++stageSeq; img.dataset.id = id; img.removeAttribute('src'); $('stageLd').textContent = 'Carregando a foto do Drive…';
+    getBlob(id).then(b => { if (seq !== stageSeq) return; if (stageUrl) URL.revokeObjectURL(stageUrl); stageUrl = URL.createObjectURL(b); img.src = stageUrl; $('stageLd').textContent = ''; })
+      .catch(e => { if (seq !== stageSeq) return; if (e instanceof NeedLogin) needLogin(); $('stageLd').textContent = 'Não foi possível carregar a foto: ' + e.message; });
+  }
+  // descrições (não redesenha a que está sendo digitada)
+  const ae = document.activeElement, editing = ae && ae.tagName === 'TEXTAREA' && $('descs').contains(ae);
+  if (!editing) {
+    const box = $('descs'); box.textContent = '';
+    const ds = S.view.texts.filter(t => t.fotoId === p.id).sort((a, b) => String(a.capturadaEm).localeCompare(String(b.capturadaEm)));
+    if (!ds.length) box.append(h('div', { class: 'empty' }, 'Sem descrição.'));
+    for (const t of ds) box.append(descCard(t));
+  }
+  const sel = $('phSecSel'); if (!sel.options.length) for (const s of SECTIONS) sel.append(h('option', { value: s.id }, s.name));
+  sel.value = p.secao;
+  if (document.activeElement !== $('phCaption')) $('phCaption').value = p.legenda;
+  const hs = hashState(p), ed = S.ver ? p.editadas[S.ver - 1] : null;
+  const meta = $('phMeta'); meta.textContent = '';
+  const row = (k, v) => meta.append(h('dt', null, k), h('dd', null, v));
+  row('Arquivo', ed ? 'Editadas/' + ed.arquivo : p.arquivo);
+  row('Capturada', String(p.capturadaEm || '').replace('T', ' ').slice(0, 19));
+  if (p.largura) row('Resolução', p.largura + ' × ' + p.altura + (p.reduzida ? ' (reduzida)' : ''));
+  row('SHA-256', h('span', null, String(p.sha256 || '').slice(0, 10) + '…' + String(p.sha256 || '').slice(-6) + ' ', h('span', { class: hs.ok ? 'ok' : hs.ok === false ? 'bad' : '' }, hs.txt)));
+  if (ed) row('Editada', ed.resumo + ' · ' + String(ed.em).replace('T', ' ').slice(0, 16));
+  else if (p.editadas.length) row('Edições', p.editadas.length + ' cópia(s) em Editadas/; o original não muda');
+}
+function descCard(t) {
+  const ta = h('textarea', { 'aria-label': 'Descrição' }); ta.value = t.texto;
+  ta.addEventListener('input', () => { clearTimeout(ta._t); ta._t = setTimeout(() => setText(t, ta.value), 500); });
+  ta.addEventListener('blur', () => { clearTimeout(ta._t); if (ta.value !== t.texto) setText(t, ta.value); });
+  const grip = h('span', { class: 'grip', draggable: 'true', title: 'Arraste para outra foto ou para "sem foto"' }, '⋮⋮ mover');
+  dragSource(grip, t.id);
+  const row = h('div', { class: 'row' }, grip, String(t.capturadaEm || '').slice(11, 16));
+  if (t.editado) row.append(h('span', { class: 'tag amber' }, 'editado no computador'), h('button', { class: 'tag', onclick: () => { if (confirm('Voltar ao texto ditado no celular?\n\n' + t.textoCelular)) setText(t, t.textoCelular); } }, 'voltar ao do celular'));
+  if (t.conferir) row.append(h('span', { class: 'tag amber' }, 'conferir'));
+  row.append(h('button', { class: 'tag', onclick: () => linkText(t.id, null) }, 'desvincular'));
+  return h('div', { class: 'desc', 'data-text': t.id }, ta, row);
+}
+
+// ── Protótipo do laudo ──────────────────────────────────────────────────────
+function laudoOpts() { return { heads: $('lHead').checked, refs: $('lRefs').checked, para: $('lPara').value }; }
+function renderLaudo() {
+  const txt = concatLaudo(S.view, laudoOpts());
+  $('laudoTxt').value = txt || 'Nenhuma descrição ainda.';
+  const loose = S.view.texts.filter(t => !t.fotoId).length;
+  $('laudoInfo').textContent = wordCount(txt) + ' palavras. Para corrigir, edite a descrição na aba Fotos: o texto acima se atualiza sozinho.' + (loose ? ' ' + loose + ' texto(s) sem foto entram na sua seção, sem referência a foto.' : '');
+}
+function showTab() { for (const b of document.querySelectorAll('.tab')) b.classList.toggle('on', b.dataset.tab === tab); $('pFoto').hidden = tab !== 'pFoto'; $('pLaudo').hidden = tab !== 'pLaudo'; }
+
+// ── Anexo fotográfico (versão simples: página para imprimir ou salvar em PDF) ──
+async function anexo() {
+  const ps = numberedPhotos(); if (!ps.length) return;
+  const w = window.open('', '_blank'); if (!w) { banner('anexo', 'warn', 'O navegador bloqueou a janela do anexo. Permita pop-ups para este site.'); return; }
+  w.document.write('<!doctype html><meta charset="utf-8"><title>Anexo fotográfico — ' + S.name + '</title><p style="font:14px sans-serif;padding:24px">Preparando ' + ps.length + ' fotos…</p>');
+  const nums = numberPhotos(S.view.photos), figs = [];
+  try {
+    for (const p of ps) {
+      const ed = p.editadas[p.editadas.length - 1];
+      const bmp = await createImageBitmap(await getBlob(ed ? ed.driveId : p.driveId));
+      const s = Math.min(1, 1800 / Math.max(bmp.width, bmp.height)), c = document.createElement('canvas');
+      c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s); c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+      figs.push({ n: nums.get(p.id), url: c.toDataURL('image/jpeg', 0.88), legenda: p.legenda, sec: secName(p.secao), ed: !!ed });
+      w.document.body.querySelector('p').textContent = 'Preparando fotos… ' + figs.length + ' de ' + ps.length;
+    }
+  } catch (e) { w.close(); if (e instanceof NeedLogin) return needLogin(); banner('anexo', 'err', 'Não foi possível montar o anexo: ' + e.message); return; }
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const html = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Anexo fotográfico — caso ' + esc(S.name) + '</title><style>' +
+    'body{font:12pt/1.4 Georgia,serif;color:#111;margin:0;background:#eee}.pg{background:#fff;max-width:180mm;margin:12px auto;padding:12mm}' +
+    'h1{font-size:14pt;text-align:center;margin:0 0 8mm}figure{margin:0 0 8mm;break-inside:avoid;text-align:center}img{max-width:100%;max-height:110mm;object-fit:contain}' +
+    'figcaption{margin-top:2mm;font-size:11pt}.bar{position:sticky;top:0;background:#222;color:#fff;padding:8px 12px;font:13px sans-serif;display:flex;gap:10px;align-items:center}' +
+    '.bar button{font:13px sans-serif;padding:6px 12px}@media print{.bar{display:none}body{background:#fff}.pg{margin:0;max-width:none;padding:0}}' +
+    '</style></head><body><div class="bar"><span style="flex:1">Anexo fotográfico · ' + figs.length + ' fotos · versão simples (será aprimorada)</span><button onclick="print()">Imprimir ou salvar em PDF</button></div><div class="pg"><h1>ANEXO FOTOGRÁFICO — CASO ' + esc(S.name) + '</h1>' +
+    figs.map(f => '<figure><img src="' + f.url + '" alt="Foto ' + f.n + '"><figcaption><b>Foto ' + f.n + '</b>' + (f.legenda ? ' — ' + esc(f.legenda) : '') + ' <span style="color:#666">(' + esc(f.sec) + (f.ed ? ', com anotações' : '') + ')</span></figcaption></figure>').join('') +
+    '</div></body></html>';
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
+// ── Editor de anotações: o original nunca é alterado; a cópia vai para Editadas/ ──
+const COLORS = ['#ffd54a', '#ff4d4d', '#ffffff', '#111111'];
+const ed = { p: null, bmp: null, shapes: [], crop: null, tool: 'arrow', color: COLORS[0], drag: null, fit: null };
+async function openEditor() {
+  const p = S.view.photos.find(x => x.id === S.sel); if (!p) return;
+  const base = S.ver ? p.editadas[S.ver - 1] : null;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); // nada digitado no editor vai para a legenda
+  $('edTitle').textContent = 'Foto ' + numberPhotos(S.view.photos).get(p.id) + ' · anotações';
+  $('editor').hidden = false; $('edHint').textContent = 'Carregando o original…';
+  try { ed.bmp = await createImageBitmap(await getBlob(p.driveId)); }
+  catch (e) { $('editor').hidden = true; if (e instanceof NeedLogin) return needLogin(); banner('ed', 'err', 'Não foi possível abrir a foto: ' + e.message); return; }
+  Object.assign(ed, { p, shapes: base ? JSON.parse(JSON.stringify(base.formas || [])) : [], crop: base && base.recorte ? Object.assign({}, base.recorte) : null, drag: null });
+  setTool('arrow'); drawEditor();
+}
+function closeEditor() { $('editor').hidden = true; const i = $('ecanvas').querySelector('input'); if (i) i.remove(); if (ed.bmp && ed.bmp.close) ed.bmp.close(); ed.bmp = null; }
+const lw = () => Math.max(3, Math.round(Math.max(ed.bmp.width, ed.bmp.height) / 350));
+const fontPx = () => Math.max(18, Math.round(Math.max(ed.bmp.width, ed.bmp.height) / 40));
+function setTool(t) {
+  ed.tool = t;
+  for (const b of document.querySelectorAll('[data-tool]')) b.classList.toggle('on', b.dataset.tool === t);
+  $('edHint').textContent = { arrow: 'Arraste do texto até o ponto: a ponta fica onde você solta.', circle: 'Arraste para marcar a região com um círculo.', text: 'Clique onde o texto deve ficar e digite; Enter confirma.', crop: 'Arraste para escolher a área que fica na cópia.' }[t];
+}
+function drawShapes(ctx, shapes, k) {
+  for (const s of shapes) {
+    ctx.strokeStyle = ctx.fillStyle = s.cor; ctx.lineWidth = s.lw * k; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    if (s.tipo === 'seta') {
+      const [x1, y1, x2, y2] = [s.x1 * k, s.y1 * k, s.x2 * k, s.y2 * k], a = Math.atan2(y2 - y1, x2 - x1), L = s.lw * k * 5;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2 - L * Math.cos(a - 0.45), y2 - L * Math.sin(a - 0.45)); ctx.lineTo(x2 - L * Math.cos(a + 0.45), y2 - L * Math.sin(a + 0.45)); ctx.closePath(); ctx.fill();
+    } else if (s.tipo === 'circulo') {
+      ctx.beginPath(); ctx.ellipse((s.x + s.w / 2) * k, (s.y + s.h / 2) * k, Math.abs(s.w / 2) * k, Math.abs(s.h / 2) * k, 0, 0, Math.PI * 2); ctx.stroke();
+    } else if (s.tipo === 'texto') {
+      ctx.font = '600 ' + s.px * k + 'px Inter, Arial, sans-serif'; ctx.textBaseline = 'top';
+      ctx.lineWidth = Math.max(2, s.px * k / 7); ctx.strokeStyle = s.cor === '#111111' ? '#ffffff' : '#000000'; ctx.strokeText(s.texto, s.x * k, s.y * k);
+      ctx.fillStyle = s.cor; ctx.fillText(s.texto, s.x * k, s.y * k);
+    }
+  }
+}
+function drawEditor() {
+  if (!ed.bmp) return;
+  const cv = $('edCanvas'), box = $('ecanvas').getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(box.width * dpr); cv.height = Math.round(box.height * dpr);
+  const ctx = cv.getContext('2d'), W = ed.bmp.width, H = ed.bmp.height;
+  const k = Math.min(cv.width / W, cv.height / H), ox = (cv.width - W * k) / 2, oy = (cv.height - H * k) / 2;
+  ed.fit = { k: k / dpr, ox: ox / dpr, oy: oy / dpr };
+  ctx.fillStyle = '#06070a'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.save(); ctx.translate(ox, oy); ctx.drawImage(ed.bmp, 0, 0, W * k, H * k);
+  const live = ed.drag && ed.drag.shape ? ed.shapes.concat([ed.drag.shape]) : ed.shapes;
+  drawShapes(ctx, live, k);
+  const cr = ed.drag && ed.drag.crop ? ed.drag.crop : ed.crop;
+  if (cr) { // escurece o que fica fora do recorte
+    ctx.fillStyle = 'rgba(0,0,0,.6)';
+    ctx.fillRect(0, 0, W * k, cr.y * k); ctx.fillRect(0, (cr.y + cr.h) * k, W * k, (H - cr.y - cr.h) * k);
+    ctx.fillRect(0, cr.y * k, cr.x * k, cr.h * k); ctx.fillRect((cr.x + cr.w) * k, cr.y * k, (W - cr.x - cr.w) * k, cr.h * k);
+    ctx.strokeStyle = '#00c9a7'; ctx.lineWidth = 2; ctx.setLineDash([8, 6]); ctx.strokeRect(cr.x * k, cr.y * k, cr.w * k, cr.h * k); ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+const toImg = e => { const r = $('edCanvas').getBoundingClientRect(), f = ed.fit; return { x: Math.max(0, Math.min(ed.bmp.width, (e.clientX - r.left - f.ox) / f.k)), y: Math.max(0, Math.min(ed.bmp.height, (e.clientY - r.top - f.oy) / f.k)) }; };
+const normRect = (a, b) => ({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) });
+function bindEditor() {
+  const cv = $('edCanvas');
+  cv.addEventListener('pointerdown', e => {
+    if (!ed.bmp) return;
+    const p = toImg(e);
+    if (ed.tool === 'text') { e.preventDefault(); askText(e, p); return; }
+    cv.setPointerCapture(e.pointerId); ed.drag = { a: p };
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!ed.drag) return;
+    const a = ed.drag.a, b = toImg(e);
+    if (ed.tool === 'arrow') ed.drag.shape = { tipo: 'seta', x1: a.x, y1: a.y, x2: b.x, y2: b.y, cor: ed.color, lw: lw() };
+    else if (ed.tool === 'circle') { const r = normRect(a, b); ed.drag.shape = { tipo: 'circulo', x: r.x, y: r.y, w: r.w, h: r.h, cor: ed.color, lw: lw() }; }
+    else if (ed.tool === 'crop') ed.drag.crop = normRect(a, b);
+    drawEditor();
+  });
+  const end = () => {
+    if (!ed.drag) return;
+    const d = ed.drag; ed.drag = null;
+    const big = 8 / ed.fit.k;
+    if (d.shape && (d.shape.tipo === 'seta' ? Math.hypot(d.shape.x2 - d.shape.x1, d.shape.y2 - d.shape.y1) > big : d.shape.w > big && d.shape.h > big)) ed.shapes.push(d.shape);
+    if (d.crop && d.crop.w > big * 4 && d.crop.h > big * 4) { ed.shapes.push({ tipo: 'marca-recorte', antes: ed.crop }); ed.crop = { x: Math.round(d.crop.x), y: Math.round(d.crop.y), w: Math.round(d.crop.w), h: Math.round(d.crop.h) }; }
+    drawEditor();
+  };
+  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+  for (const b of document.querySelectorAll('[data-tool]')) b.addEventListener('click', () => setTool(b.dataset.tool));
+  const sw = $('swatches');
+  for (const c of COLORS) sw.append(h('button', { class: 'swatch' + (c === ed.color ? ' on' : ''), style: 'background:' + c, 'aria-label': 'Cor', 'data-color': c, onclick: () => { ed.color = c; sw.querySelectorAll('.swatch').forEach(x => x.classList.toggle('on', x.dataset.color === c)); } }));
+  $('edUndo').addEventListener('click', () => { const s = ed.shapes.pop(); if (s && s.tipo === 'marca-recorte') ed.crop = s.antes || null; drawEditor(); });
+  $('edClear').addEventListener('click', () => { ed.shapes = []; ed.crop = null; drawEditor(); });
+  $('edCancel').addEventListener('click', closeEditor);
+  $('edSave').addEventListener('click', saveEdit);
+  window.addEventListener('resize', drawEditor);
+}
+function askText(e, p) {
+  const old = $('ecanvas').querySelector('input'); if (old) old.remove();
+  const r = $('ecanvas').getBoundingClientRect();
+  const inp = h('input', { type: 'text', placeholder: 'Texto da anotação', style: 'left:' + (e.clientX - r.left) + 'px;top:' + (e.clientY - r.top) + 'px' });
+  $('ecanvas').append(inp); inp.focus();
+  inp.addEventListener('keydown', k => {
+    if (k.key === 'Enter' && inp.value.trim()) { ed.shapes.push({ tipo: 'texto', x: p.x, y: p.y, texto: inp.value.trim(), cor: ed.color, px: fontPx() }); inp.remove(); drawEditor(); }
+    if (k.key === 'Escape') inp.remove();
+  });
+}
+function editSummary(shapes, crop) {
+  const n = t => shapes.filter(s => s.tipo === t).length, parts = [];
+  if (n('seta')) parts.push(n('seta') + (n('seta') > 1 ? ' setas' : ' seta'));
+  if (n('circulo')) parts.push(n('circulo') + (n('circulo') > 1 ? ' círculos' : ' círculo'));
+  if (n('texto')) parts.push(n('texto') + (n('texto') > 1 ? ' textos' : ' texto'));
+  if (crop) parts.push('recorte');
+  return parts.join(', ') || 'sem marcações';
+}
+async function saveEdit() {
+  const p = ed.p, shapes = ed.shapes.filter(s => s.tipo !== 'marca-recorte');
+  if (!shapes.length && !ed.crop) { banner('ed', 'warn', 'Nada para salvar: desenhe uma marcação ou um recorte.', [], 4000); return; }
+  if (!S.editadas) { banner('ed', 'err', 'A pasta Editadas/ do caso não foi encontrada no Drive.'); return; }
+  $('edSave').disabled = true; $('edHint').textContent = 'Gerando a cópia em resolução plena…';
+  try {
+    const W = ed.bmp.width, H = ed.bmp.height, cr = ed.crop || { x: 0, y: 0, w: W, h: H };
+    const c = document.createElement('canvas'); c.width = cr.w; c.height = cr.h;
+    const ctx = c.getContext('2d'); ctx.translate(-cr.x, -cr.y); ctx.drawImage(ed.bmp, 0, 0); drawShapes(ctx, shapes, 1);
+    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.92));
+    const sha = await sha256Hex(blob), n = p.editadas.length + 1, name = editName(p.name, n), eid = 'ed-' + p.id + '-' + Date.now().toString(36);
+    $('edHint').textContent = 'Enviando ao Drive…';
+    const mp = multipart({ name, parents: [S.editadas], appProperties: { registro: eid, origem: p.id, sha256: sha, forensis: 'editada' } }, blob, 'image/jpeg');
+    const up = await api('POST', UPL + '?uploadType=multipart&fields=id,sha256Checksum', mp.body, { 'Content-Type': mp.ct });
+    let remote = up.sha256Checksum;
+    for (let i = 0; !remote && i < 10; i++) { await new Promise(r => setTimeout(r, 1500)); remote = (await api('GET', API + '/files/' + up.id + '?fields=sha256Checksum')).sha256Checksum; }
+    if (remote && remote !== sha) throw new Error('o hash da cópia no Drive não confere; tente salvar de novo');
+    blobs.set(up.id, blob);
+    S.files.set(up.id, { id: up.id, name, sha256Checksum: remote || null });
+    const rec = { id: eid, arquivo: name, driveId: up.id, sha256: sha, formas: shapes, recorte: ed.crop, largura: cr.w, altura: cr.h, em: new Date().toISOString(), resumo: editSummary(shapes, ed.crop) };
+    const o = pOv(p.id); o.editadas = (o.editadas || []).concat([rec]);
+    closeEditor(); S.ver = o.editadas.length; changed();
+    banner('ed', 'ok', 'Cópia editada salva em Editadas/' + name + (remote ? ', com hash conferido.' : '.'), [], 5000);
+  } catch (e) { if (e instanceof NeedLogin) needLogin(); else banner('ed', 'err', 'Não foi possível salvar a cópia: ' + e.message); }
+  finally { $('edSave').disabled = false; if (!$('editor').hidden) setTool(ed.tool); }
+}
+
+// ── Ligações ────────────────────────────────────────────────────────────────
+function bind() {
+  $('btnLogin').addEventListener('click', login);
+  $('caseSel').addEventListener('change', async e => { await flushSave(); openCase(e.target.value); });
+  $('btnReload').addEventListener('click', reloadCase);
+  $('btnDrive').addEventListener('click', () => window.open('https://drive.google.com/drive/folders/' + S.caseId, '_blank', 'noopener'));
+  $('btnAnexo').addEventListener('click', anexo);
+  for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () => { tab = b.dataset.tab; showTab(); });
+  $('btnPrev').addEventListener('click', () => step(-1)); $('btnNext').addEventListener('click', () => step(1));
+  $('btnAnnotate').addEventListener('click', openEditor);
+  $('phSecSel').addEventListener('change', e => { const p = S.view.photos.find(x => x.id === S.sel); if (p) setPhotoSection(p, e.target.value); });
+  $('phCaption').addEventListener('input', e => { const p = S.view.photos.find(x => x.id === S.sel); if (!p) return; clearTimeout(e.target._t); e.target._t = setTimeout(() => { const v = e.target.value.trim(); if (v) pOv(p.id).legenda = v; else delete pOv(p.id).legenda; changed(); }, 600); });
+  dropTarget($('stage'), id => S.sel && linkText(id, S.sel));
+  dropTarget($('descs'), id => S.sel && linkText(id, S.sel));
+  for (const id of ['lHead', 'lRefs', 'lPara']) $(id).addEventListener('change', () => { ls.set('forensis_hub_laudo', JSON.stringify(laudoOpts())); renderLaudo(); });
+  try { const o = JSON.parse(ls.get('forensis_hub_laudo', 'null')); if (o) { $('lHead').checked = !!o.heads; $('lRefs').checked = !!o.refs; $('lPara').value = o.para || 'secao'; } } catch (e) {}
+  $('btnCopy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('laudoTxt').value); banner('copy', 'ok', 'Texto copiado. Cole no laudo.', [], 3000); }
+    catch (e) { $('laudoTxt').select(); document.execCommand('copy'); banner('copy', 'ok', 'Texto copiado.', [], 3000); }
+  });
+  $('btnTxt').addEventListener('click', () => {
+    const a = h('a', { href: URL.createObjectURL(new Blob([$('laudoTxt').value + '\n'], { type: 'text/plain;charset=utf-8' })), download: 'laudo_prototipo_' + S.name.replace(' ', '-') + '.txt' });
+    document.body.append(a); a.click(); a.remove();
+  });
+  document.addEventListener('keydown', e => {
+    if (!$('editor').hidden) { if (e.key === 'Escape') closeEditor(); if ((e.ctrlKey || e.metaKey) && e.key === 'z') $('edUndo').click(); return; }
+    if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || tab !== 'pFoto') return;
+    if (e.key === 'ArrowLeft') step(-1); if (e.key === 'ArrowRight') step(1);
+  });
+  bindEditor();
+}
+bind(); renderAcct();
+if (tokenValid()) loadCases();
+</script>
+</body>
+</html>
