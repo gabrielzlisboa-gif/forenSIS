@@ -209,6 +209,10 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
   <div class="state" id="stateBox">
     <h2>Hub do forenSIS</h2>
     <p id="stateTxt">Entre com a mesma conta Google do celular para ver os casos.</p>
+    <div id="cleanBox" hidden style="display:flex;flex-direction:column;gap:8px;align-items:center;width:100%">
+      <div class="pwrow" style="justify-content:center"><input type="password" id="clPw" placeholder="Senha do pacote" aria-label="Senha do pacote"><button class="btn primary" id="clGo">Concluir limpeza</button></div>
+      <div class="fclog" id="clLog" style="text-align:left;width:100%"></div>
+    </div>
   </div>
 
   <div class="layout" id="layout" hidden>
@@ -317,7 +321,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
     <div class="mhead"><b>Fechar e trancar o caso <span id="fcCase"></span></b><span class="grow"></span></div>
     <div class="mbody">
       <ol class="steps">
-        <li><b>Conferência</b><p id="fcSummary"></p><div id="fcProbs"></div>
+        <li><b>Conferência</b><p id="fcSummary"></p><p>Atenção: arquivo posto à mão nas pastas do caso (pelo app do Drive ou pelo computador) não é visto pelo forenSIS no beta e não entra no pacote.</p><div id="fcProbs"></div>
           <label class="ck2"><input type="checkbox" id="fcSync"> Conferi no celular: a fila está zerada e tudo deste caso foi enviado.</label></li>
         <li><b>Laudo final</b><p>O laudo completo vai só para dentro do pacote com senha. O sanitizado fica solto na pasta.</p>
           <div class="dropz" id="fcDrop">Arraste o laudo final (.docx) aqui ou clique para escolher<input type="file" id="fcFile" accept=".docx,.doc" hidden></div>
@@ -355,7 +359,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 <script>
 'use strict';
 /*PURE-START*/
-const HUB_VERSION = '0.3.0';
+const HUB_VERSION = '0.3.1';
 // Mesmas seções do app do celular (o teste confere que continuam iguais).
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -584,7 +588,7 @@ async function openCase(name) {
   Object.assign(S, { name, caseId: c.id, sel: null, ver: 0, manifest: null, hub: null, hubId: null, files: new Map() });
   $('stateBox').hidden = false; $('layout').hidden = true; $('stateTxt').textContent = 'Abrindo o caso ' + name + '…';
   for (const id of ['btnReload', 'btnAnexo', 'btnClose']) $(id).hidden = true;
-  $('btnDrive').hidden = false;
+  $('btnDrive').hidden = false; $('cleanBox').hidden = true;
   if (c.closed) return showClosed(c);
   try { await fetchCase(); } catch (e) { if (e instanceof NeedLogin) return needLogin(); $('stateTxt').textContent = 'Não foi possível abrir o caso: ' + e.message; return; }
   $('stateBox').hidden = true; $('layout').hidden = false;
@@ -593,12 +597,35 @@ async function openCase(name) {
   render();
 }
 // Caso fechado: só leitura; mostra o que ficou na pasta.
-async function showClosed(c) {
+async function showClosed(c, keepLog) {
+  $('stats').textContent = '';
   let names = [];
   try { names = (await list(q(c.id) + ' in parents', 'id,name')).map(f => f.name).sort(); } catch (e) { if (e instanceof NeedLogin) return needLogin(); }
   const stray = names.filter(n => n !== ZIP_NAME && !/_sanitizado\.docx$/i.test(n));
   $('stateTxt').textContent = 'Caso ' + c.name + ' fechado e trancado em ' + new Date(c.closed).toLocaleString('pt-BR') + '. Na pasta: ' + (names.join(', ') || 'nada') + '. SHA-256 do pacote: ' + (c.zipSha || '—') + '. Para ver o conteúdo, baixe o ' + ZIP_NAME + ' e abra com o 7-Zip e a senha.' +
-    (stray.length ? ' ATENÇÃO: há arquivos soltos que chegaram depois do fechamento (' + stray.join(', ') + '); eles não estão no pacote.' : '');
+    (stray.length ? ' Ainda há itens soltos na pasta (' + stray.join(', ') + '). "Concluir limpeza" confere cada um com a lista de hashes de dentro do pacote e manda para a lixeira só o que já está guardado nele.' : '');
+  $('cleanBox').hidden = !stray.length && !keepLog; if (!keepLog) $('clLog').textContent = ''; $('clPw').value = ''; S.closedCase = c;
+}
+async function finishCleanup() {
+  const c = S.closedCase, pw = $('clPw').value; if (!c || !pw) return;
+  $('clGo').disabled = true; const log = (m, k) => $('clLog').append(h('p', { class: k || '' }, m));
+  $('clLog').textContent = '';
+  try {
+    const z = (await list(q(c.id) + ' in parents and name = ' + q(ZIP_NAME), 'id,sha256Checksum'))[0];
+    if (!z) throw new Error(ZIP_NAME + ' não encontrado na pasta');
+    if (c.zipSha && z.sha256Checksum !== c.zipSha) throw new Error('o hash do ' + ZIP_NAME + ' no Drive não confere com o registrado no fechamento');
+    log('Abrindo o pacote para ler a lista de hashes…');
+    const bytes = new Uint8Array(await (await media(z.id)).arrayBuffer());
+    const sz = await new7z(); sz.FS.writeFile('/p.7z', bytes); sz.FS.mkdir('/x');
+    const r = sz.run(['e', '-p' + pw, '-o/x', '-y', '/p.7z', 'SHA256SUMS.txt']);
+    if (r.rc !== 0) throw new Error('a senha não abriu o pacote');
+    const sums = new TextDecoder().decode(sz.FS.readFile('/x/SHA256SUMS.txt')).split('\n').map(l => l.slice(0, 64)).filter(s => /^[0-9a-f]{64}$/.test(s));
+    const res = await cleanupLoose(c.id, new Set(sums));
+    for (const [m, k] of cleanupReport(res)) log(m, k);
+    if (!res.trashed.length && !res.foreign.length && !res.kept.length) log('Nada a limpar.', 'ok');
+    await showClosed(c, true);
+  } catch (e) { if (e instanceof NeedLogin) needLogin(); log('Parou: ' + e.message + '. Nada foi apagado.', 'bad'); }
+  finally { $('clGo').disabled = false; $('clPw').value = ''; }
 }
 // Lê do Drive: caso.json (celular), hub.json (hub) e a lista de arquivos com o hash calculado pelo Drive.
 async function fetchCase() {
@@ -1317,6 +1344,34 @@ async function driveSha(id) {
   for (let i = 0; i < 12; i++) { const r = await api('GET', API + '/files/' + encodeURIComponent(id) + '?fields=sha256Checksum'); if (r.sha256Checksum) return r.sha256Checksum; await new Promise(x => setTimeout(x, 1500)); }
   return null;
 }
+// Manda para a lixeira o que está solto na pasta do caso e já está no pacote (conferido pelo hash).
+// Arquivo que o forenSIS não criou (posto à mão no Drive) é invisível para ele no beta: a pasta que o contém fica.
+async function cleanupLoose(caseId, packed) {
+  const res = { trashed: [], kept: [], foreign: [] };
+  const isForeign = e => /not granted|has not granted|insufficient|appNotAuthorized/i.test(e.message || '');
+  const inPack = async f => packed.has(f.sha256Checksum || await sha256Bytes(await (await media(f.id)).arrayBuffer())); // sem hash do Drive: calcula aqui
+  for (const k of await list(q(caseId) + ' in parents', 'id,name,mimeType,sha256Checksum')) {
+    if (k.name === ZIP_NAME || /_sanitizado\.docx$/i.test(k.name)) continue;
+    if (k.mimeType === FOLDER) {
+      let keepFolder = false;
+      for (const f of await list(q(k.id) + ' in parents', 'id,name,mimeType,sha256Checksum')) {
+        if (f.mimeType === FOLDER || !(await inPack(f))) { res.kept.push(k.name + '/' + f.name); keepFolder = true; continue; }
+        await trash(f.id); res.trashed.push(k.name + '/' + f.name);
+      }
+      if (keepFolder) continue;
+      try { await trash(k.id); } catch (e) { if (isForeign(e)) res.foreign.push(k.name); else throw e; }
+    } else if (await inPack(k)) { await trash(k.id); res.trashed.push(k.name); }
+    else res.kept.push(k.name);
+  }
+  return res;
+}
+function cleanupReport(r) {
+  const out = [];
+  if (r.trashed.length) out.push([r.trashed.length + ' arquivo(s) já guardados no pacote foram para a lixeira do Drive.', 'ok']);
+  if (r.foreign.length) out.push(['A pasta ' + r.foreign.join(' e ') + ' ficou: ela tem arquivo(s) que não foram criados pelo forenSIS (postos à mão no Drive ou por outro aplicativo). No beta o forenSIS não enxerga esses arquivos, e eles NÃO estão no pacote. Confira-os no Drive e apague a pasta à mão.', 'bad']);
+  if (r.kept.length) out.push(['Ficaram por não estarem no pacote (ou terem mudado depois): ' + r.kept.join(', ') + '.', 'bad']);
+  return out;
+}
 const trash = id => api('PATCH', API + '/files/' + encodeURIComponent(id) + '?fields=id', JSON.stringify({ trashed: true }), { 'Content-Type': 'application/json; charset=UTF-8' });
 
 // ── Fechar e trancar o caso ─────────────────────────────────────────────────
@@ -1420,10 +1475,10 @@ async function closeCase() {
     const when = new Date().toISOString();
     await api('PATCH', API + '/files/' + encodeURIComponent(S.caseId) + '?fields=id', JSON.stringify({ appProperties: { forensis_fechado: when, forensis_pacote_sha256: zsha } }), { 'Content-Type': 'application/json; charset=UTF-8' });
     ok = true;
-    const toTrash = folders.concat(loose);
-    for (const f of toTrash) await trash(f.id);
+    const cr = await cleanupLoose(S.caseId, new Set(files.map(f => f.sha)));
+    for (const [m, k] of cleanupReport(cr)) fcLog(m, k);
     const left = (await list(q(S.caseId) + ' in parents', 'id,name')).map(f => f.name).sort();
-    fcLog('Originais, Editadas, caso.json, hub.json e transcricao.txt foram para a lixeira do Drive. Na pasta ficaram: ' + left.join(', ') + '.', 'ok');
+    fcLog('Na pasta ficaram: ' + left.join(', ') + '.', left.length === 2 ? 'ok' : 'bad');
     fcLog('Caso fechado e trancado. SHA-256 do pacote: ' + zsha, 'ok');
     $('fcGo').hidden = true; $('fcCancel').textContent = 'Concluir'; $('fcCancel').disabled = false;
     $('fcCancel').onclick = () => { $('fcCancel').onclick = null; $('closeBox').hidden = true; loadCases(); };
@@ -1459,6 +1514,8 @@ function bind() {
   for (const id of ['fcSync', 'fcPw1', 'fcPw2']) $(id).addEventListener('input', fcCheck);
   $('fcCancel').addEventListener('click', () => { if ($('fcCancel').onclick) return; $('closeBox').hidden = true; $('fcPw1').value = $('fcPw2').value = ''; san.file = san.bytes = san.res = null; });
   $('fcGo').addEventListener('click', closeCase);
+  $('clGo').addEventListener('click', finishCleanup);
+  $('clPw').addEventListener('keydown', e => { if (e.key === 'Enter') finishCleanup(); });
   $('axClose').addEventListener('click', () => { $('anexoBox').hidden = true; clearAnexo(); });
   $('axGen').addEventListener('click', genAnexo);
   $('axAll').addEventListener('click', () => setAnexo(S.view.photos.map(p => p.id), true));
