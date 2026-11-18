@@ -111,7 +111,39 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 /* Protótipo do laudo */
 .lopts { display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-bottom:10px; font-size:13px; color:var(--text-sec); }
 .lopts label { display:flex; gap:6px; align-items:center; }
-#laudoTxt { width:100%; min-height:60vh; resize:vertical; border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); padding:16px; font:14px/1.7 var(--sans); }
+.lwrap { display:grid; grid-template-columns:minmax(0, 1fr); gap:16px; align-items:start; }
+.lwrap.side { grid-template-columns:minmax(0, 2fr) minmax(0, 1fr); }
+.lwrap.half { grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); }
+.lview { border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); padding:16px 20px; font:14px/1.75 var(--sans); min-height:50vh; }
+.lview p { margin:0 0 12px; }
+.lview .lh { font-weight:600; letter-spacing:.02em; margin:16px 0 4px; }
+.lview .lh:first-child { margin-top:0; }
+.lview .ld { cursor:pointer; border-radius:4px; transition:background .12s; }
+.lview .ld.ph:hover { background:rgba(0,201,167,.08); }
+.lview .ld:not(.ph):hover { background:rgba(255,255,255,.04); }
+.lview .ld.on { background:rgba(0,201,167,.22); box-shadow:0 0 0 2px rgba(0,201,167,.22); }
+.lview .ld.rel { background:rgba(0,201,167,.09); }
+.lside { position:sticky; top:0; border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); display:flex; flex-direction:column; height:calc(100vh - 190px); min-height:320px; overflow:hidden; }
+.lside .lsh { display:flex; align-items:center; gap:6px; padding:8px 10px; border-bottom:1px solid var(--border); font-size:13px; }
+.lside .lsh b { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lside .lsimg { flex:1; min-height:0; background:#000; display:flex; align-items:center; justify-content:center; position:relative; }
+.lside .lsimg img { max-width:100%; max-height:100%; object-fit:contain; }
+.lside .lsimg span { position:absolute; color:var(--text-sec); font-size:12px; }
+.lside .lsf { padding:8px 10px; font-size:12px; color:var(--text-sec); border-top:1px solid var(--border); }
+
+/* Anexo para o Word */
+.modal { position:fixed; inset:0; z-index:25; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; padding:24px; }
+.mcard { width:min(1100px, 100%); max-height:100%; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border-strong); border-radius:12px; overflow:hidden; }
+.mhead, .mfoot { display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--border); }
+.mfoot { border-bottom:none; border-top:1px solid var(--border); }
+.aopts { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; padding:12px 16px; font-size:12px; color:var(--text-sec); }
+.aopts label { display:flex; flex-direction:column; gap:4px; }
+.aopts label.ck { flex-direction:row; align-items:center; gap:6px; height:36px; }
+.aopts input[type=number] { width:72px; height:36px; border-radius:8px; border:1px solid var(--border-strong); background:var(--surface); padding:0 8px; }
+.axpages { flex:1; min-height:200px; overflow-y:auto; padding:12px 16px; display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:14px; align-content:start; }
+.axpage { display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--text-sec); }
+.axpage img { width:100%; background:#fff; border-radius:4px; box-shadow:0 2px 10px rgba(0,0,0,.4); }
+.axpage .r { display:flex; gap:6px; }
 .hint { font-size:12px; color:var(--text-muted); }
 
 /* Editor de anotações */
@@ -137,7 +169,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
     <span class="save" id="saveState"></span>
     <button class="btn ghost" id="btnReload" hidden title="Busca no Drive o que o celular enviou depois">Atualizar</button>
     <button class="btn ghost" id="btnDrive" hidden>Abrir pasta no Drive</button>
-    <button class="btn" id="btnAnexo" hidden>Gerar anexo fotográfico</button>
+    <button class="btn" id="btnAnexo" hidden>Anexo para o Word</button>
     <span class="acct"><span class="dot" id="acctDot"></span><span id="acctTxt">desconectado</span></span>
     <button class="btn primary" id="btnLogin">Entrar</button>
   </header>
@@ -192,10 +224,41 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
           <button class="btn" id="btnCopy">Copiar texto</button>
           <button class="btn ghost" id="btnTxt">Baixar .txt</button>
         </div>
-        <textarea id="laudoTxt" readonly aria-label="Protótipo do laudo"></textarea>
-        <p class="hint" id="laudoInfo"></p>
+        <div class="lwrap" id="lwrap">
+          <div>
+            <div class="lview" id="laudoView" aria-label="Protótipo do laudo"></div>
+            <p class="hint" id="laudoInfo"></p>
+          </div>
+          <div class="lside" id="lside" hidden>
+            <div class="lsh"><b id="lsTitle"></b>
+              <button class="btn sm ghost" id="lsVer" hidden></button>
+              <button class="btn sm ghost" id="lsSize" title="Alternar entre 1/3 e metade da tela">½</button>
+              <button class="btn sm ghost" id="lsOpen">Abrir em Fotos</button>
+              <button class="btn sm ghost" id="lsClose" aria-label="Fechar a foto">×</button></div>
+            <div class="lsimg"><img id="lsImg" alt=""><span id="lsLd"></span></div>
+            <div class="lsf" id="lsFoot"></div>
+          </div>
+        </div>
       </section>
     </main>
+  </div>
+</div>
+
+<div class="modal" id="anexoBox" hidden>
+  <div class="mcard">
+    <div class="mhead"><b>Anexo fotográfico para o Word</b><span class="grow"></span><button class="btn sm ghost" id="axClose" aria-label="Fechar">×</button></div>
+    <div class="aopts">
+      <label>Fotos por página<select id="axPer"><option value="6">6 (2 × 3)</option><option value="4">4 (2 × 2)</option><option value="2">2 (1 × 2)</option><option value="1">1</option></select></label>
+      <label>Largura útil (cm)<input type="number" id="axW" min="8" max="30" step="0.1" value="16"></label>
+      <label>Altura útil (cm)<input type="number" id="axH" min="8" max="30" step="0.1" value="24.7"></label>
+      <label>Legenda<select id="axPt"><option value="10">10 pt</option><option value="11">11 pt</option><option value="12">12 pt</option></select></label>
+      <label class="ck"><input type="checkbox" id="axEd" checked> usar a versão anotada</label>
+      <label class="ck"><input type="checkbox" id="axSec"> seção na legenda</label>
+      <button class="btn primary" id="axGen">Gerar páginas</button>
+    </div>
+    <p class="hint" style="padding:0 16px">Cada página vira uma imagem do tamanho da área útil (300 dpi), com espaço para a legenda de cada foto. No Word: <b>Copiar</b> e Ctrl+V, ou Inserir › Imagens com o arquivo baixado. Para mudar uma legenda, edite na aba Fotos e gere de novo.</p>
+    <div class="axpages" id="axPages"></div>
+    <div class="mfoot"><span class="hint" id="axInfo"></span><span class="grow"></span><button class="btn ghost" id="axPrint" disabled>Imprimir ou PDF</button><button class="btn" id="axZip" disabled>Baixar todas (.zip)</button></div>
   </div>
 </div>
 
@@ -222,7 +285,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 <script>
 'use strict';
 /*PURE-START*/
-const HUB_VERSION = '0.1.0';
+const HUB_VERSION = '0.2.0';
 // Mesmas seções do app do celular (o teste confere que continuam iguais).
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -268,20 +331,67 @@ function sentence(s) {
 }
 function withRef(s, ref) { return ref ? s.replace(/([.!?…:;])$/, ' (' + ref + ')$1') : s; }
 // Concatenador: as descrições viram um texto único, na ordem das seções e do exame.
-function concatLaudo(view, opts) {
-  opts = Object.assign({ heads: true, refs: true, para: 'secao' }, opts || {});
-  const nums = numberPhotos(view.photos);
-  const out = [];
+// Em blocos (seção > parágrafos > trechos), para a tela saber qual trecho é de qual descrição e foto.
+const LAUDO_DEFAULTS = { heads: true, refs: true, para: 'secao' };
+function concatBlocks(view, opts) {
+  opts = Object.assign({}, LAUDO_DEFAULTS, opts || {});
+  const nums = numberPhotos(view.photos), blocks = [];
   for (const s of SECTIONS) {
     const ts = view.texts.filter(t => t.secao === s.id && String(t.texto || '').trim())
       .sort((a, b) => String(a.capturadaEm).localeCompare(String(b.capturadaEm)));
     if (!ts.length) continue;
-    const parts = ts.map(t => withRef(sentence(t.texto), opts.refs && t.fotoId && nums.has(t.fotoId) ? 'foto ' + nums.get(t.fotoId) : ''));
-    if (opts.heads) out.push(s.name.toUpperCase());
-    out.push(opts.para === 'desc' ? parts.join('\n\n') : parts.join(' '));
-    out.push('');
+    const items = ts.map(t => ({ id: t.id, fotoId: t.fotoId || null, text: withRef(sentence(t.texto), opts.refs && t.fotoId && nums.has(t.fotoId) ? 'foto ' + nums.get(t.fotoId) : '') }));
+    blocks.push({ sec: s.id, head: s.name.toUpperCase(), paras: opts.para === 'desc' ? items.map(i => [i]) : [items] });
   }
+  return blocks;
+}
+function blocksToText(blocks, opts) {
+  opts = Object.assign({}, LAUDO_DEFAULTS, opts || {});
+  const out = [];
+  for (const b of blocks) { if (opts.heads) out.push(b.head); out.push(b.paras.map(p => p.map(i => i.text).join(' ')).join('\n\n')); out.push(''); }
   return out.join('\n').trim();
+}
+function concatLaudo(view, opts) { return blocksToText(concatBlocks(view, opts), opts); }
+
+// Anexo para o Word: geometria da página (pixels a 300 dpi) e legenda de cada foto.
+const ANEXO_GRID = { 6: [2, 3], 4: [2, 2], 2: [1, 2], 1: [1, 1] };
+function anexoGeom(o) {
+  const dpi = o.dpi || 300, px = cm => Math.round(cm / 2.54 * dpi);
+  const [cols, rows] = ANEXO_GRID[o.per] || ANEXO_GRID[6];
+  const W = px(o.wcm), H = px(o.hcm), gutter = px(0.4), fontPx = Math.round(o.pt / 72 * dpi);
+  const capH = Math.round(fontPx * 1.25 * 2 + fontPx * 0.8); // duas linhas de legenda, sempre reservadas
+  const cellW = Math.floor((W - gutter * (cols - 1)) / cols), cellH = Math.floor((H - gutter * (rows - 1)) / rows);
+  return { dpi, W, H, cols, rows, gutter, fontPx, capH, cellW, cellH, photoH: cellH - capH };
+}
+function anexoCaption(n, legenda, sec) { return 'Foto ' + n + (legenda ? ' – ' + legenda : '') + (sec ? ' (' + sec + ')' : ''); }
+// Grava 300 dpi no cabeçalho JFIF, para o Word inserir a imagem no tamanho certo.
+function jpegSetDpi(b, dpi) {
+  if (b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF && b[3] === 0xE0 && b[6] === 0x4A && b[7] === 0x46 && b[8] === 0x49 && b[9] === 0x46 && b[10] === 0) {
+    b[13] = 1; b[14] = dpi >> 8; b[15] = dpi & 255; b[16] = dpi >> 8; b[17] = dpi & 255;
+  }
+  return b;
+}
+const CRC_TABLE = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(bytes) { let c = 0xFFFFFFFF; for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zipParts(entries) {
+  const enc = new TextEncoder(), parts = [], central = []; let offset = 0;
+  const u16 = (v, a, o) => { a[o] = v & 255; a[o + 1] = (v >>> 8) & 255; };
+  const u32 = (v, a, o) => { a[o] = v & 255; a[o + 1] = (v >>> 8) & 255; a[o + 2] = (v >>> 16) & 255; a[o + 3] = (v >>> 24) & 255; };
+  for (const e of entries) {
+    const name = enc.encode(e.name), d = e.date || new Date(), crc = crc32(e.bytes), size = e.bytes.length;
+    const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+    const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    const lh = new Uint8Array(30 + name.length);
+    u32(0x04034b50, lh, 0); u16(20, lh, 4); u16(0x0800, lh, 6); u16(0, lh, 8); u16(time, lh, 10); u16(date, lh, 12);
+    u32(crc, lh, 14); u32(size, lh, 18); u32(size, lh, 22); u16(name.length, lh, 26); u16(0, lh, 28); lh.set(name, 30);
+    const ch = new Uint8Array(46 + name.length);
+    u32(0x02014b50, ch, 0); u16(20, ch, 4); u16(20, ch, 6); u16(0x0800, ch, 8); u16(0, ch, 10); u16(time, ch, 12); u16(date, ch, 14);
+    u32(crc, ch, 16); u32(size, ch, 20); u32(size, ch, 24); u16(name.length, ch, 28); u32(offset, ch, 42); ch.set(name, 46);
+    parts.push(lh, e.bytes); central.push(ch); offset += lh.length + size;
+  }
+  const cdSize = central.reduce((a, c) => a + c.length, 0), end = new Uint8Array(22);
+  u32(0x06054b50, end, 0); u16(entries.length, end, 8); u16(entries.length, end, 10); u32(cdSize, end, 12); u32(offset, end, 16);
+  return parts.concat(central, [end]);
 }
 function wordCount(s) { return (String(s).match(/\S+/g) || []).length; }
 function editName(original, n) { return String(original).replace(/\.jpe?g$/i, '') + '_ed' + n + '.jpg'; }
@@ -643,42 +753,140 @@ function descCard(t) {
   return h('div', { class: 'desc', 'data-text': t.id }, ta, row);
 }
 
-// ── Protótipo do laudo ──────────────────────────────────────────────────────
+// ── Protótipo do laudo: clicar num trecho destaca a descrição e abre a foto ao lado ──
+let lsel = null, lsize = ls.get('forensis_hub_lsize', 'third'), lsVer = -1, lsSeq = 0, lsUrl = null;
 function laudoOpts() { return { heads: $('lHead').checked, refs: $('lRefs').checked, para: $('lPara').value }; }
+function laudoText() { return concatLaudo(S.view, laudoOpts()); }
 function renderLaudo() {
-  const txt = concatLaudo(S.view, laudoOpts());
-  $('laudoTxt').value = txt || 'Nenhuma descrição ainda.';
+  const opts = laudoOpts(), blocks = concatBlocks(S.view, opts), txt = blocksToText(blocks, opts);
+  const selT = S.view.texts.find(t => t.id === lsel); if (!selT) lsel = null;
+  const selPhoto = selT && selT.fotoId;
+  const box = $('laudoView'); box.textContent = '';
+  if (!blocks.length) box.append(h('p', { class: 'hint' }, 'Nenhuma descrição ainda.'));
+  for (const b of blocks) {
+    if (opts.heads) box.append(h('p', { class: 'lh' }, b.head));
+    for (const para of b.paras) {
+      const p = h('p');
+      para.forEach((it, i) => {
+        if (i) p.append(' ');
+        const cls = 'ld' + (it.fotoId ? ' ph' : '') + (it.id === lsel ? ' on' : '') + (selPhoto && it.fotoId === selPhoto && it.id !== lsel ? ' rel' : '');
+        p.append(h('span', { class: cls, 'data-text': it.id, 'data-photo': it.fotoId, title: it.fotoId ? 'Clique para ver a foto' : 'Texto sem foto', onclick: () => pickLaudo(it.id) }, it.text));
+      });
+      box.append(p);
+    }
+  }
   const loose = S.view.texts.filter(t => !t.fotoId).length;
-  $('laudoInfo').textContent = wordCount(txt) + ' palavras. Para corrigir, edite a descrição na aba Fotos: o texto acima se atualiza sozinho.' + (loose ? ' ' + loose + ' texto(s) sem foto entram na sua seção, sem referência a foto.' : '');
+  $('laudoInfo').textContent = wordCount(txt) + ' palavras. Clique num trecho para ver a foto ao lado. Para corrigir, edite a descrição na aba Fotos: este texto se atualiza sozinho.' + (loose ? ' ' + loose + ' texto(s) sem foto entram na sua seção, sem referência a foto.' : '');
+  renderLaudoSide();
+}
+function pickLaudo(id) { lsel = lsel === id ? null : id; lsVer = -1; renderLaudo(); }
+function renderLaudoSide() {
+  const t = S.view.texts.find(x => x.id === lsel), p = t && t.fotoId && S.view.photos.find(x => x.id === t.fotoId);
+  $('lwrap').className = 'lwrap' + (p ? (lsize === 'half' ? ' half' : ' side') : '');
+  $('lside').hidden = !p;
+  if (!p) return;
+  const nums = numberPhotos(S.view.photos);
+  if (lsVer < 0 || lsVer > p.editadas.length) lsVer = p.editadas.length; // abre na última versão anotada, se houver
+  $('lsTitle').textContent = 'Foto ' + nums.get(p.id) + ' · ' + secName(p.secao);
+  $('lsVer').hidden = !p.editadas.length;
+  $('lsVer').textContent = lsVer ? 'Ver original' : 'Ver anotada';
+  $('lsSize').textContent = lsize === 'half' ? '⅓' : '½';
+  $('lsFoot').textContent = (p.legenda ? 'Legenda: ' + p.legenda : 'Sem legenda') + (lsVer ? ' · versão anotada ' + lsVer : ' · original');
+  const id = lsVer ? p.editadas[lsVer - 1].driveId : p.driveId, img = $('lsImg');
+  if (img.dataset.id === id) return;
+  const seq = ++lsSeq; img.dataset.id = id; img.removeAttribute('src'); $('lsLd').textContent = 'Carregando…';
+  getBlob(id).then(b => { if (seq !== lsSeq) return; if (lsUrl) URL.revokeObjectURL(lsUrl); lsUrl = URL.createObjectURL(b); img.src = lsUrl; $('lsLd').textContent = ''; })
+    .catch(e => { if (seq !== lsSeq) return; if (e instanceof NeedLogin) needLogin(); $('lsLd').textContent = 'Não foi possível carregar: ' + e.message; });
 }
 function showTab() { for (const b of document.querySelectorAll('.tab')) b.classList.toggle('on', b.dataset.tab === tab); $('pFoto').hidden = tab !== 'pFoto'; $('pLaudo').hidden = tab !== 'pLaudo'; }
 
-// ── Anexo fotográfico (versão simples: página para imprimir ou salvar em PDF) ──
-async function anexo() {
+// ── Anexo fotográfico para o Word: cada página vira uma imagem (300 dpi) com até 6 fotos e legendas ──
+const ax = { pages: [] }; // [{ blob, url, name, first, last }]
+function axOpts() { return { per: Number($('axPer').value), wcm: Number($('axW').value) || 16, hcm: Number($('axH').value) || 24.7, pt: Number($('axPt').value), ed: $('axEd').checked, sec: $('axSec').checked }; }
+function openAnexo() {
+  try { const o = JSON.parse(ls.get('forensis_hub_anexo', 'null')); if (o) { $('axPer').value = String(o.per); $('axW').value = o.wcm; $('axH').value = o.hcm; $('axPt').value = String(o.pt); $('axEd').checked = !!o.ed; $('axSec').checked = !!o.sec; } } catch (e) {}
+  $('anexoBox').hidden = false; clearAnexo(); $('axInfo').textContent = numberedPhotos().length + ' fotos no caso.';
+}
+function clearAnexo() { for (const p of ax.pages) URL.revokeObjectURL(p.url); ax.pages = []; $('axPages').textContent = ''; $('axZip').disabled = $('axPrint').disabled = true; }
+function wrapLines(ctx, text, maxW, maxLines) {
+  const words = text.split(/\s+/), lines = []; let cur = '';
+  for (const w of words) {
+    const t = cur ? cur + ' ' + w : w;
+    if (ctx.measureText(t).width <= maxW || !cur) cur = t; else { lines.push(cur); cur = w; }
+  }
+  if (cur) lines.push(cur);
+  if (lines.length > maxLines) { const keep = lines.slice(0, maxLines); let last = keep[maxLines - 1] + '…'; while (ctx.measureText(last).width > maxW && last.length > 2) last = last.slice(0, -2) + '…'; keep[maxLines - 1] = last; return keep; }
+  return lines;
+}
+async function genAnexo() {
+  const o = axOpts(); ls.set('forensis_hub_anexo', JSON.stringify(o));
   const ps = numberedPhotos(); if (!ps.length) return;
-  const w = window.open('', '_blank'); if (!w) { banner('anexo', 'warn', 'O navegador bloqueou a janela do anexo. Permita pop-ups para este site.'); return; }
-  w.document.write('<!doctype html><meta charset="utf-8"><title>Anexo fotográfico — ' + S.name + '</title><p style="font:14px sans-serif;padding:24px">Preparando ' + ps.length + ' fotos…</p>');
-  const nums = numberPhotos(S.view.photos), figs = [];
+  clearAnexo(); $('axGen').disabled = true;
+  const g = anexoGeom(o), nums = numberPhotos(S.view.photos), font = '"Times New Roman", Times, serif';
   try {
-    for (const p of ps) {
-      const ed = p.editadas[p.editadas.length - 1];
-      const bmp = await createImageBitmap(await getBlob(ed ? ed.driveId : p.driveId));
-      const s = Math.min(1, 1800 / Math.max(bmp.width, bmp.height)), c = document.createElement('canvas');
-      c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s); c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
-      figs.push({ n: nums.get(p.id), url: c.toDataURL('image/jpeg', 0.88), legenda: p.legenda, sec: secName(p.secao), ed: !!ed });
-      w.document.body.querySelector('p').textContent = 'Preparando fotos… ' + figs.length + ' de ' + ps.length;
+    for (let i = 0; i < ps.length; i += o.per) {
+      const slice = ps.slice(i, i + o.per);
+      $('axInfo').textContent = 'Gerando página ' + (ax.pages.length + 1) + ' de ' + Math.ceil(ps.length / o.per) + '…';
+      // Última página com menos fotos: a imagem termina na última linha usada (sem branco sobrando no Word).
+      const usedRows = Math.ceil(slice.length / g.cols), pageH = usedRows * g.cellH + (usedRows - 1) * g.gutter;
+      const c = document.createElement('canvas'); c.width = g.W; c.height = pageH;
+      const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, g.W, pageH);
+      for (let k = 0; k < slice.length; k++) {
+        const p = slice[k], col = k % g.cols, row = Math.floor(k / g.cols);
+        const x = col * (g.cellW + g.gutter), y = row * (g.cellH + g.gutter);
+        const edv = o.ed && p.editadas.length ? p.editadas[p.editadas.length - 1] : null;
+        const bmp = await createImageBitmap(await getBlob(edv ? edv.driveId : p.driveId));
+        const s = Math.min(g.cellW / bmp.width, g.photoH / bmp.height), w = Math.round(bmp.width * s), hh = Math.round(bmp.height * s);
+        // Foto encostada na legenda e legenda em altura fixa: as legendas de uma linha ficam alinhadas.
+        const px = x + Math.round((g.cellW - w) / 2), py = y + (g.photoH - hh);
+        ctx.imageSmoothingQuality = 'high'; ctx.drawImage(bmp, px, py, w, hh); if (bmp.close) bmp.close();
+        ctx.strokeStyle = '#999'; ctx.lineWidth = 2; ctx.strokeRect(px + 1, py + 1, w - 2, hh - 2);
+        ctx.fillStyle = '#000'; ctx.font = g.fontPx + 'px ' + font; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        const lines = wrapLines(ctx, anexoCaption(nums.get(p.id), p.legenda, o.sec ? secName(p.secao) : ''), g.cellW - g.fontPx, 2);
+        lines.forEach((ln, j) => ctx.fillText(ln, x + g.cellW / 2, y + g.photoH + Math.round(g.fontPx * 0.4) + j * Math.round(g.fontPx * 1.25)));
+      }
+      const jb = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.92));
+      const bytes = jpegSetDpi(new Uint8Array(await jb.arrayBuffer()), g.dpi);
+      const blob = new Blob([bytes], { type: 'image/jpeg' }), n = ax.pages.length + 1;
+      const first = nums.get(slice[0].id), last = nums.get(slice[slice.length - 1].id);
+      const page = { blob, url: URL.createObjectURL(blob), name: 'Anexo_' + S.name.replace(' ', '-') + '_pagina' + n + '.jpg', first, last, n };
+      ax.pages.push(page); addPageCard(page);
     }
-  } catch (e) { w.close(); if (e instanceof NeedLogin) return needLogin(); banner('anexo', 'err', 'Não foi possível montar o anexo: ' + e.message); return; }
-  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const html = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Anexo fotográfico — caso ' + esc(S.name) + '</title><style>' +
-    'body{font:12pt/1.4 Georgia,serif;color:#111;margin:0;background:#eee}.pg{background:#fff;max-width:180mm;margin:12px auto;padding:12mm}' +
-    'h1{font-size:14pt;text-align:center;margin:0 0 8mm}figure{margin:0 0 8mm;break-inside:avoid;text-align:center}img{max-width:100%;max-height:110mm;object-fit:contain}' +
-    'figcaption{margin-top:2mm;font-size:11pt}.bar{position:sticky;top:0;background:#222;color:#fff;padding:8px 12px;font:13px sans-serif;display:flex;gap:10px;align-items:center}' +
-    '.bar button{font:13px sans-serif;padding:6px 12px}@media print{.bar{display:none}body{background:#fff}.pg{margin:0;max-width:none;padding:0}}' +
-    '</style></head><body><div class="bar"><span style="flex:1">Anexo fotográfico · ' + figs.length + ' fotos · versão simples (será aprimorada)</span><button onclick="print()">Imprimir ou salvar em PDF</button></div><div class="pg"><h1>ANEXO FOTOGRÁFICO — CASO ' + esc(S.name) + '</h1>' +
-    figs.map(f => '<figure><img src="' + f.url + '" alt="Foto ' + f.n + '"><figcaption><b>Foto ' + f.n + '</b>' + (f.legenda ? ' — ' + esc(f.legenda) : '') + ' <span style="color:#666">(' + esc(f.sec) + (f.ed ? ', com anotações' : '') + ')</span></figcaption></figure>').join('') +
-    '</div></body></html>';
-  w.document.open(); w.document.write(html); w.document.close();
+    $('axInfo').textContent = ax.pages.length + (ax.pages.length === 1 ? ' página' : ' páginas') + ' de ' + o.wcm + ' × ' + o.hcm + ' cm, ' + o.per + ' fotos por página.';
+    $('axZip').disabled = $('axPrint').disabled = false;
+  } catch (e) { if (e instanceof NeedLogin) needLogin(); else banner('anexo', 'err', 'Não foi possível gerar o anexo: ' + e.message); }
+  finally { $('axGen').disabled = false; }
+}
+function addPageCard(page) {
+  const dl = () => { const a = h('a', { href: page.url, download: page.name }); document.body.append(a); a.click(); a.remove(); };
+  $('axPages').append(h('div', { class: 'axpage', 'data-page': page.n },
+    h('img', { src: page.url, alt: 'Página ' + page.n }),
+    h('span', null, 'Página ' + page.n + ' · fotos ' + page.first + (page.last !== page.first ? '–' + page.last : '')),
+    h('div', { class: 'r' }, h('button', { class: 'btn sm', onclick: () => copyPage(page) }, 'Copiar'), h('button', { class: 'btn sm ghost', onclick: dl }, 'Baixar .jpg'))));
+}
+// O Chrome só copia PNG para a área de transferência; o Word cola e ajusta à largura da página.
+async function copyPage(page) {
+  try {
+    const bmp = await createImageBitmap(page.blob), c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+    c.getContext('2d').drawImage(bmp, 0, 0);
+    const png = await new Promise(r => c.toBlob(r, 'image/png'));
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+    banner('anexo', 'ok', 'Página ' + page.n + ' copiada. No Word, Ctrl+V.', [], 4000);
+  } catch (e) { banner('anexo', 'warn', 'O navegador não deixou copiar a imagem. Use "Baixar .jpg" e, no Word, Inserir › Imagens.', [], 7000); }
+}
+async function zipAnexo() {
+  const entries = [];
+  for (const p of ax.pages) entries.push({ name: p.name, bytes: new Uint8Array(await p.blob.arrayBuffer()) });
+  const a = h('a', { href: URL.createObjectURL(new Blob(zipParts(entries), { type: 'application/zip' })), download: 'Anexo_fotografico_' + S.name.replace(' ', '-') + '.zip' });
+  document.body.append(a); a.click(); a.remove();
+}
+function printAnexo() {
+  const o = axOpts(), w = window.open('', '_blank'); if (!w) { banner('anexo', 'warn', 'O navegador bloqueou a janela. Permita pop-ups para este site.'); return; }
+  w.document.write('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Anexo fotográfico — caso ' + S.name + '</title><style>@page{margin:1.5cm}body{margin:0;background:#eee}' +
+    'img{display:block;width:' + o.wcm + 'cm;margin:12px auto;background:#fff;break-after:page}.bar{position:sticky;top:0;background:#222;color:#fff;padding:8px 12px;font:13px sans-serif}' +
+    '@media print{.bar{display:none}body{background:#fff}img{margin:0 auto}}</style></head><body><div class="bar">' + ax.pages.length + ' página(s) · <button onclick="print()">Imprimir ou salvar em PDF</button></div>' +
+    ax.pages.map(p => '<img src="' + p.url + '" alt="Página ' + p.n + '">').join('') + '</body></html>');
+  w.document.close();
 }
 
 // ── Editor de anotações: o original nunca é alterado; a cópia vai para Editadas/ ──
@@ -826,7 +1034,16 @@ function bind() {
   $('caseSel').addEventListener('change', async e => { await flushSave(); openCase(e.target.value); });
   $('btnReload').addEventListener('click', reloadCase);
   $('btnDrive').addEventListener('click', () => window.open('https://drive.google.com/drive/folders/' + S.caseId, '_blank', 'noopener'));
-  $('btnAnexo').addEventListener('click', anexo);
+  $('btnAnexo').addEventListener('click', openAnexo);
+  $('axClose').addEventListener('click', () => { $('anexoBox').hidden = true; clearAnexo(); });
+  $('axGen').addEventListener('click', genAnexo);
+  $('axZip').addEventListener('click', zipAnexo);
+  $('axPrint').addEventListener('click', printAnexo);
+  for (const id of ['axPer', 'axW', 'axH', 'axPt', 'axEd', 'axSec']) $(id).addEventListener('change', clearAnexo);
+  $('lsClose').addEventListener('click', () => { lsel = null; renderLaudo(); });
+  $('lsSize').addEventListener('click', () => { lsize = lsize === 'half' ? 'third' : 'half'; ls.set('forensis_hub_lsize', lsize); renderLaudoSide(); });
+  $('lsVer').addEventListener('click', () => { const t = S.view.texts.find(x => x.id === lsel), p = t && S.view.photos.find(x => x.id === t.fotoId); if (p) { lsVer = lsVer ? 0 : p.editadas.length; renderLaudoSide(); } });
+  $('lsOpen').addEventListener('click', () => { const t = S.view.texts.find(x => x.id === lsel); if (t && t.fotoId) select(t.fotoId); });
   for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () => { tab = b.dataset.tab; showTab(); });
   $('btnPrev').addEventListener('click', () => step(-1)); $('btnNext').addEventListener('click', () => step(1));
   $('btnAnnotate').addEventListener('click', openEditor);
@@ -837,15 +1054,17 @@ function bind() {
   for (const id of ['lHead', 'lRefs', 'lPara']) $(id).addEventListener('change', () => { ls.set('forensis_hub_laudo', JSON.stringify(laudoOpts())); renderLaudo(); });
   try { const o = JSON.parse(ls.get('forensis_hub_laudo', 'null')); if (o) { $('lHead').checked = !!o.heads; $('lRefs').checked = !!o.refs; $('lPara').value = o.para || 'secao'; } } catch (e) {}
   $('btnCopy').addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText($('laudoTxt').value); banner('copy', 'ok', 'Texto copiado. Cole no laudo.', [], 3000); }
-    catch (e) { $('laudoTxt').select(); document.execCommand('copy'); banner('copy', 'ok', 'Texto copiado.', [], 3000); }
+    try { await navigator.clipboard.writeText(laudoText()); banner('copy', 'ok', 'Texto copiado. Cole no laudo.', [], 3000); }
+    catch (e) { banner('copy', 'warn', 'O navegador não deixou copiar. Use "Baixar .txt".', [], 5000); }
   });
   $('btnTxt').addEventListener('click', () => {
-    const a = h('a', { href: URL.createObjectURL(new Blob([$('laudoTxt').value + '\n'], { type: 'text/plain;charset=utf-8' })), download: 'laudo_prototipo_' + S.name.replace(' ', '-') + '.txt' });
+    const a = h('a', { href: URL.createObjectURL(new Blob([laudoText() + '\n'], { type: 'text/plain;charset=utf-8' })), download: 'laudo_prototipo_' + S.name.replace(' ', '-') + '.txt' });
     document.body.append(a); a.click(); a.remove();
   });
   document.addEventListener('keydown', e => {
     if (!$('editor').hidden) { if (e.key === 'Escape') closeEditor(); if ((e.ctrlKey || e.metaKey) && e.key === 'z') $('edUndo').click(); return; }
+    if (!$('anexoBox').hidden) { if (e.key === 'Escape') $('axClose').click(); return; }
+    if (tab === 'pLaudo' && e.key === 'Escape' && lsel) { lsel = null; renderLaudo(); return; }
     if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || tab !== 'pFoto') return;
     if (e.key === 'ArrowLeft') step(-1); if (e.key === 'ArrowRight') step(1);
   });
