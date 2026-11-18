@@ -210,7 +210,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
     <h2>Hub do forenSIS</h2>
     <p id="stateTxt">Entre com a mesma conta Google do celular para ver os casos.</p>
     <div id="cleanBox" hidden style="display:flex;flex-direction:column;gap:8px;align-items:center;width:100%">
-      <div class="pwrow" style="justify-content:center"><input type="password" id="clPw" placeholder="Senha do pacote" aria-label="Senha do pacote"><button class="btn primary" id="clGo">Concluir limpeza</button></div>
+      <div class="pwrow" style="justify-content:center"><input type="password" id="clPw" placeholder="Senha do pacote" aria-label="Senha do pacote"><button class="btn primary" id="clGo">Concluir limpeza</button><button class="btn" id="roGo">Reabrir caso</button></div>
       <div class="fclog" id="clLog" style="text-align:left;width:100%"></div>
     </div>
   </div>
@@ -359,7 +359,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 <script>
 'use strict';
 /*PURE-START*/
-const HUB_VERSION = '0.3.1';
+const HUB_VERSION = '0.4.0';
 // Mesmas seções do app do celular (o teste confere que continuam iguais).
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -604,7 +604,104 @@ async function showClosed(c, keepLog) {
   const stray = names.filter(n => n !== ZIP_NAME && !/_sanitizado\.docx$/i.test(n));
   $('stateTxt').textContent = 'Caso ' + c.name + ' fechado e trancado em ' + new Date(c.closed).toLocaleString('pt-BR') + '. Na pasta: ' + (names.join(', ') || 'nada') + '. SHA-256 do pacote: ' + (c.zipSha || '—') + '. Para ver o conteúdo, baixe o ' + ZIP_NAME + ' e abra com o 7-Zip e a senha.' +
     (stray.length ? ' Ainda há itens soltos na pasta (' + stray.join(', ') + '). "Concluir limpeza" confere cada um com a lista de hashes de dentro do pacote e manda para a lixeira só o que já está guardado nele.' : '');
-  $('cleanBox').hidden = !stray.length && !keepLog; if (!keepLog) $('clLog').textContent = ''; $('clPw').value = ''; S.closedCase = c;
+  $('cleanBox').hidden = false; $('clGo').hidden = !stray.length; if (!keepLog) $('clLog').textContent = ''; $('clPw').value = ''; S.closedCase = c;
+}
+// Reabrir: abre o pacote com a senha, confere cada arquivo com o SHA256SUMS.txt e devolve à pasta as fotos,
+// as cópias anotadas, o caso.json, o hub.json e a transcrição. O pacote vira "anterior" e entra no próximo fechamento.
+async function reopenCase() {
+  const c = S.closedCase, pw = $('clPw').value; if (!c) return;
+  if (!pw) { $('clLog').textContent = ''; $('clLog').append(h('p', { class: 'bad' }, 'Digite a senha do pacote.')); return; }
+  if (!confirm('Reabrir o caso ' + c.name + '?\n\nO pacote é aberto com a senha e as fotos, as cópias anotadas, o caso.json, o hub.json e a transcrição voltam soltos para a pasta, sem senha, até você fechar de novo.\n\nO pacote atual fica na pasta como laudo_pericial_anterior_….7z e entra no próximo pacote. O laudo sanitizado vai para a lixeira; um novo é gerado no próximo fechamento.')) return;
+  for (const id of ['roGo', 'clGo', 'clPw']) $(id).disabled = true;
+  const box = $('clLog'); box.textContent = '';
+  const log = (m, k) => { const el = h('p', { class: k || '' }, m); box.append(el); return el; };
+  const created = []; let renamed = null, done = false;
+  const dec = new TextDecoder();
+  try {
+    const kids = await list(q(c.id) + ' in parents', 'id,name,mimeType,sha256Checksum');
+    const z = kids.find(k => k.name === ZIP_NAME); if (!z) throw new Error(ZIP_NAME + ' não encontrado na pasta');
+    if (c.zipSha && z.sha256Checksum !== c.zipSha) throw new Error('o hash do ' + ZIP_NAME + ' no Drive não confere com o registrado no fechamento');
+    log('Baixando e abrindo o pacote…');
+    const sz = await new7z(); sz.FS.writeFile('/p.7z', new Uint8Array(await (await media(z.id)).arrayBuffer())); sz.FS.mkdir('/x');
+    const r = sz.run(['x', '-p' + pw, '-o/x', '-y', '-sccUTF-8', '/p.7z']);
+    if (r.rc !== 0) throw new Error('a senha não abriu o pacote');
+    sz.FS.unlink('/p.7z');
+    const read = p => sz.FS.readFile('/x/' + p);
+    const sums = new Map(dec.decode(read('SHA256SUMS.txt')).split('\n').filter(l => /^[0-9a-f]{64}  /.test(l)).map(l => [l.slice(66), l.slice(0, 64)]));
+    for (const [p, s] of sums) if (await sha256Bytes(read(p)) !== s) throw new Error(p + ': hash diferente do registrado no pacote');
+    log(sums.size + ' arquivos do pacote conferem com o SHA256SUMS.txt.', 'ok');
+    if (!sums.has('caso.json')) throw new Error('o pacote não tem caso.json');
+    const man = JSON.parse(dec.decode(read('caso.json'))), hubj = sums.has('hub.json') ? JSON.parse(dec.decode(read('hub.json'))) : null;
+    const mkFolder = async name => {
+      const ex = kids.find(k => k.mimeType === FOLDER && k.name === name); if (ex) return ex.id;
+      const f = await api('POST', API + '/files?fields=id', JSON.stringify({ name, mimeType: FOLDER, parents: [c.id] }), { 'Content-Type': 'application/json; charset=UTF-8' });
+      created.push(f.id); return f.id;
+    };
+    const fid = { Originais: await mkFolder('Originais'), Editadas: await mkFolder('Editadas') };
+    const existing = new Map();
+    for (const [n, id] of Object.entries(fid)) for (const f of await list(q(id) + ' in parents', 'id,name,sha256Checksum')) existing.set(n + '/' + f.name, f);
+    const regByPath = new Map(man.registros.filter(x => x.tipo === 'foto').map(x => [x.arquivo, x]));
+    const edByPath = new Map();
+    if (hubj) for (const [pid, o] of Object.entries(hubj.fotos || {})) for (const e of o.editadas || []) edByPath.set('Editadas/' + e.arquivo, { e, pid });
+    const photos = [...sums.keys()].filter(p => /^(Originais|Editadas)\//.test(p)), ids = new Map();
+    const line = log('Devolvendo as fotos ao Drive… 0 de ' + photos.length);
+    let n = 0;
+    for (const p of photos) {
+      const s = sums.get(p), ex = existing.get(p), [dir, name] = p.split('/');
+      if (ex && ex.sha256Checksum === s) ids.set(p, ex.id); // já estava lá (limpeza não concluída)
+      else {
+        const ed = edByPath.get(p), reg = regByPath.get(p);
+        const props = dir === 'Originais' ? { registro: reg ? reg.id : 'restaurado-' + name, sha256: s } : Object.assign({ forensis: 'editada', sha256: s }, ed ? { registro: ed.e.id, origem: ed.pid } : {});
+        const blob = new Blob([read(p)], { type: 'image/jpeg' }), meta = { name, parents: [fid[dir]], appProperties: props };
+        let up;
+        if (blob.size > 4.5e6) up = await uploadResumable(meta, blob);
+        else { const mp = multipart(meta, blob, 'image/jpeg'); up = await api('POST', UPL + '?uploadType=multipart&fields=id,sha256Checksum', mp.body, { 'Content-Type': mp.ct }); }
+        created.push(up.id);
+        if ((up.sha256Checksum || await driveSha(up.id)) !== s) throw new Error(p + ': o hash no Drive não confere');
+        ids.set(p, up.id);
+      }
+      line.textContent = 'Devolvendo as fotos ao Drive… ' + (++n) + ' de ' + photos.length;
+    }
+    line.className = 'ok'; line.textContent = photos.length + ' fotos de volta ao Drive, hash conferido.';
+    const now = new Date().toISOString();
+    for (const x of man.registros) if (x.tipo === 'foto' && ids.has(x.arquivo)) x.driveId = ids.get(x.arquivo);
+    man.atualizadoEm = now;
+    if (hubj) {
+      for (const o of Object.values(hubj.fotos || {})) for (const e of o.editadas || []) if (ids.has('Editadas/' + e.arquivo)) e.driveId = ids.get('Editadas/' + e.arquivo);
+      hubj.historico = (hubj.historico || []).concat([{ evento: 'reaberto', em: now, pacoteFechadoEm: c.closed, pacoteSha256: z.sha256Checksum }]);
+    }
+    const putFile = async (name, blob, props) => {
+      const ex = kids.find(k => k.name === name && k.mimeType !== FOLDER);
+      if (ex) { await api('PATCH', UPL + '/' + encodeURIComponent(ex.id) + '?uploadType=media&fields=id', blob, { 'Content-Type': blob.type }); return; }
+      const mp = multipart({ name, parents: [c.id], mimeType: blob.type, appProperties: props }, blob, blob.type);
+      created.push((await api('POST', UPL + '?uploadType=multipart&fields=id', mp.body, { 'Content-Type': mp.ct })).id);
+    };
+    await putFile('caso.json', new Blob([JSON.stringify(man, null, 2)], { type: 'application/json' }), { forensis: 'beta' });
+    if (hubj) await putFile('hub.json', new Blob([JSON.stringify(hubj, null, 2)], { type: 'application/json' }), { forensis: 'hub' });
+    if (sums.has('transcricao.txt')) await putFile('transcricao.txt', new Blob([read('transcricao.txt')], { type: 'text/plain' }), { forensis: 'beta' });
+    // O pacote atual vira "anterior" (entra no próximo fechamento); a pasta deixa de estar fechada.
+    const d = new Date(c.closed), pad2 = v => String(v).padStart(2, '0');
+    const oldName = 'laudo_pericial_anterior_' + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + '-' + pad2(d.getHours()) + pad2(d.getMinutes()) + '.7z';
+    await api('PATCH', API + '/files/' + encodeURIComponent(z.id) + '?fields=id', JSON.stringify({ name: oldName }), { 'Content-Type': 'application/json; charset=UTF-8' });
+    renamed = z.id;
+    await api('PATCH', API + '/files/' + encodeURIComponent(c.id) + '?fields=id', JSON.stringify({ appProperties: { forensis_fechado: null, forensis_pacote_sha256: null, forensis_reaberto: now } }), { 'Content-Type': 'application/json; charset=UTF-8' });
+    done = true;
+    for (const k of kids.filter(k => /_sanitizado\.docx$/i.test(k.name))) { try { await trash(k.id); } catch (e) {} }
+    S.reopenLaudo = [...sums.keys()].filter(p => !p.includes('/') && /\.docx?$/i.test(p)).map(p => ({ name: p, bytes: read(p) }));
+    log('Caso reaberto. O pacote anterior ficou como ' + oldName + '.', 'ok');
+    const laudos = S.reopenLaudo;
+    await loadCases();
+    banner('reopen', 'ok', 'Caso ' + c.name + ' reaberto. Ao terminar, use "Fechar caso" de novo.' + (laudos.length ? ' O laudo que estava no pacote não volta para o Drive; baixe-o se precisar editar.' : ''),
+      laudos.map(l => ({ label: 'Baixar ' + l.name, fn: () => { const a = h('a', { href: URL.createObjectURL(new Blob([l.bytes])), download: l.name }); document.body.append(a); a.click(); a.remove(); } })));
+  } catch (e) {
+    if (e instanceof NeedLogin) needLogin();
+    log('Parou: ' + e.message + '.', 'bad');
+    if (!done) {
+      if (renamed) { try { await api('PATCH', API + '/files/' + encodeURIComponent(renamed) + '?fields=id', JSON.stringify({ name: ZIP_NAME }), { 'Content-Type': 'application/json; charset=UTF-8' }); } catch (x) {} }
+      for (const id of created.reverse()) { try { await trash(id); } catch (x) {} }
+      log('O caso continua fechado; o que esta tentativa criou foi para a lixeira.', 'bad');
+    }
+  } finally { for (const id of ['roGo', 'clGo', 'clPw']) $(id).disabled = false; $('clPw').value = ''; }
 }
 async function finishCleanup() {
   const c = S.closedCase, pw = $('clPw').value; if (!c || !pw) return;
@@ -1387,6 +1484,8 @@ function openClose() {
   if (dirty || saving) flushSave();
   san.file = san.bytes = san.res = null;
   $('fcPrev').textContent = ''; $('fcExtra').value = ''; $('fcPw1').value = $('fcPw2').value = ''; $('fcSync').checked = false; $('fcLog').textContent = '';
+  for (const id of ['fcGo', 'fcCancel', 'fcPw1', 'fcPw2']) $(id).disabled = false; // estado de um fechamento anterior
+  $('fcGo').hidden = false; $('fcCancel').textContent = 'Cancelar'; $('fcCancel').onclick = null;
   $('fcCase').textContent = S.name;
   const v = S.view, probs = fcProblems();
   $('fcSummary').textContent = v.photos.length + ' fotos originais, ' + v.photos.reduce((a, p) => a + p.editadas.length, 0) + ' cópias anotadas, ' + v.texts.length + ' descrições. Último envio do celular: ' + (S.manifest && S.manifest.atualizadoEm ? new Date(S.manifest.atualizadoEm).toLocaleString('pt-BR') : 'sem registro') + '.';
@@ -1425,13 +1524,13 @@ async function closeCase() {
       files.push({ path, bytes, sha, id: f.id });
     };
     const folders = kids.filter(k => k.mimeType === FOLDER && (k.name === 'Originais' || k.name === 'Editadas'));
-    const loose = kids.filter(k => k.mimeType !== FOLDER && /^(caso\.json|hub\.json|transcricao\.txt)$/.test(k.name));
+    const loose = kids.filter(k => k.mimeType !== FOLDER && /^(caso\.json|hub\.json|transcricao\.txt|laudo_pericial_anterior_.+\.7z)$/.test(k.name));
     let n = 0, total = 0; const sub = [];
     for (const fo of folders) for (const f of await list(q(fo.id) + ' in parents', 'id,name,mimeType,sha256Checksum')) if (f.mimeType !== FOLDER) sub.push({ f, path: fo.name + '/' + f.name });
     total = sub.length + loose.length;
     const line = fcLog('Baixando e conferindo os arquivos do Drive… 0 de ' + total);
     for (const s of sub) { await take(s.f, s.path); line.textContent = 'Baixando e conferindo os arquivos do Drive… ' + (++n) + ' de ' + total; }
-    for (const f of loose) { await take(f, f.name); line.textContent = 'Baixando e conferindo os arquivos do Drive… ' + (++n) + ' de ' + total; }
+    for (const f of loose) { await take(f, (/^laudo_pericial_anterior_/.test(f.name) ? 'anteriores/' : '') + f.name); line.textContent = 'Baixando e conferindo os arquivos do Drive… ' + (++n) + ' de ' + total; }
     for (const p of S.view.photos) { const f = files.find(x => x.path === p.arquivo); if (!f) throw new Error(p.arquivo + ' não está no Drive'); if (f.sha !== p.sha256) throw new Error(p.arquivo + ': hash diferente do registrado no celular'); }
     line.textContent = total + ' arquivos baixados; hashes conferidos com o Drive e com o registro do celular.'; line.className = 'ok';
     // 2. Laudo final (original, completo) e protótipo do laudo entram no pacote.
@@ -1443,7 +1542,7 @@ async function closeCase() {
     // 3. Cria o .7z (AES-256, nomes cifrados), testa com a senha e extrai para conferir cada hash.
     fcLog('Carregando o 7-Zip…');
     const sz = await new7z();
-    sz.FS.mkdir('/in'); sz.FS.mkdir('/in/Originais'); sz.FS.mkdir('/in/Editadas');
+    sz.FS.mkdir('/in'); sz.FS.mkdir('/in/Originais'); sz.FS.mkdir('/in/Editadas'); sz.FS.mkdir('/in/anteriores');
     for (const f of files) { sz.FS.writeFile('/in/' + f.path, f.bytes); f.bytes = null; } // libera memória: a cópia fica no 7-Zip
     sz.FS.chdir('/in');
     const names = [...new Set(files.map(f => f.path.split('/')[0]))];
@@ -1515,6 +1614,7 @@ function bind() {
   $('fcCancel').addEventListener('click', () => { if ($('fcCancel').onclick) return; $('closeBox').hidden = true; $('fcPw1').value = $('fcPw2').value = ''; san.file = san.bytes = san.res = null; });
   $('fcGo').addEventListener('click', closeCase);
   $('clGo').addEventListener('click', finishCleanup);
+  $('roGo').addEventListener('click', reopenCase);
   $('clPw').addEventListener('keydown', e => { if (e.key === 'Enter') finishCleanup(); });
   $('axClose').addEventListener('click', () => { $('anexoBox').hidden = true; clearAnexo(); });
   $('axGen').addEventListener('click', genAnexo);

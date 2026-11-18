@@ -62,7 +62,8 @@ App para o exame pericial: fotografias e ditado no mesmo registro, enviados dire
 - Foto com hash divergente ou sem hash bloqueia o fechamento.
 - O celular (v0.4.3) para de enviar para um caso fechado e avisa; o que for feito nele fica só no aparelho.
 - ~~Sanitizador~~ — no hub ("Sanitizar laudo" e dentro do fechamento), com prévia: mesma regra do script (de "QUESITOS" em diante, sem preâmbulo e descrição do fato, sem tabelas pequenas e imagens, nome do periciando por [VÍTIMA]); além disso, tabelas dentro das partes removidas saem junto, as imagens saem de dentro do arquivo, o nome é trocado também em cabeçalho, rodapé, notas e comentários (sem diferenciar maiúsculas), o título/assunto do arquivo ficam em branco, e há "Outros termos" trocados por [OCULTO]. Só `.docx` (o `.doc` antigo precisa ser salvo como `.docx` no Word).
-- Pendente: selagem (lista de hashes ao e-mail institucional e/ou carimbo de tempo RFC 3161); melhoria da sanitização (outros nomes, CPF, endereços); reabrir caso fechado.
+- **Reabrir caso** (hub v0.4, com a senha): abre o pacote, confere cada arquivo com o `SHA256SUMS.txt`, devolve à pasta fotos, cópias anotadas, `caso.json` (com os novos ids do Drive), `hub.json` (com histórico da reabertura) e transcrição, com hash conferido no Drive. O pacote vira `laudo_pericial_anterior_AAAAMMDD-HHMM.7z` e entra em `anteriores/` no próximo fechamento; o sanitizado vai para a lixeira. O laudo completo não volta ao Drive (pode ser baixado na hora). Se falhar, o caso continua fechado. O celular (v0.4.4) percebe a reabertura e volta a enviar.
+- Pendente: selagem (lista de hashes ao e-mail institucional e/ou carimbo de tempo RFC 3161); melhoria da sanitização (outros nomes, CPF, endereços).
 - 7-Zip no navegador: `vendor/7z-wasm-1.2.0` (7-Zip 24.09, licença GNU LGPL + restrição unRAR, ver `License.txt`), servido pelo próprio site.
 
 ### 5 — Lançamento

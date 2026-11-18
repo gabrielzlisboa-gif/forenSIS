@@ -384,7 +384,7 @@ body.vw-open .banners { position:fixed; left:0; right:0; z-index:16; max-width:6
 <script>
 'use strict';
 /*PURE-START*/
-const VERSION = '0.4.3';
+const VERSION = '0.4.4';
 const BETA_ROOT = 'DPT_BETA';
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -513,8 +513,10 @@ function buildManifest(caseName, photos, remote, texts, deleted, removed) {
     id: t.id, tipo: 'texto', secao: t.sec, texto: t.text, textoOriginal: t.raw || t.text, fotoId: t.photoId || null,
     capturadaEm: t.tsLocal, correcoes: (t.fix || []).reduce((a, f) => a + f.n, 0), conferir: !!t.low,
   }));
+  // Se o caso foi reaberto no computador, as fotos voltaram ao Drive com outro id: vale o id do caso.json remoto.
+  const remoteId = new Map(((remote && remote.registros) || []).filter(r => r && r.tipo === 'foto' && r.driveId).map(r => [r.id, r.driveId]));
   const mine = photos.filter(p => p.status === 'verified').map(p => ({
-    id: p.id, tipo: 'foto', secao: p.sec, arquivo: 'Originais/' + p.name, driveId: p.driveId,
+    id: p.id, tipo: 'foto', secao: p.sec, arquivo: 'Originais/' + p.name, driveId: remoteId.get(p.id) || p.driveId,
     capturadaEm: p.takenAtLocal, sha256: p.sha256, largura: p.width || null, altura: p.height || null,
     reduzida: !!p.fallback,
   }));
@@ -780,14 +782,19 @@ function kickQueue(delay) { clearTimeout(queueTimer); queueTimer = setTimeout(ru
 // Caso fechado e trancado no computador: o celular não envia mais nada para a pasta dele.
 const closedCheck = new Map();
 async function caseClosed(name) {
-  const rec = await dbGet('cases', name);
-  if (rec && rec.closedAt) return true;
   const c = closedCheck.get(name); if (c && Date.now() - c.at < 5 * 60000) return c.closed;
+  const rec = await dbGet('cases', name);
   const cr = await ensureCase(name);
   const meta = await api('GET', API + '/files/' + encodeURIComponent(cr.folders.caseId) + '?fields=appProperties');
   const when = meta && meta.appProperties && meta.appProperties.forensis_fechado;
   closedCheck.set(name, { at: Date.now(), closed: !!when });
-  if (when) { await updateCase(name, { closedAt: when }); warnClosed(name, when); }
+  if (when) { if (!rec || rec.closedAt !== when) { await updateCase(name, { closedAt: when }); warnClosed(name, when); } }
+  else if (rec && rec.closedAt) {
+    // Reaberto no computador: as pastas e o caso.json foram recriados; esquece os ids antigos e volta a sincronizar.
+    await updateCase(name, { closedAt: null, folders: null, manifestId: null, transcriptId: null, dirtyAt: Date.now() });
+    caseFolderCache.delete(name); remoteManifests.delete(name); dropBanner('closed-' + name);
+    banner('reopened-' + name, 'ok', 'O caso ' + name + ' foi reaberto no computador. O celular volta a enviar para ele.', [], 8000);
+  }
   return !!when;
 }
 function warnClosed(name, when) {
