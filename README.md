@@ -2,7 +2,7 @@
 
 App para o exame pericial: fotos e ditado no mesmo registro, enviados direto do celular de serviço para o Google Drive com conferência de integridade (SHA-256), e um hub no computador para revisar, escrever o laudo e fechar o caso.
 
-**Estado:** app do celular v0.4.5 · hub v0.6.2. Fases 0 a 3 feitas; fase 4 sem a selagem; fase 5 por fazer.
+**Estado:** app do celular v0.4.5 · hub v0.6.2. Fases 0 a 3 feitas; fase 4 falta o teste com caso de tamanho real; fase 5 por fazer.
 
 ## Isolamento do beta
 
@@ -58,7 +58,7 @@ App para o exame pericial: fotos e ditado no mesmo registro, enviados direto do 
 | 2 | Ditado ligado à foto, seções, tela cheia, exclusão | feita |
 | 2.1 | Uso em campo: instalação, renovação do login, arrastar texto | feita |
 | 3 | Hub: fotos, anotações, laudo, anexo | feita (ajustes contínuos, ver abaixo) |
-| 4 | Fechamento, reabertura, sanitizador | feita; falta a **selagem** (hashes ao e-mail institucional e/ou carimbo de tempo RFC 3161) |
+| 4 | Fechamento, reabertura, sanitizador | feita; falta fechar um caso fictício de tamanho real (100+ fotos) para conferir a memória do navegador |
 | 5 | Lançamento | por fazer |
 
 ### 3 — Ajustes do hub
@@ -72,6 +72,7 @@ App para o exame pericial: fotos e ditado no mesmo registro, enviados direto do 
 - Troca para a pasta real (`DPT`) e fim do limite de casos fictícios.
 
 ### Adiados
+- Selagem do pacote fechado (hash ao e-mail institucional e/ou carimbo de tempo RFC 3161): só se o forenSIS entrar na cadeia de custódia do DPT ou se fotos fora do laudo passarem a ser pedidas no processo; avaliar na validação com o DPT.
 - Escala métrica nas fotos e calibração no hub.
 - Sanitização de outros nomes, CPF e endereços.
 - Ditado pelo microfone do computador; anexo em formato de documento.
