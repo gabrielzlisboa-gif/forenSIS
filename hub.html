@@ -388,7 +388,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 <script>
 'use strict';
 /*PURE-START*/
-const HUB_VERSION = '0.6.2';
+const HUB_VERSION = '0.6.3';
 // Mesmas seções do app do celular (o teste confere que continuam iguais).
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -583,27 +583,33 @@ async function sha256Hex(blob) { const d = await crypto.subtle.digest('SHA-256',
 function waitGis(ms) {
   return new Promise((res, rej) => { const t0 = Date.now(); (function p() { if (window.google && google.accounts && google.accounts.oauth2) return res(); if (Date.now() - t0 > ms) return rej(new Error('A biblioteca de login do Google não carregou.')); setTimeout(p, 100); })(); });
 }
-async function login() {
+// keep: só renova o acesso (antes de fechar ou reabrir), sem recarregar a lista de casos. Devolve se deu certo.
+async function login(opts) {
+  const keep = !!(opts && opts.keep);
   const cid = ls.get('forensis_client_id', '');
-  if (!/\.apps\.googleusercontent\.com$/.test(cid)) { banner('login', 'warn', 'Abra o forenSIS uma vez neste computador e informe o ID do cliente em Configurações; o hub usa o mesmo.'); return; }
-  try { await waitGis(8000); } catch (e) { banner('login', 'err', e.message); return; }
+  if (!/\.apps\.googleusercontent\.com$/.test(cid)) { banner('login', 'warn', 'Abra o forenSIS uma vez neste computador e informe o ID do cliente em Configurações; o hub usa o mesmo.'); return false; }
+  try { await waitGis(8000); } catch (e) { banner('login', 'err', e.message); return false; }
   $('btnLogin').disabled = true;
+  let done; const result = new Promise(r => { done = r; });
   const tc = google.accounts.oauth2.initTokenClient({
     client_id: cid, scope: SCOPE,
     callback: async r => {
       $('btnLogin').disabled = false;
-      if (r.error) { banner('login', 'err', 'Login não concluído: ' + r.error); return; }
+      if (r.error) { banner('login', 'err', 'Login não concluído: ' + r.error); done(false); return; }
       token = r.access_token; tokenExp = Date.now() + (Number(r.expires_in) || 3600) * 1000;
       try { const a = await api('GET', API + '/about?fields=user(emailAddress)'); acctEmail = a.user.emailAddress; ls.set('forensis_login_hint', acctEmail); } catch (e) {}
       try { sessionStorage.setItem(SESS, JSON.stringify({ token, tokenExp, acctEmail })); } catch (e) {}
       $('banners').querySelectorAll('[data-key=login]').forEach(e => e.remove());
-      renderAcct(); loadCases();
+      renderAcct(); if (!keep) loadCases(); done(true);
     },
-    error_callback: e => { $('btnLogin').disabled = false; if (e && e.type !== 'popup_closed') banner('login', 'err', 'Login não concluído.'); },
+    error_callback: e => { $('btnLogin').disabled = false; if (e && e.type !== 'popup_closed') banner('login', 'err', 'Login não concluído.'); done(false); },
   });
   const hint = ls.get('forensis_login_hint', '');
   tc.requestAccessToken(hint ? { prompt: '', login_hint: hint } : { prompt: '' });
+  return result;
 }
+// Fechar ou reabrir um exame grande leva minutos: começa só com acesso válido por mais um bom tempo.
+async function freshToken(min) { return (token && tokenExp - Date.now() > min * 60000) || await login({ keep: true }); }
 function renderAcct() {
   const on = tokenValid();
   $('acctDot').className = 'dot' + (on ? ' on' : '');
@@ -662,6 +668,7 @@ async function showClosed(c, keepLog) {
 async function reopenCase() {
   const c = S.closedCase, pw = $('clPw').value; if (!c) return;
   if (!pw) { $('clLog').textContent = ''; $('clLog').append(h('p', { class: 'bad' }, 'Digite a senha do pacote.')); return; }
+  if (!(await freshToken(40))) { $('clLog').textContent = ''; $('clLog').append(h('p', { class: 'bad' }, 'Não foi possível renovar o acesso ao Google Drive; nada foi feito.')); return; }
   if (!confirm('Reabrir o caso ' + c.name + '?\n\nO pacote é aberto com a senha e as fotos, as cópias anotadas, o caso.json, o hub.json e a transcrição voltam soltos para a pasta, sem senha, até você fechar de novo.\n\nO pacote atual fica na pasta como laudo_pericial_anterior_….7z e entra no próximo pacote. O laudo sanitizado vai para a lixeira; um novo é gerado no próximo fechamento.')) return;
   for (const id of ['roGo', 'clGo', 'clPw']) $(id).disabled = true;
   const box = $('clLog'); box.textContent = '';
@@ -673,13 +680,22 @@ async function reopenCase() {
     const z = kids.find(k => k.name === ZIP_NAME); if (!z) throw new Error(ZIP_NAME + ' não encontrado na pasta');
     if (c.zipSha && z.sha256Checksum !== c.zipSha) throw new Error('o hash do ' + ZIP_NAME + ' no Drive não confere com o registrado no fechamento');
     log('Baixando e abrindo o pacote…');
-    const sz = await new7z(); sz.FS.writeFile('/p.7z', new Uint8Array(await (await media(z.id)).arrayBuffer())); sz.FS.mkdir('/x');
-    const r = sz.run(['x', '-p' + pw, '-o/x', '-y', '-sccUTF-8', '/p.7z']);
-    if (r.rc !== 0) throw new Error('a senha não abriu o pacote');
-    sz.FS.unlink('/p.7z');
-    const read = p => sz.FS.readFile('/x/' + p);
+    const sz = await new7z(); szPut(sz, '/p.7z', await bytesOf(z.id)); sz.FS.mkdir('/x');
+    const sizes = sz.sizes('/p.7z', pw); if (!sizes) throw new Error('a senha não abriu o pacote');
+    for (const [p, n] of sizes) sz.reserve('/x/' + p, n);
+    // Fotos e pacotes anteriores saem do pacote em lotes de ~64 MB (extrai, usa, apaga): num exame grande,
+    // extrair tudo de uma vez dobraria a memória. Os arquivos pequenos da raiz ficam extraídos até o fim.
+    const big = p => /^(Originais|Editadas|anteriores)\//.test(p);
+    const extract = list => { if (!list.length) return; const r = sz.run(['x', '-p' + pw, '-o/x', '-y', '-sccUTF-8', '/p.7z', '--', ...list]); if (r.rc !== 0) throw new Error('não foi possível extrair do pacote'); };
+    const lotes = list => { const out = []; let cur = [], t = 0; for (const p of list) { const s = sizes.get(p) || 0; if (cur.length && t + s > 64 * 1048576) { out.push(cur); cur = []; t = 0; } cur.push(p); t += s; } if (cur.length) out.push(cur); return out; };
+    const read = p => { try { return szView(sz, '/x/' + p); } catch (e) { throw new Error(p + ' não está no pacote'); } };
+    extract([...sizes.keys()].filter(p => !big(p)));
     const sums = new Map(dec.decode(read('SHA256SUMS.txt')).split('\n').filter(l => /^[0-9a-f]{64}  /.test(l)).map(l => [l.slice(66), l.slice(0, 64)]));
-    for (const [p, s] of sums) if (await sha256Bytes(read(p)) !== s) throw new Error(p + ': hash diferente do registrado no pacote');
+    for (const [p, s] of sums) if (!big(p) && await sha256Bytes(read(p)) !== s) throw new Error(p + ': hash diferente do registrado no pacote');
+    for (const lote of lotes([...sums.keys()].filter(big))) {
+      extract(lote);
+      for (const p of lote) { if (await sha256Bytes(read(p)) !== sums.get(p)) throw new Error(p + ': hash diferente do registrado no pacote'); sz.FS.unlink('/x/' + p); }
+    }
     log(sums.size + ' arquivos do pacote conferem com o SHA256SUMS.txt.', 'ok');
     if (!sums.has('caso.json')) throw new Error('o pacote não tem caso.json');
     const man = JSON.parse(dec.decode(read('caso.json'))), hubj = sums.has('hub.json') ? JSON.parse(dec.decode(read('hub.json'))) : null;
@@ -697,7 +713,7 @@ async function reopenCase() {
     const photos = [...sums.keys()].filter(p => /^(Originais|Editadas)\//.test(p)), ids = new Map();
     const line = log('Devolvendo as fotos ao Drive… 0 de ' + photos.length);
     let n = 0;
-    for (const p of photos) {
+    for (const lote of lotes(photos)) { extract(lote); for (const p of lote) {
       const s = sums.get(p), ex = existing.get(p), [dir, name] = p.split('/');
       if (ex && ex.sha256Checksum === s) ids.set(p, ex.id); // já estava lá (limpeza não concluída)
       else {
@@ -711,8 +727,9 @@ async function reopenCase() {
         if ((up.sha256Checksum || await driveSha(up.id)) !== s) throw new Error(p + ': o hash no Drive não confere');
         ids.set(p, up.id);
       }
+      sz.FS.unlink('/x/' + p); // libera a memória da foto já devolvida
       line.textContent = 'Devolvendo as fotos ao Drive… ' + (++n) + ' de ' + photos.length;
-    }
+    } }
     line.className = 'ok'; line.textContent = photos.length + ' fotos de volta ao Drive, hash conferido.';
     const now = new Date().toISOString();
     for (const x of man.registros) if (x.tipo === 'foto' && ids.has(x.arquivo)) x.driveId = ids.get(x.arquivo);
@@ -738,7 +755,7 @@ async function reopenCase() {
     await api('PATCH', API + '/files/' + encodeURIComponent(c.id) + '?fields=id', JSON.stringify({ appProperties: { forensis_fechado: null, forensis_pacote_sha256: null, forensis_reaberto: now } }), { 'Content-Type': 'application/json; charset=UTF-8' });
     done = true;
     for (const k of kids.filter(k => /_sanitizado\.docx$/i.test(k.name))) { try { await trash(k.id); } catch (e) {} }
-    S.reopenLaudo = [...sums.keys()].filter(p => !p.includes('/') && /\.docx?$/i.test(p)).map(p => ({ name: p, bytes: read(p) }));
+    S.reopenLaudo = [...sums.keys()].filter(p => !p.includes('/') && /\.docx?$/i.test(p)).map(p => ({ name: p, bytes: read(p).slice() }));
     log('Caso reaberto. O pacote anterior ficou como ' + oldName + '.', 'ok');
     const laudos = S.reopenLaudo;
     await loadCases();
@@ -756,6 +773,7 @@ async function reopenCase() {
 }
 async function finishCleanup() {
   const c = S.closedCase, pw = $('clPw').value; if (!c || !pw) return;
+  if (!(await freshToken(20))) return;
   $('clGo').disabled = true; const log = (m, k) => $('clLog').append(h('p', { class: k || '' }, m));
   $('clLog').textContent = '';
   try {
@@ -763,8 +781,7 @@ async function finishCleanup() {
     if (!z) throw new Error(ZIP_NAME + ' não encontrado na pasta');
     if (c.zipSha && z.sha256Checksum !== c.zipSha) throw new Error('o hash do ' + ZIP_NAME + ' no Drive não confere com o registrado no fechamento');
     log('Abrindo o pacote para ler a lista de hashes…');
-    const bytes = new Uint8Array(await (await media(z.id)).arrayBuffer());
-    const sz = await new7z(); sz.FS.writeFile('/p.7z', bytes); sz.FS.mkdir('/x');
+    const sz = await new7z(); szPut(sz, '/p.7z', await bytesOf(z.id)); sz.FS.mkdir('/x');
     const r = sz.run(['e', '-p' + pw, '-o/x', '-y', '/p.7z', 'SHA256SUMS.txt']);
     if (r.rc !== 0) throw new Error('a senha não abriu o pacote');
     const sums = new TextDecoder().decode(sz.FS.readFile('/x/SHA256SUMS.txt')).split('\n').map(l => l.slice(0, 64)).filter(s => /^[0-9a-f]{64}$/.test(s));
@@ -1976,8 +1993,25 @@ async function new7z() {
   const log = [];
   const sz = await window.SevenZip({ locateFile: f => 'vendor/7z-wasm-1.2.0/' + f, print: s => log.push(s), printErr: s => log.push(s) });
   sz.run = args => { log.length = 0; let rc; try { rc = sz.callMain(args); } catch (e) { rc = typeof e.status === 'number' ? e.status : 99; } return { rc, out: log.join('\n') }; };
+  // Arquivo que vai crescer muito (o pacote): espaço reservado de uma vez. Sem isso, o arquivo cresce aos
+  // poucos (12,5% por vez) e cada etapa deixa uma cópia velha na memória até o coletor de lixo passar.
+  const reserve = new Map(), write = sz.FS.write;
+  sz.FS.write = function (st) {
+    const r = write.apply(this, arguments), want = reserve.get(st.path), n = st.node;
+    if (want && n.contents && n.contents.length < want && n.usedBytes < want) { const c = new Uint8Array(want); c.set(n.contents.subarray(0, n.usedBytes)); n.contents = c; }
+    return r;
+  };
+  sz.reserve = (path, bytes) => reserve.set(path, bytes);
+  // tamanhos de cada arquivo do pacote (para reservar o espaço da extração)
+  sz.sizes = (arc, pw) => { const r = sz.run(['l', '-slt', '-p' + pw, arc]), out = new Map(); let p = null; let dir = false; const flush = () => { if (p && !dir) out.set(p, sz0); p = null; dir = false; }; let sz0 = 0, body = false; for (const l of r.out.split('\n')) { if (l.startsWith('----------')) body = true; else if (!body) continue; else if (l.startsWith('Path = ')) { flush(); p = l.slice(7); sz0 = 0; } else if (l.startsWith('Size = ')) sz0 = Number(l.slice(7)); else if (l === 'Folder = +') dir = true; } flush(); return r.rc === 0 ? out : null; };
   return sz;
 }
+
+// Memória: num exame grande (centenas de MB) cada cópia extra pesa. O 7-Zip passa a ser dono do array gravado
+// (sem cópia) e a leitura é uma vista do array interno, válida até o arquivo ser apagado.
+function szPut(sz, path, bytes) { const s = sz.FS.open(path, 'w'); try { if (bytes.length) sz.FS.write(s, bytes, 0, bytes.length, 0, true); } finally { sz.FS.close(s); } }
+function szView(sz, path) { const n = sz.FS.lookupPath(path).node; return n.contents ? n.contents.subarray(0, n.usedBytes) : new Uint8Array(0); }
+const bytesOf = async id => new Uint8Array(await (await api('GET', API + '/files/' + encodeURIComponent(id) + '?alt=media', null, null, true)).arrayBuffer()); // sem passar por Blob
 
 // ── Envio retomável (arquivos grandes, como o .7z) ───────────────────────────
 async function uploadResumable(meta, blob, onProg) {
@@ -2050,6 +2084,8 @@ function openClose() {
   $('fcCase').textContent = S.name;
   const v = S.view, probs = fcProblems();
   $('fcSummary').textContent = v.photos.length + ' fotos originais, ' + v.photos.reduce((a, p) => a + p.editadas.length, 0) + ' cópias anotadas, ' + v.texts.length + ' descrições. Último envio do celular: ' + (S.manifest && S.manifest.atualizadoEm ? new Date(S.manifest.atualizadoEm).toLocaleString('pt-BR') : 'sem registro') + '.';
+  const mb = [...S.files.values()].reduce((a, x) => a + Number(x.size || 0), 0) / 1048576;
+  if (mb > 600) $('fcSummary').textContent += ' Caso grande (cerca de ' + Math.round(mb) + ' MB): o fechamento usa até umas três vezes isso da memória do computador. Feche outras abas e programas pesados antes.';
   const pb = $('fcProbs'); pb.textContent = ''; for (const p of probs) pb.append(h('p', null, p));
   $('closeBox').hidden = false; fcCheck();
 }
@@ -2069,21 +2105,26 @@ function fcLog(msg, kind) { const el = h('p', { class: kind || '' }, msg); $('fc
 const sha256Bytes = async b => [...new Uint8Array(await crypto.subtle.digest('SHA-256', b))].map(x => x.toString(16).padStart(2, '0')).join('');
 async function closeCase() {
   const pw = $('fcPw1').value;
+  if (!(await freshToken(40))) { fcLog('Não foi possível renovar o acesso ao Google Drive; nada foi feito.', 'bad'); return; }
   if (!confirm('Fechar e trancar o caso ' + S.name + '?\n\nTudo vai para ' + ZIP_NAME + ' com senha. Depois da verificação, as fotos, os .json e a transcrição soltos vão para a lixeira do Drive. Na pasta ficam só o ' + ZIP_NAME + ' e o laudo sanitizado.\n\nSem a senha, o pacote não abre. Guarde-a.')) return;
   for (const id of ['fcGo', 'fcCancel', 'fcPw1', 'fcPw2']) $(id).disabled = true;
   $('fcLog').textContent = '';
-  let zipId = null, sanId = null, ok = false;
+  let zipId = null, sanId = null, ok = false, sz = null;
   try {
     await flushSave();
     // 1. Reúne tudo do Drive, conferindo o hash de cada arquivo.
     const kids = await list(q(S.caseId) + ' in parents', 'id,name,mimeType,sha256Checksum');
     if (kids.some(k => k.name === ZIP_NAME)) throw new Error('já existe ' + ZIP_NAME + ' na pasta; nada foi alterado');
-    const files = []; // { path, bytes, sha }
-    const take = async (f, path) => {
-      const bytes = new Uint8Array(await (await media(f.id)).arrayBuffer()), sha = await sha256Bytes(bytes);
-      if (f.sha256Checksum && f.sha256Checksum !== sha) throw new Error(path + ': o arquivo baixado não confere com o hash do Drive');
-      files.push({ path, bytes, sha, id: f.id });
+    // Cada arquivo baixado vai direto para o 7-Zip (sem guardar outra cópia).
+    sz = await new7z();
+    for (const d of ['/in', '/in/Originais', '/in/Editadas', '/in/anteriores', '/x']) sz.FS.mkdir(d);
+    const files = []; // { path, sha, size }
+    const put = async (path, bytes, expect) => {
+      const sha = await sha256Bytes(bytes);
+      if (expect && expect !== sha) throw new Error(path + ': o arquivo baixado não confere com o hash do Drive');
+      szPut(sz, '/in/' + path, bytes); files.push({ path, sha, size: bytes.length });
     };
+    const take = async (f, path) => put(path, await bytesOf(f.id), f.sha256Checksum);
     const folders = kids.filter(k => k.mimeType === FOLDER && (k.name === 'Originais' || k.name === 'Editadas'));
     const loose = kids.filter(k => k.mimeType !== FOLDER && /^(caso\.json|hub\.json|transcricao\.txt|laudo_pericial_anterior_.+\.7z)$/.test(k.name));
     let n = 0, total = 0; const sub = [];
@@ -2095,32 +2136,36 @@ async function closeCase() {
     for (const p of S.view.photos) { const f = files.find(x => x.path === p.arquivo); if (!f) throw new Error(p.arquivo + ' não está no Drive'); if (f.sha !== p.sha256) throw new Error(p.arquivo + ': hash diferente do registrado no celular'); }
     line.textContent = total + ' arquivos baixados; hashes conferidos com o Drive e com o registro do celular.'; line.className = 'ok';
     // 2. Laudo final (original, completo) e o texto da aba Laudo entram no pacote.
-    files.push({ path: san.file.name, bytes: new Uint8Array(await san.file.arrayBuffer()) });
-    files.push({ path: 'laudo_texto.txt', bytes: new TextEncoder().encode(laudoText() + '\n') });
-    for (const f of files) if (!f.sha) f.sha = await sha256Bytes(f.bytes);
-    files.push({ path: 'SHA256SUMS.txt', bytes: new TextEncoder().encode(files.map(f => f.sha + '  ' + f.path).join('\n') + '\n') });
-    files[files.length - 1].sha = await sha256Bytes(files[files.length - 1].bytes);
-    // 3. Cria o .7z (AES-256, nomes cifrados), testa com a senha e extrai para conferir cada hash.
-    fcLog('Carregando o 7-Zip…');
-    const sz = await new7z();
-    sz.FS.mkdir('/in'); sz.FS.mkdir('/in/Originais'); sz.FS.mkdir('/in/Editadas'); sz.FS.mkdir('/in/anteriores');
-    for (const f of files) { sz.FS.writeFile('/in/' + f.path, f.bytes); f.bytes = null; } // libera memória: a cópia fica no 7-Zip
+    await put(san.file.name, new Uint8Array(await san.file.arrayBuffer()));
+    await put('laudo_texto.txt', new TextEncoder().encode(laudoText() + '\n'));
+    await put('SHA256SUMS.txt', new TextEncoder().encode(files.map(f => f.sha + '  ' + f.path).join('\n') + '\n'));
+    // 3. Cria o .7z (AES-256, nomes cifrados; sem compressão: fotos JPEG não encolhem, e assim é ~15 vezes mais rápido e leve), testa com a senha e extrai em lotes para conferir cada hash.
     sz.FS.chdir('/in');
     const names = [...new Set(files.map(f => f.path.split('/')[0]))];
     fcLog('Criando ' + ZIP_NAME + ' com senha…');
-    let r = sz.run(['a', '-t7z', '-mhe=on', '-mx=1', '-sccUTF-8', '-p' + pw, '/' + ZIP_NAME, ...names]);
+    sz.reserve('/' + ZIP_NAME, files.reduce((a, f) => a + f.size, 0) + files.length * 512 + 1048576);
+    let r = sz.run(['a', '-t7z', '-mhe=on', '-mx=0', '-ms=off', '-sccUTF-8', '-p' + pw, '/' + ZIP_NAME, '--', ...names]);
     if (r.rc !== 0) throw new Error('o 7-Zip não criou o pacote');
     for (const f of files) sz.FS.unlink('/in/' + f.path);
     r = sz.run(['t', '-p' + pw, '/' + ZIP_NAME]);
     if (r.rc !== 0 || !/Everything is Ok/.test(r.out)) throw new Error('o teste do pacote com a senha falhou');
-    sz.FS.mkdir('/x'); r = sz.run(['x', '-p' + pw, '-o/x', '-y', '-sccUTF-8', '/' + ZIP_NAME]);
-    if (r.rc !== 0) throw new Error('não foi possível extrair o pacote para conferência');
-    for (const f of files) { const b = sz.FS.readFile('/x/' + f.path); if (await sha256Bytes(b) !== f.sha) throw new Error(f.path + ': hash diferente depois de extrair do pacote'); sz.FS.unlink('/x/' + f.path); }
-    const zbytes = sz.FS.readFile('/' + ZIP_NAME), zsha = await sha256Bytes(zbytes);
-    fcLog(ZIP_NAME + ' criado (' + (zbytes.length / 1048576).toFixed(1).replace('.', ',') + ' MB): testado com a senha e ' + files.length + ' arquivos extraídos conferem.', 'ok');
+    for (let i = 0; i < files.length;) {
+      const lote = []; let tam = 0;
+      while (i < files.length && (!lote.length || tam + files[i].size < 64 * 1048576)) { tam += files[i].size; lote.push(files[i++]); }
+      r = sz.run(['x', '-p' + pw, '-o/x', '-y', '-sccUTF-8', '/' + ZIP_NAME, '--', ...lote.map(f => f.path)]);
+      if (r.rc !== 0) throw new Error('não foi possível extrair o pacote para conferência');
+      for (const f of lote) { if (await sha256Bytes(szView(sz, '/x/' + f.path)) !== f.sha) throw new Error(f.path + ': hash diferente depois de extrair do pacote'); sz.FS.unlink('/x/' + f.path); }
+    }
+    // hash do pacote calculado pelo próprio 7-Zip, sem copiar centenas de MB para a WebCrypto
+    r = sz.run(['h', '-scrcSHA256', '-bsp0', '/' + ZIP_NAME]);
+    const zm = r.out.match(/SHA256 for data:\s+([0-9a-f]{64})/i); if (r.rc !== 0 || !zm) throw new Error('não foi possível calcular o hash do pacote');
+    const zsha = zm[1].toLowerCase(), zv = szView(sz, '/' + ZIP_NAME), zsize = zv.length;
+    const zblob = new Blob([zv], { type: 'application/x-7z-compressed' });
+    sz.FS.unlink('/' + ZIP_NAME); sz = null; // daqui em diante o pacote existe só no Blob
+    fcLog(ZIP_NAME + ' criado (' + (zsize / 1048576).toFixed(1).replace('.', ',') + ' MB): testado com a senha e ' + files.length + ' arquivos extraídos conferem.', 'ok');
     // 4. Envia o pacote e o sanitizado; confere o hash calculado pelo Drive.
     const upLine = fcLog('Enviando ' + ZIP_NAME + ' ao Drive… 0%');
-    const up = await uploadResumable({ name: ZIP_NAME, parents: [S.caseId], appProperties: { forensis: 'pacote', sha256: zsha } }, new Blob([zbytes], { type: 'application/x-7z-compressed' }), f => { upLine.textContent = 'Enviando ' + ZIP_NAME + ' ao Drive… ' + Math.round(f * 100) + '%'; });
+    const up = await uploadResumable({ name: ZIP_NAME, parents: [S.caseId], appProperties: { forensis: 'pacote', sha256: zsha } }, zblob, f => { upLine.textContent = 'Enviando ' + ZIP_NAME + ' ao Drive… ' + Math.round(f * 100) + '%'; });
     zipId = up.id;
     const remote = up.sha256Checksum || await driveSha(zipId);
     if (remote !== zsha) throw new Error('o hash do ' + ZIP_NAME + ' no Drive não confere');

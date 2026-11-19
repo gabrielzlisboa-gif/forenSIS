@@ -2,7 +2,7 @@
 
 App para o exame pericial: fotos e ditado no mesmo registro, enviados direto do celular de serviço para o Google Drive com conferência de integridade (SHA-256), e um hub no computador para revisar, escrever o laudo e fechar o caso.
 
-**Estado:** app do celular v0.4.5 · hub v0.6.2. Fases 0 a 3 feitas; fase 4 falta o teste com caso de tamanho real; fase 5 por fazer.
+**Estado:** app do celular v0.4.5 · hub v0.6.3. Fases 0 a 4 feitas; fase 5 por fazer.
 
 ## Isolamento do beta
 
@@ -43,10 +43,11 @@ App para o exame pericial: fotos e ditado no mesmo registro, enviados direto do 
 
 ## Fechar, reabrir
 
-- **Fechar e trancar:** confere o hash de cada arquivo; monta `laudo_pericial.7z` (7-Zip, AES-256, nomes cifrados) com `Originais/`, `Editadas/`, `caso.json`, `hub.json`, `transcricao.txt`, o laudo final, `laudo_texto.txt` e `SHA256SUMS.txt`; testa, extrai e confere; envia e confere o hash no Drive; marca a pasta como fechada e só então manda para a lixeira o que está no pacote. Ficam o `.7z` e o `_sanitizado.docx`. Se algo falhar antes do fim, nada é apagado.
+- **Fechar e trancar:** confere o hash de cada arquivo; monta `laudo_pericial.7z` (7-Zip, AES-256, nomes cifrados, sem compressão — JPEG não encolhe) com `Originais/`, `Editadas/`, `caso.json`, `hub.json`, `transcricao.txt`, o laudo final, `laudo_texto.txt` e `SHA256SUMS.txt`; testa, extrai e confere; envia e confere o hash no Drive; marca a pasta como fechada e só então manda para a lixeira o que está no pacote. Ficam o `.7z` e o `_sanitizado.docx`. Se algo falhar antes do fim, nada é apagado.
 - A senha é digitada duas vezes e não é gravada em lugar nenhum.
 - Foto com hash divergente ou sem hash bloqueia o fechamento. Arquivo posto à mão na pasta é invisível ao app (`drive.file`): fica, com aviso; "Concluir limpeza" termina depois, com a senha.
 - **Reabrir** (com a senha): confere cada arquivo com o `SHA256SUMS.txt` e devolve fotos, anotadas, `caso.json`, `hub.json` e transcrição; o pacote vira `laudo_pericial_anterior_*.7z` e entra em `anteriores/` no próximo fechamento.
+- **Caso grande** (teste de carga, Chrome): 150 fotos + 20 anotadas (~480 MB) fecham em ~1 min e reabrem em ~40 s, sem contar a rede, com ~1,4 GB de memória na aba; 300 fotos (~950 MB) fecham com ~2,5 GB. Acima de ~600 MB o hub avisa para fechar outras abas. Antes de fechar ou reabrir, o acesso ao Google é renovado se faltar menos de 40 min.
 - 7-Zip no navegador: `vendor/7z-wasm-1.2.0` (7-Zip 24.09, GNU LGPL + restrição unRAR, ver `License.txt`), servido pelo próprio site.
 
 ## Fases
@@ -58,7 +59,7 @@ App para o exame pericial: fotos e ditado no mesmo registro, enviados direto do 
 | 2 | Ditado ligado à foto, seções, tela cheia, exclusão | feita |
 | 2.1 | Uso em campo: instalação, renovação do login, arrastar texto | feita |
 | 3 | Hub: fotos, anotações, laudo, anexo | feita (ajustes contínuos, ver abaixo) |
-| 4 | Fechamento, reabertura, sanitizador | feita; falta fechar um caso fictício de tamanho real (100+ fotos) para conferir a memória do navegador |
+| 4 | Fechamento, reabertura, sanitizador, teste com caso grande | feita |
 | 5 | Lançamento | por fazer |
 
 ### 3 — Ajustes do hub
