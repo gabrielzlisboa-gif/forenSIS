@@ -143,6 +143,16 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 .lside .lsimg { flex:1; min-height:0; background:#000; display:flex; align-items:center; justify-content:center; position:relative; }
 .lside .lsimg img { max-width:100%; max-height:100%; object-fit:contain; }
 .lside .lsimg span { position:absolute; color:var(--text-sec); font-size:12px; }
+.lsempty { flex:1; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:20px; color:var(--text-muted); text-align:center; font-size:13px; }
+.lspick { flex:1; min-height:0; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px; }
+.lspick .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(90px, 1fr)); gap:8px; }
+.lspick .grid button { position:relative; aspect-ratio:1; border-radius:8px; border:2px solid var(--border-strong); background:var(--surface2) center/cover no-repeat; padding:0; }
+.lspick .grid button:hover { border-color:var(--accent); }
+.lspick .grid button .n { position:absolute; left:3px; top:3px; font-size:11px; font-weight:600; padding:0 5px; border-radius:4px; background:rgba(7,8,11,.8); }
+.lspick .grid button:disabled { opacity:.35; }
+.layout.nosides { grid-template-columns:minmax(0, 1fr); }
+.layout.nosides aside { display:none; }
+.tab.sidebtn { color:var(--text-muted); padding:0 10px; }
 .lside .lsf { padding:8px 10px; font-size:12px; color:var(--text-sec); border-top:1px solid var(--border); }
 
 /* Anexo para o Word */
@@ -225,6 +235,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
     </aside>
     <main>
       <div class="tabs">
+        <button class="tab sidebtn" id="btnSide" title="Ocultar o painel de fotos e descrições">‹‹</button>
         <button class="tab on" data-tab="pFoto">Fotos</button>
         <button class="tab" data-tab="pLaudo">Laudo (protótipo)</button>
       </div>
@@ -278,7 +289,13 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
               <button class="btn sm ghost" id="lsSize" title="Alternar entre 1/3 e metade da tela">½</button>
               <button class="btn sm ghost" id="lsOpen">Abrir em Fotos</button>
               <button class="btn sm ghost" id="lsClose" aria-label="Fechar a foto">×</button></div>
-            <div class="lsimg"><img id="lsImg" alt=""><span id="lsLd"></span></div>
+            <div class="lsimg" id="lsImgBox"><img id="lsImg" alt=""><span id="lsLd"></span></div>
+            <div class="lsempty" id="lsEmpty" hidden>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/><path d="M3 3l18 18"/></svg>
+              <p id="lsEmptyTxt">Este trecho não tem foto vinculada.</p>
+              <button class="btn primary" id="lsLink">Vincular foto</button>
+            </div>
+            <div class="lspick" id="lsPick" hidden></div>
             <div class="lsf" id="lsFoot"></div>
           </div>
         </div>
@@ -366,7 +383,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 <script>
 'use strict';
 /*PURE-START*/
-const HUB_VERSION = '0.5.1';
+const HUB_VERSION = '0.5.2';
 // Mesmas seções do app do celular (o teste confere que continuam iguais).
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -623,7 +640,7 @@ async function openCase(name) {
   const c = S.cases.find(x => x.name === name); if (!c) return;
   ls.set('forensis_hub_case', name);
   Object.assign(S, { name, caseId: c.id, sel: null, ver: 0, manifest: null, hub: null, hubId: null, files: new Map() });
-  lsPhoto = null; lsN = 0;
+  lsPhoto = null; lsN = 0; lFocus = null; lsOpenSide = false; lsPicking = false;
   $('stateBox').hidden = false; $('layout').hidden = true; $('stateTxt').textContent = 'Abrindo o caso ' + name + '…';
   for (const id of ['btnReload', 'btnAnexo', 'btnClose']) $(id).hidden = true;
   $('btnDrive').hidden = false; $('cleanBox').hidden = true;
@@ -1024,6 +1041,7 @@ function paintLaudo() {
   const text = $('laudoEd').value, back = $('lBack');
   const marks = new Map();
   if (lsN) for (const r of sentencesWithRef(text, lsN)) marks.set(r.start, { r, cls: lFocus && lFocus.start === r.start ? 'on' : 'rel' });
+  if (lFocus && lsOpenSide && !marks.has(lFocus.start) && lFocus.end <= text.length) marks.set(lFocus.start, { r: lFocus, cls: 'on' }); // frase clicada sem foto
   if (lHover) { const m = marks.get(lHover.start); if (m) m.cls += ' hov'; else marks.set(lHover.start, { r: lHover, cls: 'hov' }); }
   let html = '', at = 0;
   for (const { r, cls } of [...marks.values()].sort((a, b) => a.r.start - b.r.start)) {
@@ -1060,15 +1078,45 @@ function laudoHover(e) {
         if (a && b) { const rg = document.createRange(); rg.setStart(a[0], a[1]); rg.setEnd(b[0], b[1]); if ([...rg.getClientRects()].some(q => x >= q.left - 2 && x <= q.right + 2 && y >= q.top - 2 && y <= q.bottom + 2)) next = r; }
       }
     }
-    if ((next && next.start) !== (lHover && lHover.start) || !!next !== !!lHover) { lHover = next; ta.style.cursor = next ? 'pointer' : ''; paintLaudo(); }
+    const ptr = !!next && !(lFocus && lFocus.start === next.start); // na frase já escolhida o cursor é de texto
+    if (ta.style.cursor !== (ptr ? 'pointer' : '')) ta.style.cursor = ptr ? 'pointer' : '';
+    if ((next && next.start) !== (lHover && lHover.start) || !!next !== !!lHover) { lHover = next; paintLaudo(); }
   });
 }
 function laudoLeave() { cancelAnimationFrame(hoverRaf); if (lHover) { lHover = null; $('laudoEd').style.cursor = ''; paintLaudo(); } }
+// Clique no texto: com "(foto N)" abre a foto; sem foto, o painel fica e mostra "sem foto", com "Vincular foto".
+let lsOpenSide = false, lsPicking = false;
+const isHeading = s => SECTIONS.some(x => normU(x.name) === normU(s.trim())) || (s.trim() === s.trim().toUpperCase() && !/[.!?]$/.test(s.trim()));
 function laudoClick() {
-  const ta = $('laudoEd'), r = sentenceAt(ta.value, ta.selectionStart), refs = refsIn(ta.value.slice(r.start, r.end));
-  if (!refs.length) { if (lsN) { lsN = 0; lsPhoto = null; lFocus = null; paintLaudo(); renderLaudoSide(); } return; }
+  const ta = $('laudoEd'), r = sentenceAt(ta.value, ta.selectionStart), s = ta.value.slice(r.start, r.end), refs = refsIn(s);
+  ta.style.cursor = ''; // clicou: o cursor volta ao de texto, para editar no ponto clicado
+  lsPicking = false;
+  if (!s.trim() || isHeading(s)) { if (lsOpenSide && !lsPhoto) { lFocus = null; paintLaudo(); renderLaudoSide(); } return; }
+  lsOpenSide = true; lFocus = r;
+  if (!refs.length) { lsN = 0; lsPhoto = null; paintLaudo(); renderLaudoSide(); return; }
   const n = refs[0], id = numMap(numberPhotos(S.view.photos))[n];
-  lsN = n; if (lsPhoto !== id) lsVer = -1; lsPhoto = id || null; lFocus = r;
+  lsN = n; if (lsPhoto !== id) lsVer = -1; lsPhoto = id || null;
+  paintLaudo(); renderLaudoSide();
+}
+// Descrição que corresponde à frase (o texto livre pode ter mudado; compara sem pontuação nem maiúsculas).
+function descForSentence(s) {
+  const k = normCmp(s); if (k.length < 6) return null;
+  return S.view.texts.find(d => normCmp(d.texto) === k) || S.view.texts.find(d => { const dk = normCmp(d.texto); return dk.length >= 6 && (dk.includes(k) || k.includes(dk)); }) || null;
+}
+function openPicker() { lsPicking = true; renderLaudoSide(); }
+function linkFromLaudo(p) {
+  const ta = $('laudoEd'), fl = freeLaudo(), nums = numberPhotos(S.view.photos), n = nums.get(p.id);
+  if (!lFocus || !n) return;
+  const at = lFocus.start, s = ta.value.slice(lFocus.start, lFocus.end), d = descForSentence(s);
+  if (d && !d.fotoId) linkText(d.id, p.id); // a descrição passa a ser desta foto (com Desfazer)
+  if (fl || !d) {
+    // No texto livre (ou frase escrita à mão), põe a referência no fim da frase.
+    const body = s.replace(/\s+$/, ''), withN = /[.!?…:;]$/.test(body) ? body.replace(/([.!?…:;])$/, ' (foto ' + n + ')$1') : body + ' (foto ' + n + ')';
+    ta.setRangeText(withN, at, at + body.length, 'end');
+    laudoInput();
+  }
+  lsPicking = false; lsN = n; lsPhoto = p.id; lsVer = -1; lsOpenSide = true;
+  lFocus = sentenceAt(ta.value, at);
   paintLaudo(); renderLaudoSide();
 }
 function renderLaudo() {
@@ -1116,16 +1164,29 @@ function renumberLaudo() {
   banner('laudo', 'ok', r.changed + ' referência(s) a fotos atualizada(s).' + (/\(fotos? [^)]*\?/.test(fl.texto) ? ' "(foto ?)" marca foto que saiu do anexo.' : ''), [], 6000);
 }
 function renderLaudoSide() {
-  const p = lsPhoto && S.view.photos.find(x => x.id === lsPhoto);
-  $('lwrap').className = 'lwrap' + (p ? (lsize === 'half' ? ' half' : ' side') : '');
-  $('lside').hidden = !p;
-  if (!p) return;
+  const p = lsPhoto && S.view.photos.find(x => x.id === lsPhoto), open = lsOpenSide && (p || lFocus);
+  $('lwrap').className = 'lwrap' + (open ? (lsize === 'half' ? ' half' : ' side') : '');
+  $('lside').hidden = !open;
+  if (!open) return;
+  $('lsSize').textContent = lsize === 'half' ? '⅓' : '½';
+  const showImg = !!p && !lsPicking;
+  $('lsImgBox').hidden = !showImg; $('lsEmpty').hidden = !!p || lsPicking; $('lsPick').hidden = !lsPicking;
+  $('lsOpen').hidden = !p; $('lsVer').hidden = true;
+  if (lsPicking) return renderPicker();
+  if (!p) {
+    $('lsTitle').textContent = 'Sem foto';
+    const free = S.view.photos.filter(x => !S.view.texts.some(t => t.fotoId === x.id));
+    $('lsEmptyTxt').textContent = 'Este trecho não tem foto vinculada.' + (free.length ? '' : ' Todas as fotos do caso já têm descrição.');
+    $('lsLink').hidden = !S.view.photos.length;
+    $('lsLink').textContent = free.length ? 'Vincular foto (' + free.length + ' sem vínculo)' : 'Vincular foto';
+    $('lsFoot').textContent = 'A foto escolhida passa a ter esta descrição e o "(foto N)" entra no texto.';
+    return;
+  }
   const nums = numberPhotos(S.view.photos);
   if (lsVer < 0 || lsVer > p.editadas.length) lsVer = p.editadas.length; // abre na última versão anotada, se houver
   $('lsTitle').textContent = photoLabel(p, nums) + ' · ' + secName(p.secao);
   $('lsVer').hidden = !p.editadas.length;
   $('lsVer').textContent = lsVer ? 'Ver original' : 'Ver anotada';
-  $('lsSize').textContent = lsize === 'half' ? '⅓' : '½';
   $('lsFoot').textContent = (p.legenda ? 'Legenda: ' + p.legenda : 'Sem legenda') + (lsVer ? ' · versão anotada ' + lsVer : ' · original');
   const id = lsVer ? p.editadas[lsVer - 1].driveId : p.driveId, img = $('lsImg');
   if (img.dataset.id === id) return;
@@ -1133,8 +1194,30 @@ function renderLaudoSide() {
   getBlob(id).then(b => { if (seq !== lsSeq) return; if (lsUrl) URL.revokeObjectURL(lsUrl); lsUrl = URL.createObjectURL(b); img.src = lsUrl; $('lsLd').textContent = ''; })
     .catch(e => { if (seq !== lsSeq) return; if (e instanceof NeedLogin) needLogin(); $('lsLd').textContent = 'Não foi possível carregar: ' + e.message; });
 }
-function closeLaudoSide() { lsN = 0; lsPhoto = null; lFocus = null; paintLaudo(); renderLaudoSide(); }
-function showTab() { for (const b of document.querySelectorAll('.tab')) b.classList.toggle('on', b.dataset.tab === tab); $('pFoto').hidden = tab !== 'pFoto'; $('pLaudo').hidden = tab !== 'pLaudo'; }
+function closeLaudoSide() { lsN = 0; lsPhoto = null; lFocus = null; lsOpenSide = false; lsPicking = false; paintLaudo(); renderLaudoSide(); }
+function renderPicker() {
+  const nums = numberPhotos(S.view.photos), box = $('lsPick'); box.textContent = '';
+  $('lsTitle').textContent = 'Vincular foto';
+  const linked = new Set(S.view.texts.filter(t => t.fotoId).map(t => t.fotoId));
+  const all = orderPhotos(S.view.photos), free = all.filter(p => !linked.has(p.id));
+  const showAll = box.dataset.all === '1', list = showAll ? all : free;
+  box.append(h('span', { class: 'hint' }, (showAll ? 'Todas as fotos' : 'Fotos sem descrição') + '. Clique na foto para vincular ao trecho.'));
+  const grid = h('div', { class: 'grid' });
+  for (const p of list) {
+    const inA = nums.has(p.id);
+    const b = h('button', { 'data-photo': p.id, 'data-thumb': p.driveId, disabled: !inA, title: inA ? p.name + (p.legenda ? ' — ' + p.legenda : '') : 'Fora do anexo: inclua a foto no anexo antes de vincular', onclick: () => linkFromLaudo(p) },
+      h('span', { class: 'n' }, inA ? String(nums.get(p.id)) : '–'));
+    if (p.driveId) wantThumb(p.driveId, b);
+    grid.append(b);
+  }
+  if (!list.length) grid.append(h('span', { class: 'hint' }, 'Nenhuma foto sem descrição.'));
+  box.append(grid);
+  box.append(h('div', { class: 'row', style: 'display:flex;gap:6px' },
+    h('button', { class: 'btn sm ghost', onclick: () => { box.dataset.all = showAll ? '' : '1'; renderPicker(); } }, showAll ? 'Só as sem descrição' : 'Mostrar todas as fotos'),
+    h('button', { class: 'btn sm ghost', onclick: () => { lsPicking = false; renderLaudoSide(); } }, 'Cancelar')));
+  $('lsFoot').textContent = '';
+}
+function showTab() { for (const b of document.querySelectorAll('.tab[data-tab]')) b.classList.toggle('on', b.dataset.tab === tab); $('pFoto').hidden = tab !== 'pFoto'; $('pLaudo').hidden = tab !== 'pLaudo'; }
 
 // ── Anexo fotográfico para o Word: cada página vira uma imagem (300 dpi) com até 6 fotos e legendas ──
 const ax = { pages: [] }; // [{ blob, url, name, first, last }]
@@ -1752,6 +1835,10 @@ function bind() {
   $('axPrint').addEventListener('click', printAnexo);
   for (const id of ['axPer', 'axW', 'axH', 'axPt', 'axEd', 'axSec']) $(id).addEventListener('change', clearAnexo);
   $('lsClose').addEventListener('click', closeLaudoSide);
+  $('lsLink').addEventListener('click', openPicker);
+  const applySide = () => { const off = ls.get('forensis_hub_side', '') === 'off'; $('layout').classList.toggle('nosides', off); $('btnSide').textContent = off ? '›› Fotos e descrições' : '‹‹'; $('btnSide').title = off ? 'Mostrar o painel de fotos e descrições' : 'Ocultar o painel de fotos e descrições'; if (tab === 'pLaudo') { autoGrow(); paintLaudo(); } };
+  $('btnSide').addEventListener('click', () => { ls.set('forensis_hub_side', ls.get('forensis_hub_side', '') === 'off' ? '' : 'off'); applySide(); });
+  applySide();
   $('laudoEd').addEventListener('input', laudoInput);
   $('laudoEd').addEventListener('mousemove', laudoHover);
   $('laudoEd').addEventListener('mouseleave', laudoLeave);
@@ -1762,7 +1849,7 @@ function bind() {
   $('lsSize').addEventListener('click', () => { lsize = lsize === 'half' ? 'third' : 'half'; ls.set('forensis_hub_lsize', lsize); renderLaudoSide(); });
   $('lsVer').addEventListener('click', () => { const p = S.view.photos.find(x => x.id === lsPhoto); if (p) { lsVer = lsVer ? 0 : p.editadas.length; renderLaudoSide(); } });
   $('lsOpen').addEventListener('click', () => { if (lsPhoto) select(lsPhoto); });
-  for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () => { tab = b.dataset.tab; showTab(); });
+  for (const b of document.querySelectorAll('.tab[data-tab]')) b.addEventListener('click', () => { tab = b.dataset.tab; showTab(); if (tab === 'pLaudo') { autoGrow(); paintLaudo(); } });
   $('btnPrev').addEventListener('click', () => step(-1)); $('btnNext').addEventListener('click', () => step(1));
   $('btnAnnotate').addEventListener('click', openEditor);
   $('phSecSel').addEventListener('change', e => { const p = S.view.photos.find(x => x.id === S.sel); if (p) setPhotoSection(p, e.target.value); });
@@ -1784,7 +1871,7 @@ function bind() {
     if (!$('anexoBox').hidden) { if (e.key === 'Escape') $('axClose').click(); return; }
     if (!$('sanBox').hidden) { if (e.key === 'Escape') $('szClose').click(); return; }
     if (!$('closeBox').hidden) return;
-    if (tab === 'pLaudo' && e.key === 'Escape' && lsPhoto) { closeLaudoSide(); return; }
+    if (tab === 'pLaudo' && e.key === 'Escape' && lsOpenSide) { closeLaudoSide(); return; }
     if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || tab !== 'pFoto') return;
     if (e.key === 'ArrowLeft') step(-1); if (e.key === 'ArrowRight') step(1);
   });
