@@ -133,6 +133,9 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 .leditor .lback { position:absolute; inset:0; color:transparent; pointer-events:none; overflow:hidden; border:1px solid transparent; margin:-1px; }
 .leditor .lback mark { color:transparent; border-radius:4px; background:rgba(0,201,167,.10); }
 .leditor .lback mark.on { background:rgba(0,201,167,.28); }
+.leditor .lback mark.hov { background:rgba(0,201,167,.07); box-shadow:inset 0 -2px 0 rgba(0,201,167,.55); }
+.leditor .lback mark.rel.hov { background:rgba(0,201,167,.16); }
+.leditor .lback mark.on.hov { background:rgba(0,201,167,.28); }
 .leditor textarea { position:relative; display:block; width:100%; min-height:360px; border:none; background:transparent; resize:none; overflow:hidden; outline:none; color:var(--text); caret-color:var(--accent); }
 .lside { position:sticky; top:0; border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); display:flex; flex-direction:column; height:calc(100vh - 190px); min-height:320px; overflow:hidden; }
 .lside .lsh { display:flex; align-items:center; gap:6px; padding:8px 10px; border-bottom:1px solid var(--border); font-size:13px; }
@@ -363,7 +366,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 <script>
 'use strict';
 /*PURE-START*/
-const HUB_VERSION = '0.5.0';
+const HUB_VERSION = '0.5.1';
 // Mesmas seções do app do celular (o teste confere que continuam iguais).
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -1001,7 +1004,7 @@ function descCard(t) {
 // Começa com o texto concatenado das descrições, que se atualiza sozinho. Ao digitar, vira texto livre
 // (salvo no hub.json) e não muda mais sozinho; o hub avisa das descrições que não estão no texto e da
 // numeração das fotos que mudou. Clicar numa frase com "(foto N)" destaca as frases dessa foto e abre a foto ao lado.
-let lsize = ls.get('forensis_hub_lsize', 'third'), lsVer = -1, lsSeq = 0, lsUrl = null, lsPhoto = null, lsN = 0, lPrev = null;
+let lsize = ls.get('forensis_hub_lsize', 'third'), lsVer = -1, lsSeq = 0, lsUrl = null, lsPhoto = null, lsN = 0, lPrev = null, lFocus = null, lHover = null;
 function laudoOpts() { return { heads: $('lHead').checked, refs: $('lRefs').checked, para: $('lPara').value }; }
 const freeLaudo = () => S.hub && S.hub.laudo && typeof S.hub.laudo.texto === 'string' ? S.hub.laudo : null;
 function laudoText() { const fl = freeLaudo(); return fl ? fl.texto : concatLaudo(S.view, laudoOpts()); }
@@ -1009,27 +1012,64 @@ function numMap(nums) { const o = {}; for (const [id, n] of nums) o[n] = id; ret
 function laudoInput() {
   const ta = $('laudoEd');
   if (!freeLaudo()) S.hub.laudo = { mapa: numMap(numberPhotos(S.view.photos)), iniciadoEm: new Date().toISOString() };
-  S.hub.laudo.texto = ta.value; S.hub.laudo.editadoEm = new Date().toISOString();
+  S.hub.laudo.texto = ta.value; S.hub.laudo.editadoEm = new Date().toISOString(); lFocus = null; lHover = null;
   dirty = true; setSave('busy', 'alterações não salvas'); clearTimeout(saveTimer); saveTimer = setTimeout(flushSave, 1200);
   autoGrow(); paintLaudo(); renderLaudoStatus();
 }
 function autoGrow() { const ta = $('laudoEd'); ta.style.height = 'auto'; ta.style.height = Math.max(ta.scrollHeight, 360) + 'px'; }
 const escH = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-// Fundo atrás do texto: marca as frases da foto escolhida (a do clique mais forte).
-function paintLaudo(focus) {
+// Fundo atrás do texto: marca as frases da foto escolhida (a do clique mais forte) e, de leve,
+// a frase com "(foto N)" sob o cursor do mouse.
+function paintLaudo() {
   const text = $('laudoEd').value, back = $('lBack');
-  if (!lsN) { back.innerHTML = escH(text) + '\n'; return; }
-  const rs = sentencesWithRef(text, lsN).sort((a, b) => a.start - b.start);
+  const marks = new Map();
+  if (lsN) for (const r of sentencesWithRef(text, lsN)) marks.set(r.start, { r, cls: lFocus && lFocus.start === r.start ? 'on' : 'rel' });
+  if (lHover) { const m = marks.get(lHover.start); if (m) m.cls += ' hov'; else marks.set(lHover.start, { r: lHover, cls: 'hov' }); }
   let html = '', at = 0;
-  for (const r of rs) { if (r.start < at) continue; html += escH(text.slice(at, r.start)) + '<mark class="' + (focus && focus.start === r.start ? 'on' : 'rel') + '">' + escH(text.slice(r.start, r.end)) + '</mark>'; at = r.end; }
+  for (const { r, cls } of [...marks.values()].sort((a, b) => a.r.start - b.r.start)) {
+    if (r.start < at) continue;
+    html += escH(text.slice(at, r.start)) + '<mark class="' + cls + '">' + escH(text.slice(r.start, r.end)) + '</mark>'; at = r.end;
+  }
   back.innerHTML = html + escH(text.slice(at)) + '\n';
 }
+// Posição no texto sob o mouse: o fundo tem o mesmo desenho do texto, então mede-se nele.
+function backPos(off) {
+  const w = document.createTreeWalker($('lBack'), NodeFilter.SHOW_TEXT); let n, acc = 0;
+  while ((n = w.nextNode())) { if (off <= acc + n.length) return [n, off - acc]; acc += n.length; }
+  return null;
+}
+function offsetAtPoint(x, y) {
+  const ta = $('laudoEd'), back = $('lBack');
+  ta.style.pointerEvents = 'none'; back.style.pointerEvents = 'auto';
+  let rg = null; try { rg = document.caretRangeFromPoint(x, y); } finally { ta.style.pointerEvents = ''; back.style.pointerEvents = ''; }
+  if (!rg || !back.contains(rg.startContainer)) return -1;
+  const pre = document.createRange(); pre.setStart(back, 0); pre.setEnd(rg.startContainer, rg.startOffset);
+  return pre.toString().length;
+}
+let hoverRaf = 0;
+function laudoHover(e) {
+  const x = e.clientX, y = e.clientY;
+  cancelAnimationFrame(hoverRaf);
+  hoverRaf = requestAnimationFrame(() => {
+    const ta = $('laudoEd'), off = offsetAtPoint(x, y);
+    let next = null;
+    if (off >= 0 && off < ta.value.length) {
+      const r = sentenceAt(ta.value, off);
+      if (refsIn(ta.value.slice(r.start, r.end)).length) {
+        const a = backPos(r.start), b = backPos(r.end);
+        if (a && b) { const rg = document.createRange(); rg.setStart(a[0], a[1]); rg.setEnd(b[0], b[1]); if ([...rg.getClientRects()].some(q => x >= q.left - 2 && x <= q.right + 2 && y >= q.top - 2 && y <= q.bottom + 2)) next = r; }
+      }
+    }
+    if ((next && next.start) !== (lHover && lHover.start) || !!next !== !!lHover) { lHover = next; ta.style.cursor = next ? 'pointer' : ''; paintLaudo(); }
+  });
+}
+function laudoLeave() { cancelAnimationFrame(hoverRaf); if (lHover) { lHover = null; $('laudoEd').style.cursor = ''; paintLaudo(); } }
 function laudoClick() {
   const ta = $('laudoEd'), r = sentenceAt(ta.value, ta.selectionStart), refs = refsIn(ta.value.slice(r.start, r.end));
-  if (!refs.length) { if (lsN) { lsN = 0; lsPhoto = null; paintLaudo(); renderLaudoSide(); } return; }
+  if (!refs.length) { if (lsN) { lsN = 0; lsPhoto = null; lFocus = null; paintLaudo(); renderLaudoSide(); } return; }
   const n = refs[0], id = numMap(numberPhotos(S.view.photos))[n];
-  lsN = n; if (lsPhoto !== id) lsVer = -1; lsPhoto = id || null;
-  paintLaudo(r); renderLaudoSide();
+  lsN = n; if (lsPhoto !== id) lsVer = -1; lsPhoto = id || null; lFocus = r;
+  paintLaudo(); renderLaudoSide();
 }
 function renderLaudo() {
   const ta = $('laudoEd'), fl = freeLaudo();
@@ -1093,7 +1133,7 @@ function renderLaudoSide() {
   getBlob(id).then(b => { if (seq !== lsSeq) return; if (lsUrl) URL.revokeObjectURL(lsUrl); lsUrl = URL.createObjectURL(b); img.src = lsUrl; $('lsLd').textContent = ''; })
     .catch(e => { if (seq !== lsSeq) return; if (e instanceof NeedLogin) needLogin(); $('lsLd').textContent = 'Não foi possível carregar: ' + e.message; });
 }
-function closeLaudoSide() { lsN = 0; lsPhoto = null; paintLaudo(); renderLaudoSide(); }
+function closeLaudoSide() { lsN = 0; lsPhoto = null; lFocus = null; paintLaudo(); renderLaudoSide(); }
 function showTab() { for (const b of document.querySelectorAll('.tab')) b.classList.toggle('on', b.dataset.tab === tab); $('pFoto').hidden = tab !== 'pFoto'; $('pLaudo').hidden = tab !== 'pLaudo'; }
 
 // ── Anexo fotográfico para o Word: cada página vira uma imagem (300 dpi) com até 6 fotos e legendas ──
@@ -1713,6 +1753,8 @@ function bind() {
   for (const id of ['axPer', 'axW', 'axH', 'axPt', 'axEd', 'axSec']) $(id).addEventListener('change', clearAnexo);
   $('lsClose').addEventListener('click', closeLaudoSide);
   $('laudoEd').addEventListener('input', laudoInput);
+  $('laudoEd').addEventListener('mousemove', laudoHover);
+  $('laudoEd').addEventListener('mouseleave', laudoLeave);
   for (const ev of ['click', 'keyup']) $('laudoEd').addEventListener(ev, e => { if (ev === 'keyup' && !/^(Arrow|Home|End|Page)/.test(e.key)) return; laudoClick(); });
   $('lRedo').addEventListener('click', redoLaudo);
   $('lRenum').addEventListener('click', renumberLaudo);
