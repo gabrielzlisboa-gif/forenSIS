@@ -57,11 +57,15 @@ App para o exame pericial: fotos e ditado no mesmo registro, enviados direto do 
 | 1 | Câmera no app, fila sem sinal | feita |
 | 2 | Ditado ligado à foto, seções, tela cheia, exclusão | feita |
 | 2.1 | Uso em campo: instalação, renovação do login, arrastar texto | feita |
-| 3 | Hub: fotos, anotações, laudo, anexo | feita (ajustes contínuos) |
+| 3 | Hub: fotos, anotações, laudo, anexo | feita (ajustes contínuos, ver abaixo) |
 | 4 | Fechamento, reabertura, sanitizador | feita; falta a **selagem** (hashes ao e-mail institucional e/ou carimbo de tempo RFC 3161) |
 | 5 | Lançamento | por fazer |
 
+### 3 — Ajustes do hub
+- Histórico próprio de desfazer/refazer no editor do laudo (hoje o Ctrl+Z do navegador perde o histórico quando o editor é redesenhado, por exemplo depois de vincular uma foto).
+
 ### 5 — Lançamento
+- Dividir o `hub.html` (mais de 2.200 linhas) em arquivos por função — laudo, anotações, anexo, sanitizador, fechamento — para facilitar manutenção e auditoria de segurança. Sem mudança para o usuário.
 - Domínio próprio, separado de `gabrielzlisboa-gif.github.io` (compartilhado com os outros projetos, inclusive o armazenamento local).
 - Verificação em duas etapas obrigatória na conta Google usada.
 - Validar com o DPT o uso de conta Google pessoal para as fotos e o envio do áudio do ditado ao Groq.
