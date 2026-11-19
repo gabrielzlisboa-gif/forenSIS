@@ -126,17 +126,23 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 .lwrap.side { grid-template-columns:minmax(0, 2fr) minmax(0, 1fr); }
 .lwrap.half { grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); }
 .lmode { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--text-sec); margin-bottom:8px; }
+.ledit { border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); padding:16px 20px; font:14px/1.75 var(--sans); min-height:360px; outline:none; white-space:pre-wrap; overflow-wrap:break-word; caret-color:var(--accent); }
+.ledit:focus { border-color:var(--accent-border); }
+.ledit p { margin:0; min-height:1.75em; }
+.ledit .seg { border-radius:4px; transition:background .12s; }
+.ledit .seg.ph { box-shadow:inset 0 -1px 0 rgba(0,201,167,.35); }
+.ledit .seg.ph:hover { background:rgba(0,201,167,.08); box-shadow:inset 0 -2px 0 rgba(0,201,167,.6); }
+.ledit .seg:not(.ph):hover { background:rgba(255,255,255,.04); }
+.ledit .seg.on { background:rgba(0,201,167,.24); }
+.ledit .seg.rel { background:rgba(0,201,167,.10); }
+.ledit .ref { color:var(--accent); -webkit-user-select:none; user-select:none; }
+::highlight(lfree) { background-color:rgba(224,176,80,.28); }
+.lsstrip { display:flex; flex-wrap:wrap; gap:6px; padding:8px 10px; border-top:1px solid var(--border); align-items:center; }
+.lsth { position:relative; width:52px; height:52px; border-radius:6px; border:2px solid var(--border-strong); background:var(--surface2) center/cover no-repeat; padding:0; }
+.lsth.on { border-color:var(--accent); }
+.lsth .n { position:absolute; left:2px; top:2px; font-size:10px; font-weight:600; padding:0 4px; border-radius:3px; background:rgba(7,8,11,.8); }
+.ltext.fora { opacity:.7; }
 .lmissing { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px; padding:8px 10px; border:1px solid var(--amber-border); background:var(--amber-dim); border-radius:8px; }
-.leditor { position:relative; border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); }
-.leditor:focus-within { border-color:var(--accent-border); }
-.leditor .lback, .leditor textarea { font:14px/1.75 var(--sans); padding:16px 20px; white-space:pre-wrap; overflow-wrap:break-word; word-break:normal; letter-spacing:normal; tab-size:4; }
-.leditor .lback { position:absolute; inset:0; color:transparent; pointer-events:none; overflow:hidden; border:1px solid transparent; margin:-1px; }
-.leditor .lback mark { color:transparent; border-radius:4px; background:rgba(0,201,167,.10); }
-.leditor .lback mark.on { background:rgba(0,201,167,.28); }
-.leditor .lback mark.hov { background:rgba(0,201,167,.07); box-shadow:inset 0 -2px 0 rgba(0,201,167,.55); }
-.leditor .lback mark.rel.hov { background:rgba(0,201,167,.16); }
-.leditor .lback mark.on.hov { background:rgba(0,201,167,.28); }
-.leditor textarea { position:relative; display:block; width:100%; min-height:360px; border:none; background:transparent; resize:none; overflow:hidden; outline:none; color:var(--text); caret-color:var(--accent); }
 .lside { position:sticky; top:0; border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); display:flex; flex-direction:column; height:calc(100vh - 190px); min-height:320px; overflow:hidden; }
 .lside .lsh { display:flex; align-items:center; gap:6px; padding:8px 10px; border-bottom:1px solid var(--border); font-size:13px; }
 .lside .lsh b { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -267,7 +273,6 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
       </section>
       <section class="pane" id="pLaudo" hidden>
         <div class="lopts">
-          <label><input type="checkbox" id="lHead" checked> Títulos das seções</label>
           <label><input type="checkbox" id="lRefs" checked> Referência às fotos</label>
           <label>Parágrafos <select id="lPara"><option value="secao">um por seção</option><option value="desc">um por descrição</option></select></label>
           <span class="grow"></span>
@@ -275,12 +280,11 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
           <button class="btn ghost" id="btnTxt">Baixar .txt</button>
         </div>
         <div class="lmode"><span id="lState"></span><span class="grow"></span>
-          <button class="btn sm" id="lRenum" hidden></button>
           <button class="btn sm ghost" id="lRedo" hidden>Refazer a partir das descrições</button></div>
         <div class="lmissing" id="lMissing" hidden></div>
         <div class="lwrap" id="lwrap">
           <div>
-            <div class="leditor"><div class="lback" id="lBack" aria-hidden="true"></div><textarea id="laudoEd" spellcheck="true" lang="pt-BR" aria-label="Laudo (texto livre)"></textarea></div>
+            <div class="ledit" id="ledit" contenteditable="true" spellcheck="true" lang="pt-BR" role="textbox" aria-multiline="true" aria-label="Texto do laudo"></div>
             <p class="hint" id="laudoInfo"></p>
           </div>
           <div class="lside" id="lside" hidden>
@@ -290,6 +294,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
               <button class="btn sm ghost" id="lsOpen">Abrir em Fotos</button>
               <button class="btn sm ghost" id="lsClose" aria-label="Fechar a foto">×</button></div>
             <div class="lsimg" id="lsImgBox"><img id="lsImg" alt=""><span id="lsLd"></span></div>
+            <div class="lsstrip" id="lsStrip" hidden></div>
             <div class="lsempty" id="lsEmpty" hidden>
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/><path d="M3 3l18 18"/></svg>
               <p id="lsEmptyTxt">Este trecho não tem foto vinculada.</p>
@@ -383,7 +388,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 <script>
 'use strict';
 /*PURE-START*/
-const HUB_VERSION = '0.5.2';
+const HUB_VERSION = '0.6.0';
 // Mesmas seções do app do celular (o teste confere que continuam iguais).
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -396,7 +401,7 @@ const secIdx = id => { const i = SECTIONS.findIndex(s => s.id === id); return i 
 const secName = id => (SECTIONS.find(s => s.id === id) || { name: id }).name;
 // O celular grava caso.json; o hub grava só hub.json (correções, vínculos, legendas, edições).
 // A visão do hub é caso.json com hub.json por cima: nenhum dos dois apaga o trabalho do outro.
-function emptyHub(caseName) { return { formato: 'forensis-hub', versao: 1, caso: caseName, atualizadoEm: null, textos: {}, fotos: {} }; }
+function emptyHub(caseName) { return { formato: 'forensis-hub', versao: 1, caso: caseName, atualizadoEm: null, textos: {}, fotos: {}, novos: {} }; }
 function mergeView(manifest, hub) {
   const regs = (manifest && manifest.registros) || [];
   const photos = regs.filter(r => r.tipo === 'foto').map(r => {
@@ -406,13 +411,19 @@ function mergeView(manifest, hub) {
   const pids = new Set(photos.map(p => p.id));
   const texts = regs.filter(r => r.tipo === 'texto').map(r => {
     const o = (hub.textos || {})[r.id] || {};
-    const t = Object.assign({}, r, { textoCelular: r.texto, editado: 'texto' in o && o.texto !== r.texto });
+    const t = Object.assign({}, r, { origem: 'celular', textoCelular: r.texto, editado: 'texto' in o && o.texto !== r.texto });
     if ('texto' in o) t.texto = o.texto;
-    if ('fotoId' in o) t.fotoId = o.fotoId;
+    const ids = 'fotos' in o ? o.fotos : 'fotoId' in o ? (o.fotoId ? [o.fotoId] : []) : (r.fotoId ? [r.fotoId] : []);
     if (o.secao) t.secao = o.secao;
-    if (t.fotoId && !pids.has(t.fotoId)) t.fotoId = null; // foto excluída no celular: o texto fica sem foto
+    t.fotoIds = ids.filter(id => pids.has(id)); // foto excluída no celular: o vínculo some
+    t.fotoId = t.fotoIds[0] || null;
     return t;
   }).filter(t => !(hub.textos[t.id] && hub.textos[t.id].oculto));
+  // Descrições escritas no laudo (ao vincular um texto a uma foto).
+  for (const [id, n] of Object.entries(hub.novos || {})) {
+    const fotoIds = (n.fotos || []).filter(x => pids.has(x));
+    texts.push({ id, tipo: 'texto', origem: 'laudo', texto: n.texto || '', textoCelular: n.texto || '', editado: false, secao: n.secao || 'obs', capturadaEm: n.capturadaEm || '', fotoIds, fotoId: fotoIds[0] || null });
+  }
   return { photos, texts };
 }
 // Ordem das fotos: seções, depois ordem de captura.
@@ -438,7 +449,7 @@ function concatBlocks(view, opts) {
     const ts = view.texts.filter(t => t.secao === s.id && String(t.texto || '').trim())
       .sort((a, b) => String(a.capturadaEm).localeCompare(String(b.capturadaEm)));
     if (!ts.length) continue;
-    const items = ts.map(t => ({ id: t.id, fotoId: t.fotoId || null, text: withRef(sentence(t.texto), opts.refs && t.fotoId && nums.has(t.fotoId) ? 'foto ' + nums.get(t.fotoId) : '') }));
+    const items = ts.map(t => { const ns = (t.fotoIds || []).map(x => nums.get(x)).filter(Boolean).sort((a, b) => a - b); return { id: t.id, fotoIds: t.fotoIds || [], text: withRef(sentence(t.texto), opts.refs && ns.length ? (ns.length === 1 ? 'foto ' + ns[0] : 'fotos ' + ns.slice(0, -1).join(', ') + ' e ' + ns[ns.length - 1]) : '') }; });
     blocks.push({ sec: s.id, head: s.name.toUpperCase(), paras: opts.para === 'desc' ? items.map(i => [i]) : [items] });
   }
   return blocks;
@@ -640,7 +651,7 @@ async function openCase(name) {
   const c = S.cases.find(x => x.name === name); if (!c) return;
   ls.set('forensis_hub_case', name);
   Object.assign(S, { name, caseId: c.id, sel: null, ver: 0, manifest: null, hub: null, hubId: null, files: new Map() });
-  lsPhoto = null; lsN = 0; lFocus = null; lsOpenSide = false; lsPicking = false;
+  lTarget = null; lShow = null; lsOpenSide = false; lsPicking = false; lCaret = null;
   $('stateBox').hidden = false; $('layout').hidden = true; $('stateTxt').textContent = 'Abrindo o caso ' + name + '…';
   for (const id of ['btnReload', 'btnAnexo', 'btnClose']) $(id).hidden = true;
   $('btnDrive').hidden = false; $('cleanBox').hidden = true;
@@ -827,26 +838,24 @@ async function flushSave() {
 window.addEventListener('beforeunload', e => { if (dirty || saving) { e.preventDefault(); e.returnValue = ''; } });
 const tOv = id => (S.hub.textos[id] = S.hub.textos[id] || {});
 const pOv = id => (S.hub.fotos[id] = S.hub.fotos[id] || {});
-function setText(t, value) {
-  const o = tOv(t.id);
-  if (value === t.textoCelular) delete o.texto; else o.texto = value;
-  changed();
-}
-function linkText(textId, photoId) {
+function setText(t, value) { setDescText(t, value); }
+// Vincula a uma foto (ou tira de "fromId"; sem foto e sem origem, tira de todas). Uma descrição pode ter várias fotos.
+function linkText(textId, photoId, fromId) {
   const t = S.view.texts.find(x => x.id === textId); if (!t) return;
   const p = photoId && S.view.photos.find(x => x.id === photoId);
-  const before = JSON.stringify(S.hub.textos[textId] || {});
-  const o = tOv(textId);
-  o.fotoId = p ? p.id : null;
-  if (p) o.secao = p.secao;
+  const before = JSON.stringify({ textos: S.hub.textos, novos: S.hub.novos });
+  let ids = fromId ? t.fotoIds.filter(x => x !== fromId) : p ? t.fotoIds.slice() : [];
+  if (p && !ids.includes(p.id)) ids.push(p.id);
+  setDescFotos(t, ids);
+  if (p && !t.fotoIds.length) { if (t.origem === 'laudo') S.hub.novos[t.id].secao = p.secao; else tOv(textId).secao = p.secao; }
   changed();
   const nums = numberPhotos(S.view.photos);
   banner('link', 'ok', p ? 'Texto vinculado à ' + (nums.has(p.id) ? 'foto ' + nums.get(p.id) : 'foto ' + p.name + ' (fora do anexo)') + '.' : 'Texto desvinculado; ficou como texto sem foto.',
-    [{ label: 'Desfazer', fn: () => { S.hub.textos[textId] = JSON.parse(before); changed(); } }], 8000);
+    [{ label: 'Desfazer', fn: () => { const b = JSON.parse(before); S.hub.textos = b.textos; S.hub.novos = b.novos; changed(); } }], 8000);
 }
 function setPhotoSection(p, sec) {
   pOv(p.id).secao = sec;
-  for (const t of S.view.texts.filter(x => x.fotoId === p.id)) tOv(t.id).secao = sec; // as descrições acompanham a foto
+  for (const t of S.view.texts.filter(x => x.fotoIds.includes(p.id))) { if (t.origem === 'laudo') S.hub.novos[t.id].secao = sec; else tOv(t.id).secao = sec; } // as descrições acompanham a foto
   changed();
 }
 
@@ -896,10 +905,11 @@ function hashState(p) {
   return f.sha256Checksum === p.sha256 ? { ok: true, txt: 'confere' } : { ok: false, txt: 'DIVERGE do registrado no celular' };
 }
 let tab = 'pFoto';
-function render() {
+function render() { renderSidebar(); renderPhoto(); renderLaudo(); if (!$('anexoBox').hidden) renderAxSel(); }
+function renderSidebar() {
   const v = S.view, nums = numberPhotos(v.photos);
-  const linked = new Set(v.texts.filter(t => t.fotoId).map(t => t.fotoId));
-  const loose = v.texts.filter(t => !t.fotoId);
+  const linked = new Set(v.texts.flatMap(t => t.fotoIds));
+  const loose = v.texts.filter(t => !t.fotoIds.length);
   const noDesc = v.photos.filter(p => !linked.has(p.id)), edited = v.photos.filter(p => p.editadas.length);
   const okHash = v.photos.filter(p => hashState(p).ok === true).length;
   $('stats').innerHTML = '';
@@ -920,11 +930,11 @@ function render() {
     const sec = h('section', { class: 'sec' }, h('h2', null, s.name, h('span', null, (n => n + (n === 1 ? ' foto' : ' fotos'))(v.photos.filter(p => p.secao === s.id).length))));
     const tiles = h('div', { class: 'tiles' });
     for (const p of ps) {
-      const nd = v.texts.filter(t => t.fotoId === p.id).length, hs = hashState(p);
+      const nd = v.texts.filter(t => t.fotoIds.includes(p.id)).length, hs = hashState(p);
       const tl = h('button', { class: 'tile' + (S.sel === p.id ? ' sel' : '') + (p.anexo ? '' : ' out'), 'data-photo': p.id, 'data-thumb': p.driveId, 'aria-label': photoLabel(p, nums), title: p.anexo ? '' : 'Fora do anexo do laudo', onclick: () => select(p.id) },
         h('span', { class: 'n' }, nums.has(p.id) ? String(nums.get(p.id)) : '–'),
         h('span', { class: 'b' }, nd ? h('i', { class: 't' }, nd + ' txt') : null, p.editadas.length ? h('i', { class: 'e' }, 'ed.') : null, hs.ok === false ? h('i', { class: 'x' }, 'hash') : null));
-      dropTarget(tl, id => linkText(id, p.id));
+      dropTarget(tl, (id, from) => linkText(id, p.id, from));
       if (p.driveId) wantThumb(p.driveId, tl);
       tiles.append(tl);
     }
@@ -935,26 +945,26 @@ function render() {
       sec.append(lz);
     }
     const uz = h('div', { class: 'unlinkzone' }, 'Solte aqui para deixar o texto sem foto');
-    dropTarget(uz, id => linkText(id, null)); sec.append(uz);
+    dropTarget(uz, (id, from) => linkText(id, null, from)); sec.append(uz);
     box.append(sec);
   }
   if (!box.children.length) box.append(h('div', { class: 'empty' }, 'Caso sem fotos nem descrições ainda.'));
-  renderPhoto(); renderLaudo();
-  if (!$('anexoBox').hidden) renderAxSel();
 }
+const isFora = id => !!(S.hub.laudo && (S.hub.laudo.fora || []).includes(id));
 function looseCard(t) {
-  const c = h('div', { class: 'ltext', draggable: 'true', 'data-text': t.id, title: 'Arraste até a miniatura de uma foto' }, h('span', { class: 'g' }, '⋮⋮'), h('span', { class: 'tx' }, t.texto));
+  const c = h('div', { class: 'ltext' + (isFora(t.id) ? ' fora' : ''), draggable: 'true', 'data-text': t.id, title: 'Arraste até a miniatura de uma foto' }, h('span', { class: 'g' }, '⋮⋮'), h('span', { class: 'tx' }, t.texto));
+  if (isFora(t.id)) c.append(h('button', { class: 'tag amber', title: 'Apagado do texto do laudo. Clique para devolver à faixa da aba Laudo.', onclick: () => backToLaudo(t.id) }, 'fora do laudo'));
   dragSource(c, t.id);
   return c;
 }
-function dragSource(el, textId) {
-  el.addEventListener('dragstart', e => { e.dataTransfer.setData('text/x-forensis-texto', textId); e.dataTransfer.effectAllowed = 'move'; el.classList.add('dragging'); });
+function dragSource(el, textId, fromId) {
+  el.addEventListener('dragstart', e => { e.dataTransfer.setData('text/x-forensis-texto', JSON.stringify({ id: textId, from: fromId || null })); e.dataTransfer.effectAllowed = 'move'; el.classList.add('dragging'); });
   el.addEventListener('dragend', () => el.classList.remove('dragging'));
 }
 function dropTarget(el, fn) {
   el.addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('text/x-forensis-texto')) { e.preventDefault(); el.classList.add('drop'); } });
   el.addEventListener('dragleave', () => el.classList.remove('drop'));
-  el.addEventListener('drop', e => { e.preventDefault(); el.classList.remove('drop'); const id = e.dataTransfer.getData('text/x-forensis-texto'); if (id) fn(id); });
+  el.addEventListener('drop', e => { e.preventDefault(); el.classList.remove('drop'); const raw = e.dataTransfer.getData('text/x-forensis-texto'); if (!raw) return; let d; try { d = JSON.parse(raw); } catch (x) { d = { id: raw }; } fn(d.id, d.from); });
 }
 function select(id) { S.sel = id; S.ver = 0; tab = 'pFoto'; showTab(); render(); }
 function step(d) { const ps = numberedPhotos(), i = ps.findIndex(p => p.id === S.sel) + d; if (ps[i]) select(ps[i].id); }
@@ -987,9 +997,9 @@ function renderPhoto() {
   const ae = document.activeElement, editing = ae && ae.tagName === 'TEXTAREA' && $('descs').contains(ae);
   if (!editing) {
     const box = $('descs'); box.textContent = '';
-    const ds = S.view.texts.filter(t => t.fotoId === p.id).sort((a, b) => String(a.capturadaEm).localeCompare(String(b.capturadaEm)));
+    const ds = S.view.texts.filter(t => t.fotoIds.includes(p.id)).sort((a, b) => String(a.capturadaEm).localeCompare(String(b.capturadaEm)));
     if (!ds.length) box.append(h('div', { class: 'empty' }, 'Sem descrição.'));
-    for (const t of ds) box.append(descCard(t));
+    for (const t of ds) box.append(descCard(t, p.id));
   }
   const sel = $('phSecSel'); if (!sel.options.length) for (const s of SECTIONS) sel.append(h('option', { value: s.id }, s.name));
   sel.value = p.secao;
@@ -1004,218 +1014,473 @@ function renderPhoto() {
   if (ed) row('Editada', ed.resumo + ' · ' + String(ed.em).replace('T', ' ').slice(0, 16));
   else if (p.editadas.length) row('Edições', p.editadas.length + ' cópia(s) em Editadas/; o original não muda');
 }
-function descCard(t) {
+function descCard(t, pid) {
   const ta = h('textarea', { 'aria-label': 'Descrição' }); ta.value = t.texto;
   ta.addEventListener('input', () => { clearTimeout(ta._t); ta._t = setTimeout(() => setText(t, ta.value), 500); });
   ta.addEventListener('blur', () => { clearTimeout(ta._t); if (ta.value !== t.texto) setText(t, ta.value); });
   const grip = h('span', { class: 'grip', draggable: 'true', title: 'Arraste para outra foto ou para "sem foto"' }, '⋮⋮ mover');
-  dragSource(grip, t.id);
-  const row = h('div', { class: 'row' }, grip, String(t.capturadaEm || '').slice(11, 16));
+  dragSource(grip, t.id, pid);
+  const row = h('div', { class: 'row' }, grip, t.origem === 'laudo' ? 'escrita no laudo' : String(t.capturadaEm || '').slice(11, 16));
+  if (t.fotoIds.length > 1) row.append(h('span', { class: 'tag' }, 'também em ' + (t.fotoIds.length - 1) + ' outra(s) foto(s)'));
+  if (isFora(t.id)) row.append(h('button', { class: 'tag amber', title: 'Apagado do texto do laudo. Clique para devolver à faixa da aba Laudo.', onclick: () => backToLaudo(t.id) }, 'fora do laudo'));
   if (t.editado) row.append(h('span', { class: 'tag amber' }, 'editado no computador'), h('button', { class: 'tag', onclick: () => { if (confirm('Voltar ao texto ditado no celular?\n\n' + t.textoCelular)) setText(t, t.textoCelular); } }, 'voltar ao do celular'));
   if (t.conferir) row.append(h('span', { class: 'tag amber' }, 'conferir'));
-  row.append(h('button', { class: 'tag', onclick: () => linkText(t.id, null) }, 'desvincular'));
+  row.append(h('button', { class: 'tag', onclick: () => linkText(t.id, null, pid) }, 'desvincular'));
   return h('div', { class: 'desc', 'data-text': t.id }, ta, row);
 }
 
-// ── Laudo: área livre de escrita ─────────────────────────────────────────────
-// Começa com o texto concatenado das descrições, que se atualiza sozinho. Ao digitar, vira texto livre
-// (salvo no hub.json) e não muda mais sozinho; o hub avisa das descrições que não estão no texto e da
-// numeração das fotos que mudou. Clicar numa frase com "(foto N)" destaca as frases dessa foto e abre a foto ao lado.
-let lsize = ls.get('forensis_hub_lsize', 'third'), lsVer = -1, lsSeq = 0, lsUrl = null, lsPhoto = null, lsN = 0, lPrev = null, lFocus = null, lHover = null;
-function laudoOpts() { return { heads: $('lHead').checked, refs: $('lRefs').checked, para: $('lPara').value }; }
-const freeLaudo = () => S.hub && S.hub.laudo && typeof S.hub.laudo.texto === 'string' ? S.hub.laudo : null;
-function laudoText() { const fl = freeLaudo(); return fl ? fl.texto : concatLaudo(S.view, laudoOpts()); }
-function numMap(nums) { const o = {}; for (const [id, n] of nums) o[n] = id; return o; }
-function laudoInput() {
-  const ta = $('laudoEd');
-  if (!freeLaudo()) S.hub.laudo = { mapa: numMap(numberPhotos(S.view.photos)), iniciadoEm: new Date().toISOString() };
-  S.hub.laudo.texto = ta.value; S.hub.laudo.editadoEm = new Date().toISOString(); lFocus = null; lHover = null;
-  dirty = true; setSave('busy', 'alterações não salvas'); clearTimeout(saveTimer); saveTimer = setTimeout(flushSave, 1200);
-  autoGrow(); paintLaudo(); renderLaudoStatus();
+// ── Laudo: editor de texto com trechos vinculados ────────────────────────────
+// O texto é uma lista de parágrafos; cada parágrafo tem pedaços de texto livre e "trechos" ligados a uma
+// descrição (do celular ou escrita aqui). Editar um trecho edita a descrição (aparece na aba Fotos);
+// vincular um texto livre a uma foto cria uma descrição daquela foto. "(foto N)" é marca, não texto:
+// some e volta com a opção, e se renumera sozinha. Apagar um trecho tira só do laudo ("fora do laudo").
+let lsize = ls.get('forensis_hub_lsize', 'third'), lsVer = -1, lsSeq = 0, lsUrl = null;
+let lTarget = null;      // { kind: 'seg', id } | { kind: 'free', para, start, end }
+let lShow = null;        // id da foto mostrada no painel
+let lsOpenSide = false, lsPicking = false, lPrev = null, lCaret = null, parseTimer = null;
+const docMode = () => !!(S.hub && S.hub.laudo && Array.isArray(S.hub.laudo.doc));
+function laudoOpts() { return { heads: true, refs: $('lRefs').checked, para: $('lPara').value }; }
+const textById = id => S.view.texts.find(t => t.id === id);
+function refLabel(ids, nums) {
+  const ns = (ids || []).map(id => nums.get(id)).filter(Boolean).sort((a, b) => a - b);
+  if (!ns.length) return '';
+  return ns.length === 1 ? 'foto ' + ns[0] : 'fotos ' + ns.slice(0, -1).join(', ') + ' e ' + ns[ns.length - 1];
 }
-function autoGrow() { const ta = $('laudoEd'); ta.style.height = 'auto'; ta.style.height = Math.max(ta.scrollHeight, 360) + 'px'; }
-const escH = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-// Fundo atrás do texto: marca as frases da foto escolhida (a do clique mais forte) e, de leve,
-// a frase com "(foto N)" sob o cursor do mouse.
-function paintLaudo() {
-  const text = $('laudoEd').value, back = $('lBack');
-  const marks = new Map();
-  if (lsN) for (const r of sentencesWithRef(text, lsN)) marks.set(r.start, { r, cls: lFocus && lFocus.start === r.start ? 'on' : 'rel' });
-  if (lFocus && lsOpenSide && !marks.has(lFocus.start) && lFocus.end <= text.length) marks.set(lFocus.start, { r: lFocus, cls: 'on' }); // frase clicada sem foto
-  if (lHover) { const m = marks.get(lHover.start); if (m) m.cls += ' hov'; else marks.set(lHover.start, { r: lHover, cls: 'hov' }); }
-  let html = '', at = 0;
-  for (const { r, cls } of [...marks.values()].sort((a, b) => a.r.start - b.r.start)) {
-    if (r.start < at) continue;
-    html += escH(text.slice(at, r.start)) + '<mark class="' + cls + '">' + escH(text.slice(r.start, r.end)) + '</mark>'; at = r.end;
-  }
-  back.innerHTML = html + escH(text.slice(at)) + '\n';
-}
-// Posição no texto sob o mouse: o fundo tem o mesmo desenho do texto, então mede-se nele.
-function backPos(off) {
-  const w = document.createTreeWalker($('lBack'), NodeFilter.SHOW_TEXT); let n, acc = 0;
-  while ((n = w.nextNode())) { if (off <= acc + n.length) return [n, off - acc]; acc += n.length; }
-  return null;
-}
-function offsetAtPoint(x, y) {
-  const ta = $('laudoEd'), back = $('lBack');
-  ta.style.pointerEvents = 'none'; back.style.pointerEvents = 'auto';
-  let rg = null; try { rg = document.caretRangeFromPoint(x, y); } finally { ta.style.pointerEvents = ''; back.style.pointerEvents = ''; }
-  if (!rg || !back.contains(rg.startContainer)) return -1;
-  const pre = document.createRange(); pre.setStart(back, 0); pre.setEnd(rg.startContainer, rg.startOffset);
-  return pre.toString().length;
-}
-let hoverRaf = 0;
-function laudoHover(e) {
-  const x = e.clientX, y = e.clientY;
-  cancelAnimationFrame(hoverRaf);
-  hoverRaf = requestAnimationFrame(() => {
-    const ta = $('laudoEd'), off = offsetAtPoint(x, y);
-    let next = null;
-    if (off >= 0 && off < ta.value.length) {
-      const r = sentenceAt(ta.value, off);
-      if (refsIn(ta.value.slice(r.start, r.end)).length) {
-        const a = backPos(r.start), b = backPos(r.end);
-        if (a && b) { const rg = document.createRange(); rg.setStart(a[0], a[1]); rg.setEnd(b[0], b[1]); if ([...rg.getClientRects()].some(q => x >= q.left - 2 && x <= q.right + 2 && y >= q.top - 2 && y <= q.bottom + 2)) next = r; }
-      }
-    }
-    const ptr = !!next && !(lFocus && lFocus.start === next.start); // na frase já escolhida o cursor é de texto
-    if (ta.style.cursor !== (ptr ? 'pointer' : '')) ta.style.cursor = ptr ? 'pointer' : '';
-    if ((next && next.start) !== (lHover && lHover.start) || !!next !== !!lHover) { lHover = next; paintLaudo(); }
+// Documento gerado das descrições (antes da primeira edição), na ordem das seções e do exame.
+function genDoc(opts) {
+  const doc = [], blocks = concatBlocks(S.view, opts);
+  blocks.forEach((b, i) => {
+    if (i) doc.push([]);
+    doc.push([{ t: b.head }]);
+    for (const para of b.paras) { const runs = []; para.forEach((it, k) => { if (k) runs.push({ t: ' ' }); runs.push({ id: it.id }); }); doc.push(runs); }
   });
+  return doc;
 }
-function laudoLeave() { cancelAnimationFrame(hoverRaf); if (lHover) { lHover = null; $('laudoEd').style.cursor = ''; paintLaudo(); } }
-// Clique no texto: com "(foto N)" abre a foto; sem foto, o painel fica e mostra "sem foto", com "Vincular foto".
-let lsOpenSide = false, lsPicking = false;
-const isHeading = s => SECTIONS.some(x => normU(x.name) === normU(s.trim())) || (s.trim() === s.trim().toUpperCase() && !/[.!?]$/.test(s.trim()));
-function laudoClick() {
-  const ta = $('laudoEd'), r = sentenceAt(ta.value, ta.selectionStart), s = ta.value.slice(r.start, r.end), refs = refsIn(s);
-  ta.style.cursor = ''; // clicou: o cursor volta ao de texto, para editar no ponto clicado
-  lsPicking = false;
-  if (!s.trim() || isHeading(s)) { if (lsOpenSide && !lsPhoto) { lFocus = null; paintLaudo(); renderLaudoSide(); } return; }
-  lsOpenSide = true; lFocus = r;
-  if (!refs.length) { lsN = 0; lsPhoto = null; paintLaudo(); renderLaudoSide(); return; }
-  const n = refs[0], id = numMap(numberPhotos(S.view.photos))[n];
-  lsN = n; if (lsPhoto !== id) lsVer = -1; lsPhoto = id || null;
-  paintLaudo(); renderLaudoSide();
+const currentDoc = () => docMode() ? S.hub.laudo.doc : genDoc(laudoOpts());
+const segDisplay = t => docMode() ? t.texto : sentence(t.texto);
+function segExport(t, nums, refs) {
+  const txt = segDisplay(t), r = refs ? refLabel(t.fotoIds, nums) : '';
+  if (!r) return txt;
+  const m = txt.match(/^([\s\S]*?)([.!?…:;]*)$/);
+  return m[1] + ' (' + r + ')' + m[2];
 }
-// Descrição que corresponde à frase (o texto livre pode ter mudado; compara sem pontuação nem maiúsculas).
-function descForSentence(s) {
-  const k = normCmp(s); if (k.length < 6) return null;
-  return S.view.texts.find(d => normCmp(d.texto) === k) || S.view.texts.find(d => { const dk = normCmp(d.texto); return dk.length >= 6 && (dk.includes(k) || k.includes(dk)); }) || null;
+function laudoText() {
+  const nums = numberPhotos(S.view.photos), refs = $('lRefs').checked;
+  return currentDoc().map(p => p.map(r => r.id ? (textById(r.id) ? segExport(textById(r.id), nums, refs) : '') : r.t).join('')).join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
-function openPicker() { lsPicking = true; renderLaudoSide(); }
-function linkFromLaudo(p) {
-  const ta = $('laudoEd'), fl = freeLaudo(), nums = numberPhotos(S.view.photos), n = nums.get(p.id);
-  if (!lFocus || !n) return;
-  const at = lFocus.start, s = ta.value.slice(lFocus.start, lFocus.end), d = descForSentence(s);
-  if (d && !d.fotoId) linkText(d.id, p.id); // a descrição passa a ser desta foto (com Desfazer)
-  if (fl || !d) {
-    // No texto livre (ou frase escrita à mão), põe a referência no fim da frase.
-    const body = s.replace(/\s+$/, ''), withN = /[.!?…:;]$/.test(body) ? body.replace(/([.!?…:;])$/, ' (foto ' + n + ')$1') : body + ' (foto ' + n + ')';
-    ta.setRangeText(withN, at, at + body.length, 'end');
-    laudoInput();
+// Migração do texto livre da versão anterior: frases iguais a uma descrição viram trechos ligados a ela.
+function migrateLaudo() {
+  const L = S.hub.laudo; if (!L || Array.isArray(L.doc) || typeof L.texto !== 'string') return;
+  const used = new Set(), doc = [];
+  for (const line of L.texto.split('\n')) {
+    const runs = []; let i = 0;
+    while (i < line.length) {
+      const r = sentenceAt(line, i), s = line.slice(r.start, r.end);
+      const k = normCmp(s), d = k.length >= 6 && S.view.texts.find(t => !used.has(t.id) && normCmp(t.texto) === k);
+      if (r.start > i) runs.push({ t: line.slice(i, r.start) });
+      if (d) { used.add(d.id); runs.push({ id: d.id }); const clean = s.replace(/\s*\(fotos? [^)]*\)/gi, ''); if (clean !== d.texto) setDescText(d, clean, true); }
+      else runs.push({ t: s });
+      i = Math.max(r.end, i + 1);
+    }
+    doc.push(mergeFree(runs));
   }
-  lsPicking = false; lsN = n; lsPhoto = p.id; lsVer = -1; lsOpenSide = true;
-  lFocus = sentenceAt(ta.value, at);
-  paintLaudo(); renderLaudoSide();
+  S.hub.laudo = { doc, fora: [], editadoEm: L.editadoEm || null };
 }
+function mergeFree(runs) { const out = []; for (const r of runs) { const last = out[out.length - 1]; if (!r.id && last && !last.id) last.t += r.t; else if (r.id || r.t) out.push(Object.assign({}, r)); } return out; }
+
+// ── Descrições: texto e fotos (do celular, com camada do hub; ou escritas no laudo) ──
+function setDescText(t, value, quiet) {
+  if (t.origem === 'laudo') S.hub.novos[t.id].texto = value;
+  else { const o = tOv(t.id); if (value === t.textoCelular) delete o.texto; else o.texto = value; }
+  if (!quiet) changed();
+}
+function setDescFotos(t, ids) {
+  if (t.origem === 'laudo') S.hub.novos[t.id].fotos = ids;
+  else { const o = tOv(t.id); delete o.fotoId; o.fotos = ids; }
+}
+
+// ── Editor (contenteditable) ─────────────────────────────────────────────────
+const isRef = n => n.nodeType === 1 && n.classList.contains('ref');
+function segText(el) { let s = ''; for (const n of el.childNodes) { if (isRef(n)) continue; s += n.nodeType === 3 ? n.data : segText(n); } return s; }
+function buildEditor() {
+  const ed = $('ledit'), nums = numberPhotos(S.view.photos), refs = $('lRefs').checked;
+  const caret = lCaret; ed.textContent = '';
+  for (const para of currentDoc()) {
+    const p = document.createElement('p');
+    for (const r of para) {
+      if (!r.id) { p.append(document.createTextNode(r.t)); continue; }
+      const t = textById(r.id); if (!t) continue;
+      const txt = segDisplay(t), ref = refs ? refLabel(t.fotoIds, nums) : '';
+      const span = h('span', { class: 'seg' + (t.fotoIds.length ? ' ph' : ''), 'data-id': t.id });
+      if (ref) { const m = txt.match(/^([\s\S]*?)([.!?…:;]*)$/); span.append(m[1], h('span', { class: 'ref', contenteditable: 'false' }, ' (' + ref + ')'), m[2]); }
+      else span.append(txt);
+      p.append(span);
+    }
+    if (!p.childNodes.length) p.append(document.createElement('br'));
+    ed.append(p);
+  }
+  if (caret && document.activeElement === ed) restoreCaret(caret);
+  markTarget();
+}
+// Lê o editor de volta para o documento; trechos alterados atualizam a descrição; trecho apagado vai para "fora do laudo".
+function parseEditor() {
+  const ed = $('ledit'), doc = [], seen = new Set(), texts = new Map();
+  const paras = [];
+  let loose = null;
+  for (const n of [...ed.childNodes]) {
+    if (n.nodeType === 1 && /^(P|DIV)$/.test(n.tagName)) { loose = null; paras.push(n); }
+    else { if (!loose) { loose = document.createElement('p'); n.before(loose); paras.push(loose); } loose.append(n); }
+  }
+  for (const p of paras) {
+    const runs = [];
+    const walk = node => {
+      for (const n of [...node.childNodes]) {
+        if (n.nodeType === 3) { runs.push({ t: n.data }); continue; }
+        if (n.nodeType !== 1 || isRef(n) || n.tagName === 'BR') continue;
+        if (n.classList.contains('seg')) {
+          let id = n.dataset.id; const text = segText(n);
+          if (!text.trim()) { runs.push({ t: text }); continue; }
+          if (!textById(id) && !S.hub.novos[id]) { runs.push({ t: text }); continue; } // trecho desconhecido: vira texto livre
+          if (seen.has(id)) id = splitDesc(id, n); // Enter no meio de um trecho: a segunda parte vira outra descrição com as mesmas fotos
+          seen.add(id); texts.set(id, text); runs.push({ id });
+        } else walk(n);
+      }
+    };
+    walk(p); doc.push(mergeFree(runs));
+  }
+  return { doc, texts };
+}
+function newDescId() { return 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function splitDesc(id, el) {
+  const t = textById(id), nid = newDescId();
+  S.hub.novos[nid] = { texto: '', secao: t ? t.secao : 'obs', capturadaEm: t ? t.capturadaEm : new Date().toISOString(), fotos: t ? t.fotoIds.slice() : [] };
+  el.dataset.id = nid; return nid;
+}
+// O Chrome leva o trecho para o parágrafo novo ao dar Enter no fim dele, e põe dentro do trecho o que se
+// digita logo depois do ponto final. Nos dois casos o texto novo é livre, não parte da descrição.
+function unwrapSeg(s) {
+  const parent = s.parentNode, idx = [...parent.childNodes].indexOf(s), sel = getSelection();
+  const inside = sel.rangeCount && s.contains(sel.anchorNode);
+  const kids = [...s.childNodes].filter(n => !isRef(n));
+  s.replaceWith(...kids);
+  if (inside && !kids.some(k => k.contains(sel.anchorNode))) { const r = document.createRange(); r.setStart(parent, Math.min(idx, parent.childNodes.length)); r.collapse(true); sel.removeAllRanges(); sel.addRange(r); }
+}
+function normEditor() { for (const s of [...$('ledit').querySelectorAll('.seg')]) if (!segText(s).trim()) unwrapSeg(s); }
+function edBeforeInput(e) {
+  if (e.inputType !== 'insertText' || !e.data) return;
+  const sel = getSelection(); if (!sel.rangeCount || !sel.isCollapsed) return;
+  const n = sel.anchorNode, el = n.nodeType === 1 ? n : n.parentNode, seg = el && el.closest('.seg');
+  if (!seg || !$('ledit').contains(seg)) return;
+  const r = document.createRange(); r.selectNodeContents(seg); r.setStart(n, sel.anchorOffset);
+  if (r.toString() !== '' || !/[.!?…]\s*$/.test(segText(seg))) return;
+  e.preventDefault();
+  let tn = seg.nextSibling; if (!tn || tn.nodeType !== 3) { tn = document.createTextNode(''); seg.after(tn); }
+  tn.insertData(0, e.data);
+  const c = document.createRange(); c.setStart(tn, e.data.length); c.collapse(true); sel.removeAllRanges(); sel.addRange(c);
+  laudoInput();
+}
+function laudoInput() {
+  clearTimeout(parseTimer);
+  parseTimer = setTimeout(() => {
+    const ed = $('ledit'); saveCaret();
+    const before = new Set(currentDoc().flat().filter(r => r.id).map(r => r.id));
+    const wasDoc = docMode();
+    const { doc, texts } = parseEditor();
+    if (!wasDoc) S.hub.laudo = { doc, fora: [], editadoEm: null };
+    const L = S.hub.laudo; L.doc = doc; L.editadoEm = new Date().toISOString(); L.fora = L.fora || [];
+    for (const [id, txt] of texts) { const t = textById(id); if (t) { if (txt !== t.texto) setDescText(t, txt, true); } else if (S.hub.novos[id]) S.hub.novos[id].texto = txt; }
+    const now = new Set(texts.keys());
+    for (const id of before) if (!now.has(id) && !L.fora.includes(id)) L.fora.push(id);
+    L.fora = L.fora.filter(id => !now.has(id));
+    S.view = mergeView(S.manifest, S.hub);
+    dirty = true; setSave('busy', 'alterações não salvas'); clearTimeout(saveTimer); saveTimer = setTimeout(flushSave, 1200);
+    renderSidebar(); renderLaudoStatus(); updateTarget();
+  }, 250);
+}
+// Cursor: parágrafo + posição no texto do parágrafo (sem contar as marcas de foto).
+function nodeOffset(p, node, off) {
+  let acc = 0, found = null;
+  const walk = n => {
+    if (found !== null) return;
+    if (n === node && n.nodeType === 3) { found = acc + off; return; }
+    if (n === node && n.nodeType === 1) { for (let i = 0; i < off && i < n.childNodes.length; i++) acc += isRef(n.childNodes[i]) ? 0 : (n.childNodes[i].textContent || '').length - refLen(n.childNodes[i]); found = acc; return; }
+    if (n.nodeType === 3) { acc += n.data.length; return; }
+    if (isRef(n)) return;
+    for (const c of n.childNodes) walk(c);
+  };
+  walk(p); return found === null ? acc : found;
+}
+const refLen = n => n.nodeType === 1 ? [...n.querySelectorAll('.ref')].reduce((a, r) => a + r.textContent.length, 0) : 0;
+function paraOf(node) { const ed = $('ledit'); while (node && node.parentNode !== ed) node = node.parentNode; return node; }
+function saveCaret() {
+  const sel = getSelection(), ed = $('ledit');
+  if (!sel.rangeCount || !ed.contains(sel.anchorNode)) return;
+  const r = sel.getRangeAt(0), pa = paraOf(r.startContainer), pb = paraOf(r.endContainer) || pa; if (!pa || pa === ed) { lCaret = null; return; }
+  const kids = [...ed.children];
+  lCaret = { para: kids.indexOf(pa), start: nodeOffset(pa, r.startContainer, r.startOffset), endPara: kids.indexOf(pb), end: nodeOffset(pb, r.endContainer, r.endOffset) };
+}
+function posAt(p, off) {
+  let acc = 0, res = null;
+  const walk = n => {
+    if (res) return;
+    if (n.nodeType === 3) { if (off <= acc + n.data.length) { res = [n, off - acc]; return; } acc += n.data.length; return; }
+    if (isRef(n)) return;
+    for (const c of n.childNodes) walk(c);
+  };
+  walk(p); return res || [p, p.childNodes.length];
+}
+function restoreCaret(c) {
+  const kids = $('ledit').children, pa = kids[c.para], pb = kids[c.endPara] || pa; if (!pa) return;
+  const a = posAt(pa, c.start), b = posAt(pb, c.end), r = document.createRange();
+  try { r.setStart(a[0], a[1]); r.setEnd(b[0], b[1]); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } catch (e) {}
+}
+function paraText(p) { return segText(p); }
+// Alvo do vínculo: o trecho onde está o cursor, ou o texto livre selecionado (ou a frase do cursor).
+function updateTarget() {
+  saveCaret();
+  const sel = getSelection(), ed = $('ledit');
+  if (!sel.rangeCount || !ed.contains(sel.anchorNode)) return;
+  const node = sel.anchorNode, seg = (node.nodeType === 1 ? node : node.parentNode).closest('.seg');
+  let next = null;
+  if (seg && ed.contains(seg)) next = { kind: 'seg', id: seg.dataset.id };
+  else if (lCaret && ed.children[lCaret.para]) {
+    const p = ed.children[lCaret.para], txt = paraText(p);
+    if (lCaret.para !== lCaret.endPara) return;
+    let a = lCaret.start, b = lCaret.end;
+    // limites do texto livre em volta (entre trechos)
+    const free = freeSpan(p, a);
+    if (!free) next = null;
+    else {
+      if (a === b) { const ss = free.text, r = sentenceAt(ss, a - free.start); a = free.start + r.start; b = free.start + r.end; }
+      a = Math.max(a, free.start); b = Math.min(b, free.end);
+      const s = txt.slice(a, b);
+      next = s.trim() && !isHeading(s) ? { kind: 'free', para: lCaret.para, start: a + (s.length - s.trimStart().length), end: b - (s.length - s.trimEnd().length) } : null;
+    }
+  }
+  const same = JSON.stringify(next) === JSON.stringify(lTarget);
+  lTarget = next;
+  if (next) lsOpenSide = true;
+  if (next && next.kind === 'seg') { const t = textById(next.id); if (t && !t.fotoIds.includes(lShow)) { lShow = t.fotoIds[0] || null; lsVer = -1; } }
+  else if (next) lShow = null;
+  if (!same) lsPicking = false;
+  markTarget(); renderLaudoSide();
+}
+// Pedaço de texto livre (entre trechos) que contém a posição.
+function freeSpan(p, off) {
+  let acc = 0, cur = null;
+  const pieces = [];
+  for (const n of p.childNodes) {
+    const isSeg = n.nodeType === 1 && n.classList.contains('seg'), len = isSeg ? segText(n).length : (n.nodeType === 3 ? n.data.length : segText(n).length);
+    if (isSeg) { if (cur) { pieces.push(cur); cur = null; } }
+    else { if (!cur) cur = { start: acc, end: acc, text: '' }; cur.end = acc + len; cur.text += n.nodeType === 3 ? n.data : segText(n); }
+    acc += len;
+  }
+  if (cur) pieces.push(cur);
+  return pieces.find(x => off >= x.start && off <= x.end) || null;
+}
+const isHeading = s => SECTIONS.some(x => normU(x.name) === normU(s.trim())) || (s.trim() === s.trim().toUpperCase() && !/[.!?]$/.test(s.trim()) && /[A-ZÀ-Ú]/.test(s));
+function markTarget() {
+  const ed = $('ledit');
+  for (const el of ed.querySelectorAll('.seg.on, .seg.rel')) el.classList.remove('on', 'rel');
+  if (CSS.highlights) CSS.highlights.delete('lfree');
+  if (!lTarget) return;
+  if (lTarget.kind === 'seg') {
+    for (const el of ed.querySelectorAll('.seg[data-id="' + lTarget.id + '"]')) el.classList.add('on');
+    if (lShow) for (const t of S.view.texts.filter(x => x.id !== lTarget.id && x.fotoIds.includes(lShow))) for (const el of ed.querySelectorAll('.seg[data-id="' + t.id + '"]')) el.classList.add('rel');
+  } else if (CSS.highlights && window.Highlight) {
+    const p = ed.children[lTarget.para]; if (!p) return;
+    const a = posAt(p, lTarget.start), b = posAt(p, lTarget.end), r = new Range();
+    try { r.setStart(a[0], a[1]); r.setEnd(b[0], b[1]); CSS.highlights.set('lfree', new Highlight(r)); } catch (e) {}
+  }
+}
+
+// ── Vincular e desvincular a partir do laudo ─────────────────────────────────
+function ensureDoc() { if (!docMode()) { S.hub.laudo = { doc: genDoc(laudoOpts()), fora: [], editadoEm: new Date().toISOString() }; for (const t of S.view.texts) if (sentence(t.texto) !== t.texto) setDescText(t, sentence(t.texto), true); } }
+function linkFromLaudo(p) {
+  if (!lTarget) return;
+  const before = JSON.stringify({ laudo: S.hub.laudo || null, textos: S.hub.textos, novos: S.hub.novos });
+  ensureDoc();
+  let id;
+  if (lTarget.kind === 'seg') {
+    const t = textById(lTarget.id); if (!t) return;
+    setDescFotos(t, t.fotoIds.includes(p.id) ? t.fotoIds : t.fotoIds.concat([p.id]));
+    if (!t.fotoIds.length && t.origem !== 'laudo') tOv(t.id).secao = p.secao;
+    id = t.id;
+  } else {
+    // texto livre selecionado vira descrição desta foto
+    const doc = S.hub.laudo.doc, para = doc[lTarget.para]; if (!para) return;
+    const txt = para.map(r => r.id ? (textById(r.id) ? textById(r.id).texto : '') : r.t).join('');
+    const piece = txt.slice(lTarget.start, lTarget.end);
+    id = newDescId();
+    S.hub.novos[id] = { texto: piece, secao: p.secao, capturadaEm: p.capturadaEm || new Date().toISOString(), fotos: [p.id] };
+    doc[lTarget.para] = replaceRange(para, lTarget.start, lTarget.end, { id });
+  }
+  S.hub.laudo.editadoEm = new Date().toISOString();
+  lTarget = { kind: 'seg', id }; lShow = p.id; lsVer = -1; lsPicking = false; lsOpenSide = true;
+  changed(); caretInSeg(id);
+  const nums = numberPhotos(S.view.photos);
+  banner('link', 'ok', 'Trecho vinculado à ' + (nums.has(p.id) ? 'foto ' + nums.get(p.id) : 'foto ' + p.name + ' (fora do anexo)') + '. Aparece também na aba Fotos.',
+    [{ label: 'Desfazer', fn: () => { const b = JSON.parse(before); if (b.laudo) S.hub.laudo = b.laudo; else delete S.hub.laudo; S.hub.textos = b.textos; S.hub.novos = b.novos; lTarget = null; changed(); } }], 8000);
+}
+// Troca o intervalo [a, b) de um parágrafo (contado no texto) por um trecho; o resto continua texto livre.
+function replaceRange(para, a, b, run) {
+  const out = []; let acc = 0, placed = false;
+  for (const r of para) {
+    const len = r.id ? (textById(r.id) ? textById(r.id).texto.length : 0) : r.t.length;
+    if (r.id) { if (!placed && acc >= b) { out.push(run); placed = true; } out.push(r); acc += len; continue; }
+    const s = r.t, x = Math.max(0, a - acc), y = Math.min(len, b - acc);
+    if (y <= 0 || x >= len) { out.push(r); acc += len; continue; }
+    if (x > 0) out.push({ t: s.slice(0, x) });
+    if (!placed) { out.push(run); placed = true; }
+    if (y < len) out.push({ t: s.slice(y) });
+    acc += len;
+  }
+  if (!placed) out.push(run);
+  return mergeFree(out);
+}
+function unlinkFromLaudo(pid) {
+  if (!lTarget || lTarget.kind !== 'seg') return;
+  const t = textById(lTarget.id); if (!t) return;
+  const before = JSON.stringify({ laudo: S.hub.laudo || null, textos: S.hub.textos, novos: S.hub.novos });
+  ensureDoc();
+  const left = t.fotoIds.filter(x => x !== pid);
+  if (!left.length && t.origem === 'laudo') {
+    // escrita no laudo e sem foto: volta a ser texto livre
+    for (const para of S.hub.laudo.doc) for (const r of para) if (r.id === t.id) { delete r.id; r.t = t.texto; }
+    S.hub.laudo.doc = S.hub.laudo.doc.map(mergeFree);
+    delete S.hub.novos[t.id]; lTarget = null; lShow = null;
+  } else { setDescFotos(t, left); lShow = left[0] || null; lsVer = -1; }
+  changed(); if (lTarget) caretInSeg(lTarget.id);
+  banner('link', 'ok', 'Foto desvinculada do trecho.', [{ label: 'Desfazer', fn: () => { const b = JSON.parse(before); if (b.laudo) S.hub.laudo = b.laudo; else delete S.hub.laudo; S.hub.textos = b.textos; S.hub.novos = b.novos; changed(); } }], 8000);
+}
+// Insere no cursor um ditado que ainda não está no texto (faixa amarela).
+function insertDesc(t) {
+  ensureDoc();
+  const doc = S.hub.laudo.doc, c = lCaret;
+  if (sentence(t.texto) !== t.texto) setDescText(t, sentence(t.texto), true);
+  if (!c || !doc[c.para]) doc.push([{ id: t.id }]);
+  else {
+    const para = doc[c.para], txt = para.map(r => r.id ? (textById(r.id) ? textById(r.id).texto : '') : r.t).join('');
+    const pre = txt.slice(0, c.start);
+    doc[c.para] = replaceRange(para, c.start, c.start, { id: t.id });
+    if (pre && !/\s$/.test(pre)) doc[c.para] = replaceRange(doc[c.para], c.start, c.start, { t: ' ' });
+  }
+  S.hub.laudo.fora = (S.hub.laudo.fora || []).filter(x => x !== t.id);
+  S.hub.laudo.editadoEm = new Date().toISOString();
+  lTarget = { kind: 'seg', id: t.id }; lShow = t.fotoIds[0] || null; lsOpenSide = true;
+  changed(); caretInSeg(t.id);
+}
+// Depois de um vínculo (que redesenha o editor), o cursor volta para o fim do texto do trecho.
+function caretInSeg(id) {
+  const ed = $('ledit'), s = ed.querySelector('.seg[data-id="' + CSS.escape(id) + '"]'); if (!s) return;
+  const tn = [...s.childNodes].filter(n => n.nodeType === 3 && n.data.length);
+  const last = tn.find(n => n.nextSibling && isRef(n.nextSibling)) || tn[tn.length - 1]; if (!last) return;
+  ed.focus({ preventScroll: true });
+  const r = document.createRange(); r.setStart(last, last.data.length); r.collapse(true);
+  const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); saveCaret();
+}
+function backToLaudo(id) { if (!docMode()) return; S.hub.laudo.fora = (S.hub.laudo.fora || []).filter(x => x !== id); changed(); banner('laudo', 'ok', 'O trecho está na faixa "não estão no texto" da aba Laudo; clique nele para inserir onde estiver o cursor.', [], 6000); }
+
+// ── Tela da aba Laudo ────────────────────────────────────────────────────────
 function renderLaudo() {
-  const ta = $('laudoEd'), fl = freeLaudo();
-  if (document.activeElement !== ta || !fl) { const v = laudoText(); if (ta.value !== v) ta.value = v; }
-  if (!ta.value && !S.view.texts.length) ta.placeholder = 'Nenhuma descrição ainda. Você pode escrever aqui livremente.';
-  autoGrow(); paintLaudo(); renderLaudoStatus(); renderLaudoSide();
+  migrateLaudo();
+  const ed = $('ledit');
+  if (document.activeElement !== ed) buildEditor();
+  else { // digitando: só as marcas de foto (numeração ou opção podem ter mudado)
+    const nums = numberPhotos(S.view.photos), refs = $('lRefs').checked;
+    for (const el of ed.querySelectorAll('.seg')) { const t = textById(el.dataset.id); const r = el.querySelector('.ref'); const want = t && refs ? refLabel(t.fotoIds, nums) : ''; if ((r ? r.textContent : '') !== (want ? ' (' + want + ')' : '')) { saveCaret(); buildEditor(); break; } }
+    markTarget();
+  }
+  renderLaudoStatus(); renderLaudoSide();
 }
 function renderLaudoStatus() {
-  const fl = freeLaudo(), txt = $('laudoEd').value;
-  $('lState').textContent = fl ? 'Texto livre, salvo no Drive' + (fl.editadoEm ? ' (editado em ' + new Date(fl.editadoEm).toLocaleString('pt-BR') + ')' : '') + '. As descrições não mudam mais este texto sozinhas.' : 'Gerado das descrições e atualizado sozinho. Digite à vontade: ao editar, vira texto livre.';
-  $('lRedo').hidden = !fl;
-  for (const id of ['lHead', 'lRefs', 'lPara']) $(id).closest('label').title = fl ? 'Vale para "Refazer a partir das descrições"' : '';
-  // Numeração das fotos que mudou depois que o texto virou livre.
-  let renum = 0;
-  if (fl && fl.mapa) { const nums = numberPhotos(S.view.photos); renum = renumberRefs(txt, fl.mapa, nums).changed; }
-  $('lRenum').hidden = !renum; $('lRenum').textContent = 'Atualizar números das fotos (' + renum + ')';
-  // Descrições que não aparecem no texto livre (novas ou alteradas depois).
+  const dm = docMode(), L = S.hub.laudo || {};
+  $('lState').textContent = dm ? 'Texto do laudo, salvo no Drive' + (L.editadoEm ? ' (editado em ' + new Date(L.editadoEm).toLocaleString('pt-BR') + ')' : '') + '. Trechos ligados a fotos sincronizam com a aba Fotos.' : 'Montado das descrições e atualizado sozinho até você editar. Escreva à vontade.';
+  $('lRedo').hidden = !dm;
   const box = $('lMissing'); box.textContent = '';
-  const miss = fl ? missingDescs(txt, S.view) : [];
+  const inDoc = new Set(currentDoc().flat().filter(r => r.id).map(r => r.id)), fora = new Set(L.fora || []);
+  const miss = dm ? S.view.texts.filter(t => !inDoc.has(t.id) && !fora.has(t.id) && String(t.texto || '').trim()) : [];
   box.hidden = !miss.length;
   if (miss.length) {
-    const nums = numberPhotos(S.view.photos), o = laudoOpts();
-    box.append(h('span', { class: 'hint' }, miss.length + (miss.length === 1 ? ' descrição não aparece' : ' descrições não aparecem') + ' no texto (novas ou alteradas depois). Clique para inserir onde está o cursor:'));
+    box.append(h('span', { class: 'hint' }, miss.length + (miss.length === 1 ? ' descrição não está' : ' descrições não estão') + ' no texto (ditadas depois). Clique para inserir onde está o cursor:'));
     for (const d of miss.sort((a, b) => secIdx(a.secao) - secIdx(b.secao) || String(a.capturadaEm).localeCompare(String(b.capturadaEm)))) {
-      const ins = withRef(sentence(d.texto), o.refs && d.fotoId && nums.has(d.fotoId) ? 'foto ' + nums.get(d.fotoId) : '');
-      box.append(h('button', { class: 'chip', title: secName(d.secao), onclick: () => { const ta = $('laudoEd'); const a = ta.selectionStart, pre = ta.value.slice(0, a); ta.setRangeText((pre && !/\s$/.test(pre) ? ' ' : '') + ins, a, ta.selectionEnd, 'end'); laudoInput(); ta.focus(); } }, ins.length > 70 ? ins.slice(0, 68) + '…' : ins));
+      const s = sentence(d.texto);
+      box.append(h('button', { class: 'chip', 'data-text': d.id, title: secName(d.secao), onmousedown: e => e.preventDefault(), onclick: () => insertDesc(d) }, s.length > 70 ? s.slice(0, 68) + '…' : s));
     }
   }
-  const loose = S.view.texts.filter(t => !t.fotoId).length;
-  $('laudoInfo').textContent = wordCount(txt) + ' palavras. Clique numa frase com "(foto N)" para ver a foto ao lado.' + (!fl && loose ? ' ' + loose + ' texto(s) sem foto entram na sua seção, sem referência a foto.' : '');
-}
-function redoLaudo() {
-  const fl = freeLaudo(); if (!fl) return;
-  if (!confirm('Refazer o texto a partir das descrições?\n\nO texto livre atual será substituído. Logo depois, dá para desfazer.')) return;
-  lPrev = JSON.parse(JSON.stringify(fl)); delete S.hub.laudo; $('laudoEd').value = '';
-  dirty = true; clearTimeout(saveTimer); saveTimer = setTimeout(flushSave, 300); renderLaudo();
-  banner('laudo', 'ok', 'Texto refeito a partir das descrições.', [{ label: 'Desfazer', fn: () => { S.hub.laudo = lPrev; dirty = true; flushSave(); renderLaudo(); } }], 10000);
-}
-function renumberLaudo() {
-  const fl = freeLaudo(); if (!fl) return;
-  const nums = numberPhotos(S.view.photos), r = renumberRefs(fl.texto, fl.mapa, nums);
-  fl.texto = r.text; fl.mapa = numMap(nums); fl.editadoEm = new Date().toISOString();
-  $('laudoEd').value = fl.texto; dirty = true; flushSave(); renderLaudo();
-  banner('laudo', 'ok', r.changed + ' referência(s) a fotos atualizada(s).' + (/\(fotos? [^)]*\?/.test(fl.texto) ? ' "(foto ?)" marca foto que saiu do anexo.' : ''), [], 6000);
+  const txt = laudoText(), loose = S.view.texts.filter(t => !t.fotoIds.length && inDoc.has(t.id)).length;
+  $('laudoInfo').textContent = wordCount(txt) + ' palavras. Clique num trecho para ver as fotos dele; selecione um texto (ou ponha o cursor numa frase) para vincular a uma foto.' + (fora.size ? ' ' + fora.size + ' descrição(ões) fora do laudo.' : '');
 }
 function renderLaudoSide() {
-  const p = lsPhoto && S.view.photos.find(x => x.id === lsPhoto), open = lsOpenSide && (p || lFocus);
+  const open = lsOpenSide && lTarget;
   $('lwrap').className = 'lwrap' + (open ? (lsize === 'half' ? ' half' : ' side') : '');
   $('lside').hidden = !open;
   if (!open) return;
   $('lsSize').textContent = lsize === 'half' ? '⅓' : '½';
-  const showImg = !!p && !lsPicking;
-  $('lsImgBox').hidden = !showImg; $('lsEmpty').hidden = !!p || lsPicking; $('lsPick').hidden = !lsPicking;
-  $('lsOpen').hidden = !p; $('lsVer').hidden = true;
+  const t = lTarget.kind === 'seg' ? textById(lTarget.id) : null, ids = t ? t.fotoIds : [];
+  const p = lShow && S.view.photos.find(x => x.id === lShow);
+  $('lsImgBox').hidden = !p || lsPicking; $('lsEmpty').hidden = !!p || lsPicking; $('lsPick').hidden = !lsPicking;
+  $('lsOpen').hidden = !p || lsPicking; $('lsVer').hidden = true;
+  const strip = $('lsStrip'); strip.textContent = ''; strip.hidden = lsPicking || !t;
+  const nums = numberPhotos(S.view.photos);
+  if (t && !lsPicking) {
+    for (const pid of ids) { const ph = S.view.photos.find(x => x.id === pid); if (!ph) continue; const b = h('button', { class: 'lsth' + (pid === lShow ? ' on' : ''), 'data-photo': pid, 'data-thumb': ph.driveId, title: photoLabel(ph, nums), onclick: () => { lShow = pid; lsVer = -1; markTarget(); renderLaudoSide(); } }, h('span', { class: 'n' }, nums.has(pid) ? String(nums.get(pid)) : '–')); if (ph.driveId) wantThumb(ph.driveId, b); strip.append(b); }
+    strip.append(h('button', { class: 'btn sm', onclick: openPicker }, ids.length ? '+ Vincular outra foto' : 'Vincular foto'));
+    if (p) strip.append(h('button', { class: 'btn sm ghost', onclick: () => unlinkFromLaudo(p.id) }, 'Desvincular esta'));
+  }
   if (lsPicking) return renderPicker();
   if (!p) {
     $('lsTitle').textContent = 'Sem foto';
-    const free = S.view.photos.filter(x => !S.view.texts.some(t => t.fotoId === x.id));
-    $('lsEmptyTxt').textContent = 'Este trecho não tem foto vinculada.' + (free.length ? '' : ' Todas as fotos do caso já têm descrição.');
-    $('lsLink').hidden = !S.view.photos.length;
-    $('lsLink').textContent = free.length ? 'Vincular foto (' + free.length + ' sem vínculo)' : 'Vincular foto';
-    $('lsFoot').textContent = 'A foto escolhida passa a ter esta descrição e o "(foto N)" entra no texto.';
+    $('lsEmptyTxt').textContent = t ? 'Este trecho é uma descrição sem foto vinculada.' : 'Trecho sem foto: “' + (lTarget.kind === 'free' ? freeTargetText().slice(0, 90) : '') + '”';
+    $('lsLink').hidden = !!t || !S.view.photos.length;
+    $('lsFoot').textContent = t ? '' : 'Ao vincular, o trecho passa a ser descrição da foto e aparece na aba Fotos.';
     return;
   }
-  const nums = numberPhotos(S.view.photos);
-  if (lsVer < 0 || lsVer > p.editadas.length) lsVer = p.editadas.length; // abre na última versão anotada, se houver
+  if (lsVer < 0 || lsVer > p.editadas.length) lsVer = p.editadas.length;
   $('lsTitle').textContent = photoLabel(p, nums) + ' · ' + secName(p.secao);
   $('lsVer').hidden = !p.editadas.length;
   $('lsVer').textContent = lsVer ? 'Ver original' : 'Ver anotada';
-  $('lsFoot').textContent = (p.legenda ? 'Legenda: ' + p.legenda : 'Sem legenda') + (lsVer ? ' · versão anotada ' + lsVer : ' · original');
+  $('lsFoot').textContent = (p.legenda ? 'Legenda: ' + p.legenda : 'Sem legenda') + (lsVer ? ' · versão anotada ' + lsVer : ' · original') + (ids.length > 1 ? ' · trecho com ' + ids.length + ' fotos' : '');
   const id = lsVer ? p.editadas[lsVer - 1].driveId : p.driveId, img = $('lsImg');
   if (img.dataset.id === id) return;
   const seq = ++lsSeq; img.dataset.id = id; img.removeAttribute('src'); $('lsLd').textContent = 'Carregando…';
   getBlob(id).then(b => { if (seq !== lsSeq) return; if (lsUrl) URL.revokeObjectURL(lsUrl); lsUrl = URL.createObjectURL(b); img.src = lsUrl; $('lsLd').textContent = ''; })
     .catch(e => { if (seq !== lsSeq) return; if (e instanceof NeedLogin) needLogin(); $('lsLd').textContent = 'Não foi possível carregar: ' + e.message; });
 }
-function closeLaudoSide() { lsN = 0; lsPhoto = null; lFocus = null; lsOpenSide = false; lsPicking = false; paintLaudo(); renderLaudoSide(); }
+function freeTargetText() {
+  if (!lTarget || lTarget.kind !== 'free') return '';
+  const p = $('ledit').children[lTarget.para]; return p ? paraText(p).slice(lTarget.start, lTarget.end) : '';
+}
+function openPicker() { lsPicking = true; renderLaudoSide(); }
 function renderPicker() {
   const nums = numberPhotos(S.view.photos), box = $('lsPick'); box.textContent = '';
   $('lsTitle').textContent = 'Vincular foto';
-  const linked = new Set(S.view.texts.filter(t => t.fotoId).map(t => t.fotoId));
-  const all = orderPhotos(S.view.photos), free = all.filter(p => !linked.has(p.id));
-  const showAll = box.dataset.all === '1', list = showAll ? all : free;
-  box.append(h('span', { class: 'hint' }, (showAll ? 'Todas as fotos' : 'Fotos sem descrição') + '. Clique na foto para vincular ao trecho.'));
+  const t = lTarget && lTarget.kind === 'seg' ? textById(lTarget.id) : null;
+  const linked = new Set(S.view.texts.flatMap(x => x.fotoIds));
+  const all = orderPhotos(S.view.photos).filter(p => !t || !t.fotoIds.includes(p.id)), free = all.filter(p => !linked.has(p.id));
+  const showAll = box.dataset.all === '1' || !free.length, list = showAll ? all : free;
+  box.append(h('span', { class: 'hint' }, (showAll ? 'Todas as fotos' : 'Fotos sem descrição') + '. Clique na foto para vincular ao trecho. Uma foto pode ter várias descrições.'));
   const grid = h('div', { class: 'grid' });
   for (const p of list) {
-    const inA = nums.has(p.id);
-    const b = h('button', { 'data-photo': p.id, 'data-thumb': p.driveId, disabled: !inA, title: inA ? p.name + (p.legenda ? ' — ' + p.legenda : '') : 'Fora do anexo: inclua a foto no anexo antes de vincular', onclick: () => linkFromLaudo(p) },
-      h('span', { class: 'n' }, inA ? String(nums.get(p.id)) : '–'));
+    const b = h('button', { 'data-photo': p.id, 'data-thumb': p.driveId, title: photoLabel(p, nums) + (p.legenda ? ' — ' + p.legenda : ''), onclick: () => linkFromLaudo(p) },
+      h('span', { class: 'n' }, nums.has(p.id) ? String(nums.get(p.id)) : '–'));
     if (p.driveId) wantThumb(p.driveId, b);
     grid.append(b);
   }
-  if (!list.length) grid.append(h('span', { class: 'hint' }, 'Nenhuma foto sem descrição.'));
+  if (!list.length) grid.append(h('span', { class: 'hint' }, 'Nenhuma foto disponível.'));
   box.append(grid);
-  box.append(h('div', { class: 'row', style: 'display:flex;gap:6px' },
-    h('button', { class: 'btn sm ghost', onclick: () => { box.dataset.all = showAll ? '' : '1'; renderPicker(); } }, showAll ? 'Só as sem descrição' : 'Mostrar todas as fotos'),
+  box.append(h('div', { style: 'display:flex;gap:6px' },
+    free.length ? h('button', { class: 'btn sm ghost', onclick: () => { box.dataset.all = showAll ? '' : '1'; renderPicker(); } }, showAll ? 'Só as sem descrição' : 'Mostrar todas as fotos') : null,
     h('button', { class: 'btn sm ghost', onclick: () => { lsPicking = false; renderLaudoSide(); } }, 'Cancelar')));
-  $('lsFoot').textContent = '';
+  $('lsFoot').textContent = 'Fotos fora do anexo podem ser vinculadas, mas só ganham "(foto N)" quando entram no anexo.';
+}
+function closeLaudoSide() { lTarget = null; lShow = null; lsOpenSide = false; lsPicking = false; markTarget(); renderLaudoSide(); }
+function redoLaudo() {
+  if (!docMode()) return;
+  if (!confirm('Refazer o texto a partir das descrições?\n\nO texto atual do laudo (incluindo o que você escreveu fora das descrições) será substituído. Logo depois, dá para desfazer.')) return;
+  lPrev = JSON.parse(JSON.stringify(S.hub.laudo)); delete S.hub.laudo; lTarget = null;
+  changed();
+  banner('laudo', 'ok', 'Texto refeito a partir das descrições.', [{ label: 'Desfazer', fn: () => { S.hub.laudo = lPrev; changed(); } }], 10000);
 }
 function showTab() { for (const b of document.querySelectorAll('.tab[data-tab]')) b.classList.toggle('on', b.dataset.tab === tab); $('pFoto').hidden = tab !== 'pFoto'; $('pLaudo').hidden = tab !== 'pLaudo'; }
 
@@ -1836,28 +2101,29 @@ function bind() {
   for (const id of ['axPer', 'axW', 'axH', 'axPt', 'axEd', 'axSec']) $(id).addEventListener('change', clearAnexo);
   $('lsClose').addEventListener('click', closeLaudoSide);
   $('lsLink').addEventListener('click', openPicker);
-  const applySide = () => { const off = ls.get('forensis_hub_side', '') === 'off'; $('layout').classList.toggle('nosides', off); $('btnSide').textContent = off ? '›› Fotos e descrições' : '‹‹'; $('btnSide').title = off ? 'Mostrar o painel de fotos e descrições' : 'Ocultar o painel de fotos e descrições'; if (tab === 'pLaudo') { autoGrow(); paintLaudo(); } };
+  const applySide = () => { const off = ls.get('forensis_hub_side', '') === 'off'; $('layout').classList.toggle('nosides', off); $('btnSide').textContent = off ? '›› Fotos e descrições' : '‹‹'; $('btnSide').title = off ? 'Mostrar o painel de fotos e descrições' : 'Ocultar o painel de fotos e descrições'; };
   $('btnSide').addEventListener('click', () => { ls.set('forensis_hub_side', ls.get('forensis_hub_side', '') === 'off' ? '' : 'off'); applySide(); });
   applySide();
-  $('laudoEd').addEventListener('input', laudoInput);
-  $('laudoEd').addEventListener('mousemove', laudoHover);
-  $('laudoEd').addEventListener('mouseleave', laudoLeave);
-  for (const ev of ['click', 'keyup']) $('laudoEd').addEventListener(ev, e => { if (ev === 'keyup' && !/^(Arrow|Home|End|Page)/.test(e.key)) return; laudoClick(); });
+  try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch (e) {}
+  $('ledit').addEventListener('beforeinput', edBeforeInput);
+  $('ledit').addEventListener('input', () => { normEditor(); laudoInput(); });
+  $('ledit').addEventListener('paste', e => { e.preventDefault(); document.execCommand('insertText', false, e.clipboardData.getData('text/plain')); }); // só texto, sem formatação
+  $('ledit').addEventListener('drop', e => e.preventDefault());
+  let selT = 0;
+  document.addEventListener('selectionchange', () => { const s = getSelection(); if (s.rangeCount && $('ledit').contains(s.anchorNode)) { clearTimeout(selT); selT = setTimeout(updateTarget, 60); } });
   $('lRedo').addEventListener('click', redoLaudo);
-  $('lRenum').addEventListener('click', renumberLaudo);
-  window.addEventListener('resize', () => { if (tab === 'pLaudo') { autoGrow(); paintLaudo(); } });
   $('lsSize').addEventListener('click', () => { lsize = lsize === 'half' ? 'third' : 'half'; ls.set('forensis_hub_lsize', lsize); renderLaudoSide(); });
-  $('lsVer').addEventListener('click', () => { const p = S.view.photos.find(x => x.id === lsPhoto); if (p) { lsVer = lsVer ? 0 : p.editadas.length; renderLaudoSide(); } });
-  $('lsOpen').addEventListener('click', () => { if (lsPhoto) select(lsPhoto); });
-  for (const b of document.querySelectorAll('.tab[data-tab]')) b.addEventListener('click', () => { tab = b.dataset.tab; showTab(); if (tab === 'pLaudo') { autoGrow(); paintLaudo(); } });
+  $('lsVer').addEventListener('click', () => { const p = S.view.photos.find(x => x.id === lShow); if (p) { lsVer = lsVer ? 0 : p.editadas.length; renderLaudoSide(); } });
+  $('lsOpen').addEventListener('click', () => { if (lShow) select(lShow); });
+  for (const b of document.querySelectorAll('.tab[data-tab]')) b.addEventListener('click', () => { tab = b.dataset.tab; showTab(); if (tab === 'pLaudo') renderLaudo(); else render(); });
   $('btnPrev').addEventListener('click', () => step(-1)); $('btnNext').addEventListener('click', () => step(1));
   $('btnAnnotate').addEventListener('click', openEditor);
   $('phSecSel').addEventListener('change', e => { const p = S.view.photos.find(x => x.id === S.sel); if (p) setPhotoSection(p, e.target.value); });
   $('phCaption').addEventListener('input', e => { const p = S.view.photos.find(x => x.id === S.sel); if (!p) return; clearTimeout(e.target._t); e.target._t = setTimeout(() => { const v = e.target.value.trim(); if (v) pOv(p.id).legenda = v; else delete pOv(p.id).legenda; changed(); }, 600); });
-  dropTarget($('stage'), id => S.sel && linkText(id, S.sel));
-  dropTarget($('descs'), id => S.sel && linkText(id, S.sel));
-  for (const id of ['lHead', 'lRefs', 'lPara']) $(id).addEventListener('change', () => { ls.set('forensis_hub_laudo', JSON.stringify(laudoOpts())); renderLaudo(); });
-  try { const o = JSON.parse(ls.get('forensis_hub_laudo', 'null')); if (o) { $('lHead').checked = !!o.heads; $('lRefs').checked = !!o.refs; $('lPara').value = o.para || 'secao'; } } catch (e) {}
+  dropTarget($('stage'), (id, from) => S.sel && linkText(id, S.sel, from));
+  dropTarget($('descs'), (id, from) => S.sel && linkText(id, S.sel, from));
+  for (const id of ['lRefs', 'lPara']) $(id).addEventListener('change', () => { ls.set('forensis_hub_laudo', JSON.stringify(laudoOpts())); buildEditor(); renderLaudoStatus(); });
+  try { const o = JSON.parse(ls.get('forensis_hub_laudo', 'null')); if (o) { $('lRefs').checked = o.refs !== false; $('lPara').value = o.para || 'secao'; } } catch (e) {}
   $('btnCopy').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(laudoText()); banner('copy', 'ok', 'Texto copiado. Cole no laudo.', [], 3000); }
     catch (e) { banner('copy', 'warn', 'O navegador não deixou copiar. Use "Baixar .txt".', [], 5000); }
