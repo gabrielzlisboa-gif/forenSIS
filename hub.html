@@ -2,14 +2,19 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; script-src 'self' 'sha256-JEhRt5TYNcwQHtm8PZoVp+JT/eTdFOSV2e9GXsWMaF4=' 'wasm-unsafe-eval' https://accounts.google.com/gsi/; connect-src 'self' https://www.googleapis.com https://accounts.google.com/gsi/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>forenSIS · Hub</title>
 <link rel="icon" href="icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
+/* fontes servidas pelo próprio site (sem pedir nada ao Google Fonts) */
+@font-face { font-family:'Inter'; font-style:normal; font-weight:400; font-display:swap; src:url(vendor/fonts/inter-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family:'Inter'; font-style:normal; font-weight:500; font-display:swap; src:url(vendor/fonts/inter-latin-500-normal.woff2) format('woff2'); }
+@font-face { font-family:'Inter'; font-style:normal; font-weight:600; font-display:swap; src:url(vendor/fonts/inter-latin-600-normal.woff2) format('woff2'); }
+@font-face { font-family:'JetBrains Mono'; font-style:normal; font-weight:400; font-display:swap; src:url(vendor/fonts/jetbrains-mono-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family:'JetBrains Mono'; font-style:normal; font-weight:500; font-display:swap; src:url(vendor/fonts/jetbrains-mono-latin-500-normal.woff2) format('woff2'); }
 :root {
   --bg:#0f1117; --surface:#1a1d26; --surface2:#222533; --border:#2e3145; --border-strong:#3d4160;
   --text:#e8eaf0; --text-sec:#a3a8bf; --text-muted:#8a8fa6;
@@ -388,7 +393,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 <script>
 'use strict';
 /*PURE-START*/
-const HUB_VERSION = '0.6.3';
+const HUB_VERSION = '0.6.4';
 // Mesmas seções do app do celular (o teste confere que continuam iguais).
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -1564,11 +1569,12 @@ async function zipAnexo() {
 }
 function printAnexo() {
   const o = axOpts(), w = window.open('', '_blank'); if (!w) { banner('anexo', 'warn', 'O navegador bloqueou a janela. Permita pop-ups para este site.'); return; }
-  w.document.write('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Anexo fotográfico — caso ' + S.name + '</title><style>@page{margin:1.5cm}body{margin:0;background:#eee}' +
+  w.document.write('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Anexo fotográfico — caso ' + S.name.replace(/[<&"]/g, '') + '</title><style>@page{margin:1.5cm}body{margin:0;background:#eee}' +
     'img{display:block;width:' + o.wcm + 'cm;margin:12px auto;background:#fff;break-after:page}.bar{position:sticky;top:0;background:#222;color:#fff;padding:8px 12px;font:13px sans-serif}' +
-    '@media print{.bar{display:none}body{background:#fff}img{margin:0 auto}}</style></head><body><div class="bar">' + ax.pages.length + ' página(s) · <button onclick="print()">Imprimir ou salvar em PDF</button></div>' +
+    '@media print{.bar{display:none}body{background:#fff}img{margin:0 auto}}</style></head><body><div class="bar">' + ax.pages.length + ' página(s) · <button>Imprimir ou salvar em PDF</button></div>' +
     ax.pages.map(p => '<img src="' + p.url + '" alt="Página ' + p.n + '">').join('') + '</body></html>');
   w.document.close();
+  w.document.querySelector('button').addEventListener('click', () => w.print()); // a CSP não deixa rodar onclick embutido
 }
 
 // ── Editor de anotações: o original nunca é alterado; a cópia vai para Editadas/ ──

@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; script-src 'self' 'sha256-HazWITCydvgrsT0VPLHKXaetdATj9nAAOVYJ9iZyrv8=' blob: https://accounts.google.com/gsi/; connect-src 'self' https://www.googleapis.com https://accounts.google.com/gsi/ https://api.groq.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>forenSIS</title>
 <meta name="theme-color" content="#0f1117">
@@ -9,9 +10,14 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://accounts.google.com/gsi/client" async></script>
 <style>
+/* fontes servidas pelo próprio site (sem pedir nada ao Google Fonts) */
+@font-face { font-family:'Inter'; font-style:normal; font-weight:400; font-display:swap; src:url(vendor/fonts/inter-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family:'Inter'; font-style:normal; font-weight:500; font-display:swap; src:url(vendor/fonts/inter-latin-500-normal.woff2) format('woff2'); }
+@font-face { font-family:'Inter'; font-style:normal; font-weight:600; font-display:swap; src:url(vendor/fonts/inter-latin-600-normal.woff2) format('woff2'); }
+@font-face { font-family:'JetBrains Mono'; font-style:normal; font-weight:400; font-display:swap; src:url(vendor/fonts/jetbrains-mono-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family:'JetBrains Mono'; font-style:normal; font-weight:500; font-display:swap; src:url(vendor/fonts/jetbrains-mono-latin-500-normal.woff2) format('woff2'); }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --bg:#0f1117; --surface:#1a1d26; --surface2:#222533; --border:#2e3145; --border-strong:#3d4160;
@@ -377,7 +383,7 @@ body.vw-open .banners { position:fixed; left:0; right:0; z-index:16; max-width:6
 <script>
 'use strict';
 /*PURE-START*/
-const VERSION = '0.4.5';
+const VERSION = '0.4.6';
 const BETA_ROOT = 'DPT_BETA';
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },

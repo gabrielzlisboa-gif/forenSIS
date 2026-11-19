@@ -2,13 +2,23 @@
 
 App para o exame pericial: fotos e ditado no mesmo registro, enviados direto do celular de serviço para o Google Drive com conferência de integridade (SHA-256), e um hub no computador para revisar, escrever o laudo e fechar o caso.
 
-**Estado:** app do celular v0.4.5 · hub v0.6.3. Fases 0 a 4 feitas; fase 5 por fazer.
+**Estado:** app do celular v0.4.6 · hub v0.6.4. Fases 0 a 4 feitas; fase 5 por fazer.
 
 ## Isolamento do beta
 
 - Endereço próprio; o app de ditado atual (`transcricao-forense`) não é alterado.
 - Permissão restrita do Drive (`drive.file`): o app só enxerga o que ele mesmo criou (`DPT_BETA/Morto/2026/…`) e não consegue ver nem alterar `DPT/`.
 - Só casos fictícios, de `2026 9000` a `2026 9999`.
+
+## Segurança
+
+- **Drive:** escopo `drive.file` — o app só alcança o que ele mesmo criou. Mantido no lançamento (ver fase 5).
+- **Conta Google:** verificação em duas etapas.
+- **Caso fechado:** `.7z` com AES-256 e nomes cifrados; senha de no mínimo 8 caracteres, nunca gravada.
+- **Política de segurança de conteúdo (CSP)** nas duas páginas: só roda o script do próprio app (conferido pelo hash), o login do Google e arquivos do site; a página só conversa com o Drive, o login do Google e o Groq (o hub, sem o Groq). Bloqueia script injetado e envio de dados para qualquer outro endereço. **Depois de editar o `<script>` de `index.html` ou `hub.html`, rode `python3 tools/csp.py`**: sem isso a página não abre (os testes acusam).
+- **Sem dependências de terceiros em tempo de execução** além do login do Google: fontes (Inter e JetBrains Mono, licença OFL) e 7-Zip servidos pelo próprio site.
+- **Ditado:** o áudio vai ao Groq; não contém dados pessoais.
+- Decisões do beta (uso pessoal): endereço `github.io` compartilhado com o `transcricao-forense` e repositório público mantidos; sem PIN próprio no celular (vale o bloqueio do Android).
 
 ## Configuração do Google Cloud (uma vez)
 
@@ -66,13 +76,13 @@ App para o exame pericial: fotos e ditado no mesmo registro, enviados direto do 
 - Histórico próprio de desfazer/refazer no editor do laudo (hoje o Ctrl+Z do navegador perde o histórico quando o editor é redesenhado, por exemplo depois de vincular uma foto).
 
 ### 5 — Lançamento
-- Dividir o `hub.html` (mais de 2.200 linhas) em arquivos por função — laudo, anotações, anexo, sanitizador, fechamento — para facilitar manutenção e auditoria de segurança. Sem mudança para o usuário.
-- Domínio próprio, separado de `gabrielzlisboa-gif.github.io` (compartilhado com os outros projetos, inclusive o armazenamento local).
-- Verificação em duas etapas obrigatória na conta Google usada.
+- Dividir o `hub.html` (mais de 2.200 linhas) em arquivos por função — laudo, anotações, anexo, sanitizador, fechamento — para facilitar manutenção e auditoria de segurança. Sem mudança para o usuário. Com o código em arquivos, a CSP passa a valer sem o hash (e sem o `tools/csp.py`).
 - Validar com o DPT o uso de conta Google pessoal para as fotos e o envio do áudio do ditado ao Groq.
-- Troca para a pasta real (`DPT`) e fim do limite de casos fictícios.
+- Pasta real **sem acesso ao Drive inteiro**: continuar com `drive.file` e, uma vez, escolher a pasta `DPT/Morto` pelo seletor do Google (Google Picker). Isso dá ao app acesso só àquela pasta, para criar os casos novos dentro dela; os casos antigos e o resto do Drive continuam fora do alcance. Exige uma chave de API do Picker, restrita ao endereço do app.
+- Fim do limite de casos fictícios.
 
 ### Adiados
+- Domínio próprio (o `github.io` é compartilhado com o `transcricao-forense`; reavaliar se outros projetos forem publicados ali).
 - Selagem do pacote fechado (hash ao e-mail institucional e/ou carimbo de tempo RFC 3161): só se o forenSIS entrar na cadeia de custódia do DPT ou se fotos fora do laudo passarem a ser pedidas no processo; avaliar na validação com o DPT.
 - Escala métrica nas fotos e calibração no hub.
 - Sanitização de outros nomes, CPF e endereços.

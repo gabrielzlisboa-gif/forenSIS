@@ -3,7 +3,9 @@
 // passam direto, sem cópia. Nenhuma foto ou texto do exame passa por aqui.
 'use strict';
 const CACHE = 'forensis-app-1';
-const CORE = ['./', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
+const CORE = ['./', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png',
+  'vendor/fonts/inter-latin-400-normal.woff2', 'vendor/fonts/inter-latin-500-normal.woff2', 'vendor/fonts/inter-latin-600-normal.woff2',
+  'vendor/fonts/jetbrains-mono-latin-400-normal.woff2', 'vendor/fonts/jetbrains-mono-latin-500-normal.woff2'];
 const BASE = new URL('./', self.location).href;
 
 self.addEventListener('install', e => {
