@@ -125,15 +125,15 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 .lwrap { display:grid; grid-template-columns:minmax(0, 1fr); gap:16px; align-items:start; }
 .lwrap.side { grid-template-columns:minmax(0, 2fr) minmax(0, 1fr); }
 .lwrap.half { grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); }
-.lview { border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); padding:16px 20px; font:14px/1.75 var(--sans); min-height:50vh; }
-.lview p { margin:0 0 12px; }
-.lview .lh { font-weight:600; letter-spacing:.02em; margin:16px 0 4px; }
-.lview .lh:first-child { margin-top:0; }
-.lview .ld { cursor:pointer; border-radius:4px; transition:background .12s; }
-.lview .ld.ph:hover { background:rgba(0,201,167,.08); }
-.lview .ld:not(.ph):hover { background:rgba(255,255,255,.04); }
-.lview .ld.on { background:rgba(0,201,167,.22); box-shadow:0 0 0 2px rgba(0,201,167,.22); }
-.lview .ld.rel { background:rgba(0,201,167,.09); }
+.lmode { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--text-sec); margin-bottom:8px; }
+.lmissing { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px; padding:8px 10px; border:1px solid var(--amber-border); background:var(--amber-dim); border-radius:8px; }
+.leditor { position:relative; border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); }
+.leditor:focus-within { border-color:var(--accent-border); }
+.leditor .lback, .leditor textarea { font:14px/1.75 var(--sans); padding:16px 20px; white-space:pre-wrap; overflow-wrap:break-word; word-break:normal; letter-spacing:normal; tab-size:4; }
+.leditor .lback { position:absolute; inset:0; color:transparent; pointer-events:none; overflow:hidden; border:1px solid transparent; margin:-1px; }
+.leditor .lback mark { color:transparent; border-radius:4px; background:rgba(0,201,167,.10); }
+.leditor .lback mark.on { background:rgba(0,201,167,.28); }
+.leditor textarea { position:relative; display:block; width:100%; min-height:360px; border:none; background:transparent; resize:none; overflow:hidden; outline:none; color:var(--text); caret-color:var(--accent); }
 .lside { position:sticky; top:0; border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); display:flex; flex-direction:column; height:calc(100vh - 190px); min-height:320px; overflow:hidden; }
 .lside .lsh { display:flex; align-items:center; gap:6px; padding:8px 10px; border-bottom:1px solid var(--border); font-size:13px; }
 .lside .lsh b { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -260,9 +260,13 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
           <button class="btn" id="btnCopy">Copiar texto</button>
           <button class="btn ghost" id="btnTxt">Baixar .txt</button>
         </div>
+        <div class="lmode"><span id="lState"></span><span class="grow"></span>
+          <button class="btn sm" id="lRenum" hidden></button>
+          <button class="btn sm ghost" id="lRedo" hidden>Refazer a partir das descrições</button></div>
+        <div class="lmissing" id="lMissing" hidden></div>
         <div class="lwrap" id="lwrap">
           <div>
-            <div class="lview" id="laudoView" aria-label="Protótipo do laudo"></div>
+            <div class="leditor"><div class="lback" id="lBack" aria-hidden="true"></div><textarea id="laudoEd" spellcheck="true" lang="pt-BR" aria-label="Laudo (texto livre)"></textarea></div>
             <p class="hint" id="laudoInfo"></p>
           </div>
           <div class="lside" id="lside" hidden>
@@ -359,7 +363,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 <script>
 'use strict';
 /*PURE-START*/
-const HUB_VERSION = '0.4.0';
+const HUB_VERSION = '0.5.0';
 // Mesmas seções do app do celular (o teste confere que continuam iguais).
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -466,6 +470,36 @@ function zipParts(entries) {
   const cdSize = central.reduce((a, c) => a + c.length, 0), end = new Uint8Array(22);
   u32(0x06054b50, end, 0); u16(entries.length, end, 8); u16(entries.length, end, 10); u32(cdSize, end, 12); u32(offset, end, 16);
   return parts.concat(central, [end]);
+}
+// Texto livre do laudo: frases, referências "(foto N)" e descrições que ainda não aparecem no texto.
+function sentenceAt(text, i) {
+  let s = Math.max(0, Math.min(i, text.length));
+  while (s > 0) { const c = text[s - 1]; if (c === '\n' || (/[.!?…]/.test(c) && (s >= text.length || /\s/.test(text[s])))) break; s--; }
+  while (s < text.length && /[ \t]/.test(text[s])) s++;
+  let e = Math.max(s, Math.min(i, text.length));
+  while (e < text.length && text[e] !== '\n') { if (/[.!?…]/.test(text[e]) && (e + 1 >= text.length || /\s/.test(text[e + 1]))) { e++; break; } e++; }
+  return { start: s, end: e };
+}
+function refsIn(s) { const out = []; for (const m of String(s).matchAll(/\(fotos? ([^)]*)\)/gi)) for (const n of m[1].match(/\d+/g) || []) out.push(Number(n)); return out; }
+function sentencesWithRef(text, n) {
+  const out = [];
+  for (const m of text.matchAll(/\(fotos? ([^)]*)\)/gi)) if ((m[1].match(/\d+/g) || []).map(Number).includes(n)) { const r = sentenceAt(text, m.index); if (!out.some(x => x.start === r.start)) out.push(r); }
+  return out;
+}
+// Renumera "(foto N)" quando a numeração do anexo mudou: velho número -> id da foto -> número novo.
+function renumberRefs(text, oldMap, nums) {
+  let changed = 0;
+  const out = text.replace(/\((fotos?) ([^)]*)\)/gi, (all, w, inner) => inner.replace(/\d+/g, '').replace(/[\s,e]/g, '') ? all : '(' + w + ' ' + inner.replace(/\d+/g, d => {
+    const id = oldMap[d]; if (!id) return d;
+    const nn = nums.get(id); const v = nn ? String(nn) : '?';
+    if (v !== d) changed++; return v;
+  }) + ')');
+  return { text: out, changed };
+}
+const normCmp = s => String(s).toLocaleLowerCase('pt-BR').replace(/\(fotos? [^)]*\)/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+function missingDescs(text, view) {
+  const t = ' ' + normCmp(text) + ' ';
+  return view.texts.filter(d => String(d.texto || '').trim() && !t.includes(' ' + normCmp(d.texto) + ' '));
 }
 function wordCount(s) { return (String(s).match(/\S+/g) || []).length; }
 function editName(original, n) { return String(original).replace(/\.jpe?g$/i, '') + '_ed' + n + '.jpg'; }
@@ -586,6 +620,7 @@ async function openCase(name) {
   const c = S.cases.find(x => x.name === name); if (!c) return;
   ls.set('forensis_hub_case', name);
   Object.assign(S, { name, caseId: c.id, sel: null, ver: 0, manifest: null, hub: null, hubId: null, files: new Map() });
+  lsPhoto = null; lsN = 0;
   $('stateBox').hidden = false; $('layout').hidden = true; $('stateTxt').textContent = 'Abrindo o caso ' + name + '…';
   for (const id of ['btnReload', 'btnAnexo', 'btnClose']) $(id).hidden = true;
   $('btnDrive').hidden = false; $('cleanBox').hidden = true;
@@ -962,35 +997,86 @@ function descCard(t) {
   return h('div', { class: 'desc', 'data-text': t.id }, ta, row);
 }
 
-// ── Protótipo do laudo: clicar num trecho destaca a descrição e abre a foto ao lado ──
-let lsel = null, lsize = ls.get('forensis_hub_lsize', 'third'), lsVer = -1, lsSeq = 0, lsUrl = null;
+// ── Laudo: área livre de escrita ─────────────────────────────────────────────
+// Começa com o texto concatenado das descrições, que se atualiza sozinho. Ao digitar, vira texto livre
+// (salvo no hub.json) e não muda mais sozinho; o hub avisa das descrições que não estão no texto e da
+// numeração das fotos que mudou. Clicar numa frase com "(foto N)" destaca as frases dessa foto e abre a foto ao lado.
+let lsize = ls.get('forensis_hub_lsize', 'third'), lsVer = -1, lsSeq = 0, lsUrl = null, lsPhoto = null, lsN = 0, lPrev = null;
 function laudoOpts() { return { heads: $('lHead').checked, refs: $('lRefs').checked, para: $('lPara').value }; }
-function laudoText() { return concatLaudo(S.view, laudoOpts()); }
+const freeLaudo = () => S.hub && S.hub.laudo && typeof S.hub.laudo.texto === 'string' ? S.hub.laudo : null;
+function laudoText() { const fl = freeLaudo(); return fl ? fl.texto : concatLaudo(S.view, laudoOpts()); }
+function numMap(nums) { const o = {}; for (const [id, n] of nums) o[n] = id; return o; }
+function laudoInput() {
+  const ta = $('laudoEd');
+  if (!freeLaudo()) S.hub.laudo = { mapa: numMap(numberPhotos(S.view.photos)), iniciadoEm: new Date().toISOString() };
+  S.hub.laudo.texto = ta.value; S.hub.laudo.editadoEm = new Date().toISOString();
+  dirty = true; setSave('busy', 'alterações não salvas'); clearTimeout(saveTimer); saveTimer = setTimeout(flushSave, 1200);
+  autoGrow(); paintLaudo(); renderLaudoStatus();
+}
+function autoGrow() { const ta = $('laudoEd'); ta.style.height = 'auto'; ta.style.height = Math.max(ta.scrollHeight, 360) + 'px'; }
+const escH = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+// Fundo atrás do texto: marca as frases da foto escolhida (a do clique mais forte).
+function paintLaudo(focus) {
+  const text = $('laudoEd').value, back = $('lBack');
+  if (!lsN) { back.innerHTML = escH(text) + '\n'; return; }
+  const rs = sentencesWithRef(text, lsN).sort((a, b) => a.start - b.start);
+  let html = '', at = 0;
+  for (const r of rs) { if (r.start < at) continue; html += escH(text.slice(at, r.start)) + '<mark class="' + (focus && focus.start === r.start ? 'on' : 'rel') + '">' + escH(text.slice(r.start, r.end)) + '</mark>'; at = r.end; }
+  back.innerHTML = html + escH(text.slice(at)) + '\n';
+}
+function laudoClick() {
+  const ta = $('laudoEd'), r = sentenceAt(ta.value, ta.selectionStart), refs = refsIn(ta.value.slice(r.start, r.end));
+  if (!refs.length) { if (lsN) { lsN = 0; lsPhoto = null; paintLaudo(); renderLaudoSide(); } return; }
+  const n = refs[0], id = numMap(numberPhotos(S.view.photos))[n];
+  lsN = n; if (lsPhoto !== id) lsVer = -1; lsPhoto = id || null;
+  paintLaudo(r); renderLaudoSide();
+}
 function renderLaudo() {
-  const opts = laudoOpts(), blocks = concatBlocks(S.view, opts), txt = blocksToText(blocks, opts);
-  const selT = S.view.texts.find(t => t.id === lsel); if (!selT) lsel = null;
-  const selPhoto = selT && selT.fotoId;
-  const box = $('laudoView'); box.textContent = '';
-  if (!blocks.length) box.append(h('p', { class: 'hint' }, 'Nenhuma descrição ainda.'));
-  for (const b of blocks) {
-    if (opts.heads) box.append(h('p', { class: 'lh' }, b.head));
-    for (const para of b.paras) {
-      const p = h('p');
-      para.forEach((it, i) => {
-        if (i) p.append(' ');
-        const cls = 'ld' + (it.fotoId ? ' ph' : '') + (it.id === lsel ? ' on' : '') + (selPhoto && it.fotoId === selPhoto && it.id !== lsel ? ' rel' : '');
-        p.append(h('span', { class: cls, 'data-text': it.id, 'data-photo': it.fotoId, title: it.fotoId ? 'Clique para ver a foto' : 'Texto sem foto', onclick: () => pickLaudo(it.id) }, it.text));
-      });
-      box.append(p);
+  const ta = $('laudoEd'), fl = freeLaudo();
+  if (document.activeElement !== ta || !fl) { const v = laudoText(); if (ta.value !== v) ta.value = v; }
+  if (!ta.value && !S.view.texts.length) ta.placeholder = 'Nenhuma descrição ainda. Você pode escrever aqui livremente.';
+  autoGrow(); paintLaudo(); renderLaudoStatus(); renderLaudoSide();
+}
+function renderLaudoStatus() {
+  const fl = freeLaudo(), txt = $('laudoEd').value;
+  $('lState').textContent = fl ? 'Texto livre, salvo no Drive' + (fl.editadoEm ? ' (editado em ' + new Date(fl.editadoEm).toLocaleString('pt-BR') + ')' : '') + '. As descrições não mudam mais este texto sozinhas.' : 'Gerado das descrições e atualizado sozinho. Digite à vontade: ao editar, vira texto livre.';
+  $('lRedo').hidden = !fl;
+  for (const id of ['lHead', 'lRefs', 'lPara']) $(id).closest('label').title = fl ? 'Vale para "Refazer a partir das descrições"' : '';
+  // Numeração das fotos que mudou depois que o texto virou livre.
+  let renum = 0;
+  if (fl && fl.mapa) { const nums = numberPhotos(S.view.photos); renum = renumberRefs(txt, fl.mapa, nums).changed; }
+  $('lRenum').hidden = !renum; $('lRenum').textContent = 'Atualizar números das fotos (' + renum + ')';
+  // Descrições que não aparecem no texto livre (novas ou alteradas depois).
+  const box = $('lMissing'); box.textContent = '';
+  const miss = fl ? missingDescs(txt, S.view) : [];
+  box.hidden = !miss.length;
+  if (miss.length) {
+    const nums = numberPhotos(S.view.photos), o = laudoOpts();
+    box.append(h('span', { class: 'hint' }, miss.length + (miss.length === 1 ? ' descrição não aparece' : ' descrições não aparecem') + ' no texto (novas ou alteradas depois). Clique para inserir onde está o cursor:'));
+    for (const d of miss.sort((a, b) => secIdx(a.secao) - secIdx(b.secao) || String(a.capturadaEm).localeCompare(String(b.capturadaEm)))) {
+      const ins = withRef(sentence(d.texto), o.refs && d.fotoId && nums.has(d.fotoId) ? 'foto ' + nums.get(d.fotoId) : '');
+      box.append(h('button', { class: 'chip', title: secName(d.secao), onclick: () => { const ta = $('laudoEd'); const a = ta.selectionStart, pre = ta.value.slice(0, a); ta.setRangeText((pre && !/\s$/.test(pre) ? ' ' : '') + ins, a, ta.selectionEnd, 'end'); laudoInput(); ta.focus(); } }, ins.length > 70 ? ins.slice(0, 68) + '…' : ins));
     }
   }
   const loose = S.view.texts.filter(t => !t.fotoId).length;
-  $('laudoInfo').textContent = wordCount(txt) + ' palavras. Clique num trecho para ver a foto ao lado. Para corrigir, edite a descrição na aba Fotos: este texto se atualiza sozinho.' + (loose ? ' ' + loose + ' texto(s) sem foto entram na sua seção, sem referência a foto.' : '');
-  renderLaudoSide();
+  $('laudoInfo').textContent = wordCount(txt) + ' palavras. Clique numa frase com "(foto N)" para ver a foto ao lado.' + (!fl && loose ? ' ' + loose + ' texto(s) sem foto entram na sua seção, sem referência a foto.' : '');
 }
-function pickLaudo(id) { lsel = lsel === id ? null : id; lsVer = -1; renderLaudo(); }
+function redoLaudo() {
+  const fl = freeLaudo(); if (!fl) return;
+  if (!confirm('Refazer o texto a partir das descrições?\n\nO texto livre atual será substituído. Logo depois, dá para desfazer.')) return;
+  lPrev = JSON.parse(JSON.stringify(fl)); delete S.hub.laudo; $('laudoEd').value = '';
+  dirty = true; clearTimeout(saveTimer); saveTimer = setTimeout(flushSave, 300); renderLaudo();
+  banner('laudo', 'ok', 'Texto refeito a partir das descrições.', [{ label: 'Desfazer', fn: () => { S.hub.laudo = lPrev; dirty = true; flushSave(); renderLaudo(); } }], 10000);
+}
+function renumberLaudo() {
+  const fl = freeLaudo(); if (!fl) return;
+  const nums = numberPhotos(S.view.photos), r = renumberRefs(fl.texto, fl.mapa, nums);
+  fl.texto = r.text; fl.mapa = numMap(nums); fl.editadoEm = new Date().toISOString();
+  $('laudoEd').value = fl.texto; dirty = true; flushSave(); renderLaudo();
+  banner('laudo', 'ok', r.changed + ' referência(s) a fotos atualizada(s).' + (/\(fotos? [^)]*\?/.test(fl.texto) ? ' "(foto ?)" marca foto que saiu do anexo.' : ''), [], 6000);
+}
 function renderLaudoSide() {
-  const t = S.view.texts.find(x => x.id === lsel), p = t && t.fotoId && S.view.photos.find(x => x.id === t.fotoId);
+  const p = lsPhoto && S.view.photos.find(x => x.id === lsPhoto);
   $('lwrap').className = 'lwrap' + (p ? (lsize === 'half' ? ' half' : ' side') : '');
   $('lside').hidden = !p;
   if (!p) return;
@@ -1007,6 +1093,7 @@ function renderLaudoSide() {
   getBlob(id).then(b => { if (seq !== lsSeq) return; if (lsUrl) URL.revokeObjectURL(lsUrl); lsUrl = URL.createObjectURL(b); img.src = lsUrl; $('lsLd').textContent = ''; })
     .catch(e => { if (seq !== lsSeq) return; if (e instanceof NeedLogin) needLogin(); $('lsLd').textContent = 'Não foi possível carregar: ' + e.message; });
 }
+function closeLaudoSide() { lsN = 0; lsPhoto = null; paintLaudo(); renderLaudoSide(); }
 function showTab() { for (const b of document.querySelectorAll('.tab')) b.classList.toggle('on', b.dataset.tab === tab); $('pFoto').hidden = tab !== 'pFoto'; $('pLaudo').hidden = tab !== 'pLaudo'; }
 
 // ── Anexo fotográfico para o Word: cada página vira uma imagem (300 dpi) com até 6 fotos e legendas ──
@@ -1535,7 +1622,7 @@ async function closeCase() {
     line.textContent = total + ' arquivos baixados; hashes conferidos com o Drive e com o registro do celular.'; line.className = 'ok';
     // 2. Laudo final (original, completo) e protótipo do laudo entram no pacote.
     files.push({ path: san.file.name, bytes: new Uint8Array(await san.file.arrayBuffer()) });
-    files.push({ path: 'laudo_prototipo.txt', bytes: new TextEncoder().encode(concatLaudo(S.view, LAUDO_DEFAULTS) + '\n') });
+    files.push({ path: 'laudo_prototipo.txt', bytes: new TextEncoder().encode(laudoText() + '\n') });
     for (const f of files) if (!f.sha) f.sha = await sha256Bytes(f.bytes);
     files.push({ path: 'SHA256SUMS.txt', bytes: new TextEncoder().encode(files.map(f => f.sha + '  ' + f.path).join('\n') + '\n') });
     files[files.length - 1].sha = await sha256Bytes(files[files.length - 1].bytes);
@@ -1624,10 +1711,15 @@ function bind() {
   $('axZip').addEventListener('click', zipAnexo);
   $('axPrint').addEventListener('click', printAnexo);
   for (const id of ['axPer', 'axW', 'axH', 'axPt', 'axEd', 'axSec']) $(id).addEventListener('change', clearAnexo);
-  $('lsClose').addEventListener('click', () => { lsel = null; renderLaudo(); });
+  $('lsClose').addEventListener('click', closeLaudoSide);
+  $('laudoEd').addEventListener('input', laudoInput);
+  for (const ev of ['click', 'keyup']) $('laudoEd').addEventListener(ev, e => { if (ev === 'keyup' && !/^(Arrow|Home|End|Page)/.test(e.key)) return; laudoClick(); });
+  $('lRedo').addEventListener('click', redoLaudo);
+  $('lRenum').addEventListener('click', renumberLaudo);
+  window.addEventListener('resize', () => { if (tab === 'pLaudo') { autoGrow(); paintLaudo(); } });
   $('lsSize').addEventListener('click', () => { lsize = lsize === 'half' ? 'third' : 'half'; ls.set('forensis_hub_lsize', lsize); renderLaudoSide(); });
-  $('lsVer').addEventListener('click', () => { const t = S.view.texts.find(x => x.id === lsel), p = t && S.view.photos.find(x => x.id === t.fotoId); if (p) { lsVer = lsVer ? 0 : p.editadas.length; renderLaudoSide(); } });
-  $('lsOpen').addEventListener('click', () => { const t = S.view.texts.find(x => x.id === lsel); if (t && t.fotoId) select(t.fotoId); });
+  $('lsVer').addEventListener('click', () => { const p = S.view.photos.find(x => x.id === lsPhoto); if (p) { lsVer = lsVer ? 0 : p.editadas.length; renderLaudoSide(); } });
+  $('lsOpen').addEventListener('click', () => { if (lsPhoto) select(lsPhoto); });
   for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () => { tab = b.dataset.tab; showTab(); });
   $('btnPrev').addEventListener('click', () => step(-1)); $('btnNext').addEventListener('click', () => step(1));
   $('btnAnnotate').addEventListener('click', openEditor);
@@ -1650,7 +1742,7 @@ function bind() {
     if (!$('anexoBox').hidden) { if (e.key === 'Escape') $('axClose').click(); return; }
     if (!$('sanBox').hidden) { if (e.key === 'Escape') $('szClose').click(); return; }
     if (!$('closeBox').hidden) return;
-    if (tab === 'pLaudo' && e.key === 'Escape' && lsel) { lsel = null; renderLaudo(); return; }
+    if (tab === 'pLaudo' && e.key === 'Escape' && lsPhoto) { closeLaudoSide(); return; }
     if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || tab !== 'pFoto') return;
     if (e.key === 'ArrowLeft') step(-1); if (e.key === 'ArrowRight') step(1);
   });
