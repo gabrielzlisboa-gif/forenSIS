@@ -53,7 +53,6 @@ input, select { font-family:inherit; color:var(--text); }
 .card { border:1px solid var(--border); border-radius:12px; background:var(--surface); padding:14px; display:flex; flex-direction:column; gap:10px; }
 .btn { height:44px; padding:0 16px; border-radius:10px; border:1px solid var(--border-strong); background:var(--surface2); font:500 14px var(--sans); display:inline-flex; align-items:center; justify-content:center; gap:8px; }
 .btn.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:600; }
-.btn.big { height:56px; font-size:16px; border-radius:12px; width:100%; }
 .btn.ghost { background:transparent; }
 .btn.warn { border-color:var(--amber-border); background:var(--amber-dim); color:var(--amber); }
 .btn.sm { height:34px; padding:0 10px; font-size:13px; border-radius:8px; }
@@ -368,14 +367,8 @@ body.vw-open .banners { position:fixed; left:0; right:0; z-index:16; max-width:6
       <p class="help">No computador, revise e edite o caso no hub: <a href="hub.html" style="color:var(--accent)">hub.html</a> (mesmo endereço, com /hub.html no fim).</p>
     </div>
     <div class="card">
-      <span class="label">Teste de campo</span>
-      <p class="help" id="fieldInfo">—</p>
-      <button class="btn ghost" id="btnFieldReset">Zerar medições</button>
-    </div>
-    <div class="card">
       <span class="label">Aparelho</span>
       <p class="help" id="storageInfo">—</p>
-      <a class="btn ghost" href="diagnostico.html" style="text-decoration:none">Abrir diagnóstico (fase 0)</a>
     </div>
     <p class="help" style="text-align:center" id="verTxt"></p>
   </div>
@@ -384,7 +377,7 @@ body.vw-open .banners { position:fixed; left:0; right:0; z-index:16; max-width:6
 <script>
 'use strict';
 /*PURE-START*/
-const VERSION = '0.4.4';
+const VERSION = '0.4.5';
 const BETA_ROOT = 'DPT_BETA';
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -573,7 +566,7 @@ function counts(photos) {
     if (p.status === 'review') { c.review++; continue; }
     if (!p.copied && p.blob) c.toCopy++;
     if (p.status === 'verified') c.verified++;
-    else if (p.status === 'error' || p.status === 'mismatch') c.error++;
+    else if (p.status === 'mismatch') c.error++;
     else c.queued++;
   }
   return c;
@@ -584,7 +577,7 @@ const SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const API = 'https://www.googleapis.com/drive/v3';
 const UPL = 'https://www.googleapis.com/upload/drive/v3/files';
 const FOLDER = 'application/vnd.google-apps.folder';
-const K = { hint: 'forensis_login_hint', field: 'forensis_field', groq: 'forensis_groq', rules: 'forensis_rules', ctx: 'forensis_ctx', delay: 'forensis_delay', expo: 'forensis_expo', prev: 'forensis_preview_step', client: 'forensis_client_id', active: 'forensis_case', sec: 'forensis_sec', copy: 'forensis_copy', recent: 'forensis_recent' };
+const K = { hint: 'forensis_login_hint', groq: 'forensis_groq', rules: 'forensis_rules', ctx: 'forensis_ctx', delay: 'forensis_delay', expo: 'forensis_expo', prev: 'forensis_preview_step', client: 'forensis_client_id', active: 'forensis_case', sec: 'forensis_sec', copy: 'forensis_copy', recent: 'forensis_recent' };
 
 const $ = id => document.getElementById(id);
 function h(tag, attrs, ...kids) {
@@ -687,7 +680,6 @@ async function login(opts) {
       dropBanner('login'); dropBanner('relogin');
       try { const a = await api('GET', API + '/about?fields=user(emailAddress)'); acctEmail = a.user.emailAddress; ls.set(K.hint, acctEmail); } catch (e) {}
       saveSession();
-      fieldNote(silent ? 'renew' : 'login');
       renderAcct(); if (!silent) closeSheet(); kickQueue();
     },
     error_callback: e => {
@@ -784,9 +776,17 @@ const closedCheck = new Map();
 async function caseClosed(name) {
   const c = closedCheck.get(name); if (c && Date.now() - c.at < 5 * 60000) return c.closed;
   const rec = await dbGet('cases', name);
-  const cr = await ensureCase(name);
-  const meta = await api('GET', API + '/files/' + encodeURIComponent(cr.folders.caseId) + '?fields=appProperties');
-  const when = meta && meta.appProperties && meta.appProperties.forensis_fechado;
+  let meta = await caseFolderState(name);
+  if (!meta) {
+    // Pasta do caso (ou Originais) apagada ou na lixeira do Drive: o que ainda falta enviar vai para uma pasta nova.
+    // Nada já conferido é reenviado (quem apagou a pasta pode ter querido apagar o caso).
+    await updateCase(name, { folders: null, manifestId: null, transcriptId: null, dirtyAt: Date.now() });
+    remoteManifests.delete(name);
+    for (const p of await photosOf(name)) if (p.status === 'uploaded' && p.blob) await patchPhoto(p.id, { status: 'queued', driveId: null, remoteSha: null });
+    banner('gone-' + name, 'warn', 'A pasta do caso ' + name + ' no Drive foi apagada ou está na lixeira. O que ainda faltava enviar vai para uma pasta nova; o que já tinha sido enviado continua na lixeira do Drive (30 dias).');
+    meta = (await caseFolderState(name)) || {};
+  }
+  const when = meta.appProperties && meta.appProperties.forensis_fechado;
   closedCheck.set(name, { at: Date.now(), closed: !!when });
   if (when) { if (!rec || rec.closedAt !== when) { await updateCase(name, { closedAt: when }); warnClosed(name, when); } }
   else if (rec && rec.closedAt) {
@@ -796,6 +796,15 @@ async function caseClosed(name) {
     banner('reopened-' + name, 'ok', 'O caso ' + name + ' foi reaberto no computador. O celular volta a enviar para ele.', [], 8000);
   }
   return !!when;
+}
+// Estado da pasta do caso no Drive; null se ela ou a Originais sumiram ou estão na lixeira.
+async function caseFolderState(name) {
+  const cr = await ensureCase(name);
+  try {
+    const meta = await api('GET', API + '/files/' + encodeURIComponent(cr.folders.caseId) + '?fields=appProperties,trashed');
+    const orig = await api('GET', API + '/files/' + encodeURIComponent(cr.folders.originais) + '?fields=trashed');
+    return meta.trashed || orig.trashed ? null : meta;
+  } catch (e) { if (e.status === 404) return null; throw e; }
 }
 function warnClosed(name, when) {
   banner('closed-' + name, 'warn', 'O caso ' + name + ' foi fechado e trancado no computador em ' + new Date(when).toLocaleString('pt-BR') + '. O que for feito nele agora fica só no celular e não vai para o Drive.');
@@ -873,7 +882,7 @@ async function sendOne(p) {
   if (!remote) return; // tenta de novo na próxima passada
   if (remote !== p.sha256) {
     await patchPhoto(p.id, { status: 'mismatch', remoteSha: remote });
-    banner('mm-' + p.id, 'err', 'O arquivo ' + p.name + ' chegou ao Drive diferente do original. A cópia local foi mantida.');
+    banner('mm-' + p.id, 'err', 'O arquivo ' + p.name + ' chegou ao Drive diferente do original. A cópia local foi mantida.', [{ label: 'Reenviar', fn: () => resendMismatch(p.id) }]);
     return;
   }
   if (!(await dbGet('photos', p.id))) return;
@@ -881,6 +890,13 @@ async function sendOne(p) {
   if (p.copied || !optCopy()) changes.blob = null; // Drive confirmado e cópia no celular feita: libera o espaço do app
   await patchPhoto(p.id, changes);
   await writeManifest(p.caseName);
+}
+// Hash divergente: a cópia errada vai para a lixeira do Drive e a foto volta para a fila (o original continua no celular).
+async function resendMismatch(id) {
+  const p = await dbGet('photos', id); if (!p || p.status !== 'mismatch') return;
+  try { if (p.driveId) await api('PATCH', API + '/files/' + encodeURIComponent(p.driveId) + '?fields=id', JSON.stringify({ trashed: true }), { 'Content-Type': 'application/json; charset=UTF-8' }); }
+  catch (e) { if (e.status !== 404) { banner('mm-' + id, 'err', 'Não foi possível reenviar agora: ' + e.message, [{ label: 'Tentar de novo', fn: () => resendMismatch(id) }]); return; } }
+  await patchPhoto(id, { status: 'queued', driveId: null, remoteSha: null }); refresh(); kickQueue();
 }
 // Cópia local desligada: fotos já conferidas no Drive não precisam continuar no celular.
 async function freeVerified() {
@@ -1006,13 +1022,12 @@ async function startCamera() {
   if (cam.stream || cam.starting) return;
   cam.starting = true;
   $('capMsg').hidden = true;
-  const t0 = performance.now();
   try {
     let step = Math.min(Number(ls.get(K.prev, '0')) || 0, PREVIEW_STEPS.length - 1);
     for (; step < PREVIEW_STEPS.length; step++) {
       await openStream(PREVIEW_STEPS[step]);
       if (!camWanted()) { stopCamera(); return; }
-      if (await previewAlive(2500)) { ls.set(K.prev, String(step)); describeCam(step); requestWakeLock(); fieldNote('cam', performance.now() - t0); return; }
+      if (await previewAlive(2500)) { ls.set(K.prev, String(step)); describeCam(step); requestWakeLock(); return; }
       stopCamera();
     }
     // Nenhuma tentativa mostrou imagem: abre a menor e mantém a foto possível.
@@ -1353,6 +1368,8 @@ function setImg(blob) {
 }
 async function openViewer(id, opts) {
   vw.open = true; vw.id = id; vw.review = !!(opts && opts.review);
+  // botões do modo já na abertura (o resto vem quando a imagem carrega); antes ficava o rótulo da abertura anterior
+  $('vwClose').textContent = vw.review ? 'Concluir' : 'Fechar'; $('vwDiscard').hidden = $('vwNew').hidden = !vw.review; $('vwActs').classList.toggle('normal', !vw.review);
   document.body.classList.add('vw-open');
   $('viewer').hidden = false; $('viewer').classList.remove('bare');
   syncCamera(); requestWakeLock(); syncHistory();
@@ -1491,7 +1508,6 @@ function statusLabel(p) {
   if (p.status === 'review') return ['em conferência, ainda não enviada', 's-q'];
   if (p.status === 'verified') return ['no Drive, hash conferido', 's-ok'];
   if (p.status === 'mismatch') return ['hash divergente no Drive', 's-err'];
-  if (p.status === 'error') return ['erro: ' + (p.error || ''), 's-err'];
   if (p.sending) return ['enviando…', 's-q'];
   if (p.status === 'uploaded') return ['no Drive, conferindo hash…', 's-q'];
   return ['na fila de envio', 's-q'];
@@ -1552,7 +1568,7 @@ async function refresh() {
       for (const p of photos.slice().sort((a, b) => b.takenAt - a.takenAt).slice(0, 5).reverse()) {
         const th = h('button', { class: 'thumb', style: 'border:none;padding:0', 'aria-label': 'Ampliar ' + p.name, onclick: () => openViewer(p.id) });
         if (p.thumb) th.style.backgroundImage = 'url(' + blobUrl(p.thumb) + ')';
-        th.append(h('span', { class: 'st' + (p.status === 'verified' ? ' ok' : (p.status === 'mismatch' || p.status === 'error') ? ' err' : p.sending ? ' up' : '') }));
+        th.append(h('span', { class: 'st' + (p.status === 'verified' ? ' ok' : p.status === 'mismatch' ? ' err' : p.sending ? ' up' : '') }));
         strip.append(th);
       }
     }
@@ -1840,39 +1856,6 @@ async function renderApp() {
   $('appHint').hidden = !!installEvt || standalone();
 }
 
-// ── Teste de campo: bateria, tempo para religar a câmera e logins, por caso ──
-function field() { try { return JSON.parse(ls.get(K.field, '') || 'null'); } catch (e) { return null; } }
-async function battery() { try { const b = await navigator.getBattery(); return { level: b.level, charging: b.charging }; } catch (e) { return null; } }
-async function fieldStart() {
-  const name = ls.get(K.active, ''), f = field();
-  if (!name || (f && f.caseName === name)) return;
-  const b = await battery();
-  ls.set(K.field, JSON.stringify({ caseName: name, t0: Date.now(), b0: b ? b.level : null, cams: [], login: 0, renew: 0 }));
-}
-function fieldNote(kind, ms) {
-  const f = field(); if (!f) return;
-  if (kind === 'cam') { f.cams.push(Math.round(ms)); if (f.cams.length > 200) f.cams.shift(); }
-  else if (kind in f) f[kind]++;
-  ls.set(K.field, JSON.stringify(f));
-}
-async function renderField() {
-  const f = field(), el = $('fieldInfo');
-  if (!f) { el.textContent = 'As medições começam quando um caso é aberto.'; return; }
-  const min = Math.max(1, Math.round((Date.now() - f.t0) / 60000)), dur = min >= 60 ? Math.floor(min / 60) + ' h ' + (min % 60) + ' min' : min + ' min';
-  const parts = ['Caso ' + f.caseName + ', há ' + dur + '.'];
-  const b = await battery();
-  if (b && f.b0 != null) {
-    const used = Math.round((f.b0 - b.level) * 100);
-    parts.push('Bateria: ' + Math.round(f.b0 * 100) + '% → ' + Math.round(b.level * 100) + '%' + (min >= 10 && used > 0 ? ' (cerca de ' + Math.round(used / min * 60) + ' pontos por hora)' : '') + '.' + (b.charging ? ' Carregando agora: a medição não vale enquanto estiver na tomada.' : ''));
-  } else parts.push('Bateria: o navegador não informa.');
-  if (f.cams.length) {
-    const s = f.cams.slice().sort((a, x) => a - x), avg = s.reduce((a, x) => a + x, 0) / s.length;
-    parts.push('Câmera: abriu ' + s.length + (s.length === 1 ? ' vez' : ' vezes') + ', em média ' + (avg / 1000).toFixed(1).replace('.', ',') + ' s (máximo ' + (s[s.length - 1] / 1000).toFixed(1).replace('.', ',') + ' s).');
-  }
-  parts.push('Login: ' + f.login + (f.login === 1 ? ' entrada' : ' entradas') + ' e ' + f.renew + (f.renew === 1 ? ' renovação automática.' : ' renovações automáticas.'));
-  el.textContent = parts.join(' ');
-}
-
 async function openCase(raw) {
   const name = normalizeCase(raw);
   const err = caseError(name);
@@ -1881,7 +1864,7 @@ async function openCase(raw) {
   if (!(await dbGet('cases', name))) await dbPut('cases', { name, createdAt: Date.now() });
   ls.set(K.active, name); ls.set(K.sec, SECTIONS[0].id); secView = null;
   dropBanner('case'); $('newCase').value = '';
-  fieldStart(); syncMic(); refresh(); kickQueue();
+  syncMic(); refresh(); kickQueue();
   const cr = await dbGet('cases', name); if (cr && cr.closedAt) warnClosed(name, cr.closedAt);
 }
 
@@ -1937,7 +1920,7 @@ async function release() {
 }
 
 // ── Configuração ────────────────────────────────────────────────────────────
-function openSheet() { renderAcct(); $('groqKey').value = groqKey(); $('optDelay').value = ls.get(K.delay, '500'); renderRules(); renderCtx(); $('sheet').hidden = false; storageInfo(); renderApp(); renderField(); syncHistory(); }
+function openSheet() { renderAcct(); $('groqKey').value = groqKey(); $('optDelay').value = ls.get(K.delay, '500'); renderRules(); renderCtx(); $('sheet').hidden = false; storageInfo(); renderApp(); syncHistory(); }
 function renderRules() {
   const box = $('ruleList'); if (!box) return; box.textContent = '';
   const rs = getRules();
@@ -2004,7 +1987,6 @@ function bind() {
   $('btnSecBack').addEventListener('click', goBack);
   $('btnSecCam').addEventListener('click', () => { maybeRenew(); ls.set(K.sec, secView || activeSec()); show('vCap'); });
   $('btnInstall').addEventListener('click', async () => { if (!installEvt) return; installEvt.prompt(); try { await installEvt.userChoice; } catch (e) {} installEvt = null; renderApp(); });
-  $('btnFieldReset').addEventListener('click', async () => { ls.set(K.field, ''); await fieldStart(); renderField(); });
   $('btnCapSec').addEventListener('click', () => openSection(activeSec()));
   $('btnRelease').addEventListener('click', release);
   $('btnExport').addEventListener('click', exportCopy);
@@ -2070,7 +2052,7 @@ function bind() {
   if (!groqKey()) importDictation(true);
   if (!/\.apps\.googleusercontent\.com$/.test(clientId())) openSheet();
   show('vCaso');
-  fieldStart();
+  try { localStorage.removeItem('forensis_field'); } catch (e) {} // medições do teste de campo (fase 2.1), encerrado
   runTranscribe();
 })();
 </script>

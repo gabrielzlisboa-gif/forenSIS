@@ -25,7 +25,6 @@ button { font-family:inherit; color:inherit; cursor:pointer; }
 button:disabled { opacity:.45; cursor:not-allowed; }
 input, select, textarea { font-family:inherit; color:var(--text); }
 [hidden] { display:none !important; }
-.mono { font-family:var(--mono); }
 .btn { height:36px; padding:0 14px; border-radius:8px; border:1px solid var(--border-strong); background:var(--surface2); font-size:13px; font-weight:500; white-space:nowrap; }
 .btn:hover:not(:disabled) { border-color:var(--text-muted); }
 .btn.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
@@ -210,7 +209,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 <body>
 <div class="shell">
   <header class="top">
-    <span class="brand">foren<span>SIS</span><span class="beta">HUB · BETA</span></span>
+    <span class="brand">foren<span>SIS</span><span class="beta" id="hubVer">HUB · BETA</span></span>
     <select id="caseSel" aria-label="Caso" hidden></select>
     <span class="stats" id="stats"></span>
     <span class="grow"></span>
@@ -243,7 +242,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
       <div class="tabs">
         <button class="tab sidebtn" id="btnSide" title="Ocultar o painel de fotos e descrições">‹‹</button>
         <button class="tab on" data-tab="pFoto">Fotos</button>
-        <button class="tab" data-tab="pLaudo">Laudo (protótipo)</button>
+        <button class="tab" data-tab="pLaudo">Laudo</button>
       </div>
       <section class="pane" id="pFoto">
         <div class="empty" id="noPhoto">Escolha uma foto à esquerda.</div>
@@ -389,7 +388,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 <script>
 'use strict';
 /*PURE-START*/
-const HUB_VERSION = '0.6.1';
+const HUB_VERSION = '0.6.2';
 // Mesmas seções do app do celular (o teste confere que continuam iguais).
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -439,29 +438,34 @@ function sentence(s) {
   if (!/[.!?…:;]$/.test(s)) s += '.';
   return s;
 }
-function withRef(s, ref) { return ref ? s.replace(/([.!?…:;])$/, ' (' + ref + ')$1') : s; }
-// Concatenador: as descrições viram um texto único, na ordem das seções e do exame.
-// Em blocos (seção > parágrafos > trechos), para a tela saber qual trecho é de qual descrição e foto.
-const LAUDO_DEFAULTS = { heads: true, refs: true, para: 'secao' };
-function concatBlocks(view, opts) {
-  opts = Object.assign({}, LAUDO_DEFAULTS, opts || {});
-  const nums = numberPhotos(view.photos), blocks = [];
+// Texto do laudo: lista de parágrafos; cada um com pedaços de texto livre { t } e trechos ligados a descrições { id }.
+// "(foto N)" não é texto: é marca derivada dos vínculos e da numeração do anexo.
+function refLabel(ids, nums) {
+  const ns = (ids || []).map(id => nums.get(id)).filter(Boolean).sort((a, b) => a - b);
+  if (!ns.length) return '';
+  return ns.length === 1 ? 'foto ' + ns[0] : 'fotos ' + ns.slice(0, -1).join(', ') + ' e ' + ns[ns.length - 1];
+}
+// Põe a referência antes da pontuação final: "… invertidas (foto 2)."
+function withRef(txt, ref) { if (!ref) return txt; const m = txt.match(/^([\s\S]*?)([.!?…:;]*)$/); return m[1] + ' (' + ref + ')' + m[2]; }
+// Documento montado das descrições (antes da primeira edição), na ordem das seções e do exame.
+// para: 'secao' (um parágrafo por seção) ou 'desc' (um por descrição).
+function genDoc(view, para) {
+  const doc = [];
   for (const s of SECTIONS) {
-    const ts = view.texts.filter(t => t.secao === s.id && String(t.texto || '').trim())
-      .sort((a, b) => String(a.capturadaEm).localeCompare(String(b.capturadaEm)));
+    const ts = view.texts.filter(t => t.secao === s.id && String(t.texto || '').trim()).sort((a, b) => String(a.capturadaEm).localeCompare(String(b.capturadaEm)));
     if (!ts.length) continue;
-    const items = ts.map(t => { const ns = (t.fotoIds || []).map(x => nums.get(x)).filter(Boolean).sort((a, b) => a - b); return { id: t.id, fotoIds: t.fotoIds || [], text: withRef(sentence(t.texto), opts.refs && ns.length ? (ns.length === 1 ? 'foto ' + ns[0] : 'fotos ' + ns.slice(0, -1).join(', ') + ' e ' + ns[ns.length - 1]) : '') }; });
-    blocks.push({ sec: s.id, head: s.name.toUpperCase(), paras: opts.para === 'desc' ? items.map(i => [i]) : [items] });
+    if (doc.length) doc.push([]);
+    doc.push([{ t: s.name.toUpperCase() }]);
+    if (para === 'desc') for (const t of ts) doc.push([{ id: t.id }]);
+    else doc.push(ts.flatMap((t, k) => k ? [{ t: ' ' }, { id: t.id }] : [{ id: t.id }]));
   }
-  return blocks;
+  return doc;
 }
-function blocksToText(blocks, opts) {
-  opts = Object.assign({}, LAUDO_DEFAULTS, opts || {});
-  const out = [];
-  for (const b of blocks) { if (opts.heads) out.push(b.head); out.push(b.paras.map(p => p.map(i => i.text).join(' ')).join('\n\n')); out.push(''); }
-  return out.join('\n').trim();
+function docToText(doc, view, refs) {
+  const nums = numberPhotos(view.photos), byId = new Map(view.texts.map(t => [t.id, t]));
+  return doc.map(p => p.map(r => { if (!r.id) return r.t; const t = byId.get(r.id); return t ? withRef(sentence(t.texto), refs ? refLabel(t.fotoIds, nums) : '') : ''; }).join(''))
+    .join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
-function concatLaudo(view, opts) { return blocksToText(concatBlocks(view, opts), opts); }
 
 // Anexo para o Word: geometria da página (pixels a 300 dpi) e legenda de cada foto.
 const ANEXO_GRID = { 6: [2, 3], 4: [2, 2], 2: [1, 2], 1: [1, 1] };
@@ -503,7 +507,7 @@ function zipParts(entries) {
   u32(0x06054b50, end, 0); u16(entries.length, end, 8); u16(entries.length, end, 10); u32(cdSize, end, 12); u32(offset, end, 16);
   return parts.concat(central, [end]);
 }
-// Texto livre do laudo: frases, referências "(foto N)" e descrições que ainda não aparecem no texto.
+// Frase em volta da posição i (usada para vincular a frase do cursor e na migração do texto da v0.5).
 function sentenceAt(text, i) {
   let s = Math.max(0, Math.min(i, text.length));
   while (s > 0) { const c = text[s - 1]; if (c === '\n' || (/[.!?…]/.test(c) && (s >= text.length || /\s/.test(text[s])))) break; s--; }
@@ -512,27 +516,7 @@ function sentenceAt(text, i) {
   while (e < text.length && text[e] !== '\n') { if (/[.!?…]/.test(text[e]) && (e + 1 >= text.length || /\s/.test(text[e + 1]))) { e++; break; } e++; }
   return { start: s, end: e };
 }
-function refsIn(s) { const out = []; for (const m of String(s).matchAll(/\(fotos? ([^)]*)\)/gi)) for (const n of m[1].match(/\d+/g) || []) out.push(Number(n)); return out; }
-function sentencesWithRef(text, n) {
-  const out = [];
-  for (const m of text.matchAll(/\(fotos? ([^)]*)\)/gi)) if ((m[1].match(/\d+/g) || []).map(Number).includes(n)) { const r = sentenceAt(text, m.index); if (!out.some(x => x.start === r.start)) out.push(r); }
-  return out;
-}
-// Renumera "(foto N)" quando a numeração do anexo mudou: velho número -> id da foto -> número novo.
-function renumberRefs(text, oldMap, nums) {
-  let changed = 0;
-  const out = text.replace(/\((fotos?) ([^)]*)\)/gi, (all, w, inner) => inner.replace(/\d+/g, '').replace(/[\s,e]/g, '') ? all : '(' + w + ' ' + inner.replace(/\d+/g, d => {
-    const id = oldMap[d]; if (!id) return d;
-    const nn = nums.get(id); const v = nn ? String(nn) : '?';
-    if (v !== d) changed++; return v;
-  }) + ')');
-  return { text: out, changed };
-}
 const normCmp = s => String(s).toLocaleLowerCase('pt-BR').replace(/\(fotos? [^)]*\)/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-function missingDescs(text, view) {
-  const t = ' ' + normCmp(text) + ' ';
-  return view.texts.filter(d => String(d.texto || '').trim() && !t.includes(' ' + normCmp(d.texto) + ' '));
-}
 function wordCount(s) { return (String(s).match(/\S+/g) || []).length; }
 function editName(original, n) { return String(original).replace(/\.jpe?g$/i, '') + '_ed' + n + '.jpg'; }
 /*PURE-END*/
@@ -652,7 +636,7 @@ async function openCase(name) {
   const c = S.cases.find(x => x.name === name); if (!c) return;
   ls.set('forensis_hub_case', name);
   Object.assign(S, { name, caseId: c.id, sel: null, ver: 0, manifest: null, hub: null, hubId: null, files: new Map() });
-  lTarget = null; lShow = null; lsOpenSide = false; lsPicking = false; lCaret = null;
+  lTarget = null; lShow = null; lsPicking = false; lCaret = null;
   $('stateBox').hidden = false; $('layout').hidden = true; $('stateTxt').textContent = 'Abrindo o caso ' + name + '…';
   for (const id of ['btnReload', 'btnAnexo', 'btnClose']) $(id).hidden = true;
   $('btnDrive').hidden = false; $('cleanBox').hidden = true;
@@ -1038,37 +1022,14 @@ function descCard(t, pid) {
 let lsize = ls.get('forensis_hub_lsize', 'third'), lsVer = -1, lsSeq = 0, lsUrl = null;
 let lTarget = null;      // { kind: 'seg', id } | { kind: 'free', para, start, end }
 let lShow = null;        // id da foto mostrada no painel
-let lsOpenSide = false, lsPicking = false, lPrev = null, lCaret = null, parseTimer = null;
+let lsPicking = false, lPrev = null, lCaret = null, parseTimer = null;
 const docMode = () => !!(S.hub && S.hub.laudo && Array.isArray(S.hub.laudo.doc));
-function laudoOpts() { return { heads: true, refs: $('lRefs').checked, para: $('lPara').value }; }
+function laudoOpts() { return { refs: $('lRefs').checked, para: $('lPara').value }; }
 const textById = id => S.view.texts.find(t => t.id === id);
-function refLabel(ids, nums) {
-  const ns = (ids || []).map(id => nums.get(id)).filter(Boolean).sort((a, b) => a - b);
-  if (!ns.length) return '';
-  return ns.length === 1 ? 'foto ' + ns[0] : 'fotos ' + ns.slice(0, -1).join(', ') + ' e ' + ns[ns.length - 1];
-}
-// Documento gerado das descrições (antes da primeira edição), na ordem das seções e do exame.
-function genDoc(opts) {
-  const doc = [], blocks = concatBlocks(S.view, opts);
-  blocks.forEach((b, i) => {
-    if (i) doc.push([]);
-    doc.push([{ t: b.head }]);
-    for (const para of b.paras) { const runs = []; para.forEach((it, k) => { if (k) runs.push({ t: ' ' }); runs.push({ id: it.id }); }); doc.push(runs); }
-  });
-  return doc;
-}
-const currentDoc = () => docMode() ? S.hub.laudo.doc : genDoc(laudoOpts());
-const segDisplay = t => docMode() ? t.texto : sentence(t.texto);
-function segExport(t, nums, refs) {
-  const txt = segDisplay(t), r = refs ? refLabel(t.fotoIds, nums) : '';
-  if (!r) return txt;
-  const m = txt.match(/^([\s\S]*?)([.!?…:;]*)$/);
-  return m[1] + ' (' + r + ')' + m[2];
-}
-function laudoText() {
-  const nums = numberPhotos(S.view.photos), refs = $('lRefs').checked;
-  return currentDoc().map(p => p.map(r => r.id ? (textById(r.id) ? segExport(textById(r.id), nums, refs) : '') : r.t).join('')).join('\n').replace(/\n{3,}/g, '\n\n').trim();
-}
+const currentDoc = () => docMode() ? S.hub.laudo.doc : genDoc(S.view, $('lPara').value);
+// O trecho aparece com maiúscula inicial e ponto final; isso é formatação, não edição da descrição.
+const segDisplay = t => sentence(t.texto);
+function laudoText() { return docToText(currentDoc(), S.view, $('lRefs').checked); }
 // Migração do texto livre da versão anterior: frases iguais a uma descrição viram trechos ligados a ela.
 function migrateLaudo() {
   const L = S.hub.laudo; if (!L || Array.isArray(L.doc) || typeof L.texto !== 'string') return;
@@ -1079,7 +1040,7 @@ function migrateLaudo() {
       const r = sentenceAt(line, i), s = line.slice(r.start, r.end);
       const k = normCmp(s), d = k.length >= 6 && S.view.texts.find(t => !used.has(t.id) && normCmp(t.texto) === k);
       if (r.start > i) runs.push({ t: line.slice(i, r.start) });
-      if (d) { used.add(d.id); runs.push({ id: d.id }); const clean = s.replace(/\s*\(fotos? [^)]*\)/gi, ''); if (clean !== d.texto) setDescText(d, clean, true); }
+      if (d) { used.add(d.id); runs.push({ id: d.id }); const clean = s.replace(/\s*\(fotos? [^)]*\)/gi, ''); if (clean !== sentence(d.texto)) setDescText(d, clean, true); }
       else runs.push({ t: s });
       i = Math.max(r.end, i + 1);
     }
@@ -1189,7 +1150,7 @@ function laudoInput() {
     const { doc, texts } = parseEditor();
     if (!wasDoc) S.hub.laudo = { doc, fora: [], editadoEm: null };
     const L = S.hub.laudo; L.doc = doc; L.editadoEm = new Date().toISOString(); L.fora = L.fora || [];
-    for (const [id, txt] of texts) { const t = textById(id); if (t) { if (txt !== t.texto) setDescText(t, txt, true); } else if (S.hub.novos[id]) S.hub.novos[id].texto = txt; }
+    for (const [id, txt] of texts) { const t = textById(id); if (t) { if (txt !== segDisplay(t)) setDescText(t, txt === sentence(t.textoCelular) ? t.textoCelular : txt, true); } else if (S.hub.novos[id]) S.hub.novos[id].texto = txt; }
     const now = new Set(texts.keys());
     for (const id of before) if (!now.has(id) && !L.fora.includes(id)) L.fora.push(id);
     L.fora = L.fora.filter(id => !now.has(id));
@@ -1260,7 +1221,6 @@ function updateTarget() {
   }
   const same = JSON.stringify(next) === JSON.stringify(lTarget);
   lTarget = next;
-  if (next) lsOpenSide = true;
   if (next && next.kind === 'seg') { const t = textById(next.id); if (t && !t.fotoIds.includes(lShow)) { lShow = t.fotoIds[0] || null; lsVer = -1; } }
   else if (next) lShow = null;
   if (!same) lsPicking = false;
@@ -1296,7 +1256,7 @@ function markTarget() {
 }
 
 // ── Vincular e desvincular a partir do laudo ─────────────────────────────────
-function ensureDoc() { if (!docMode()) { S.hub.laudo = { doc: genDoc(laudoOpts()), fora: [], editadoEm: new Date().toISOString() }; for (const t of S.view.texts) if (sentence(t.texto) !== t.texto) setDescText(t, sentence(t.texto), true); } }
+function ensureDoc() { if (!docMode()) S.hub.laudo = { doc: genDoc(S.view, $('lPara').value), fora: [], editadoEm: new Date().toISOString() }; }
 function linkFromLaudo(p) {
   if (!lTarget) return;
   const before = JSON.stringify({ laudo: S.hub.laudo || null, textos: S.hub.textos, novos: S.hub.novos });
@@ -1317,7 +1277,7 @@ function linkFromLaudo(p) {
     doc[lTarget.para] = replaceRange(para, lTarget.start, lTarget.end, { id });
   }
   S.hub.laudo.editadoEm = new Date().toISOString();
-  lTarget = { kind: 'seg', id }; lShow = p.id; lsVer = -1; lsPicking = false; lsOpenSide = true;
+  lTarget = { kind: 'seg', id }; lShow = p.id; lsVer = -1; lsPicking = false;
   changed(); caretInSeg(id);
   const nums = numberPhotos(S.view.photos);
   banner('link', 'ok', 'Trecho vinculado à ' + (nums.has(p.id) ? 'foto ' + nums.get(p.id) : 'foto ' + p.name + ' (fora do anexo)') + '. Aparece também na aba Fotos.',
@@ -1358,7 +1318,6 @@ function unlinkFromLaudo(pid) {
 function insertDesc(t) {
   ensureDoc();
   const doc = S.hub.laudo.doc, c = lCaret;
-  if (sentence(t.texto) !== t.texto) setDescText(t, sentence(t.texto), true);
   if (!c || !doc[c.para]) doc.push([{ id: t.id }]);
   else {
     const para = doc[c.para], txt = para.map(r => r.id ? (textById(r.id) ? textById(r.id).texto : '') : r.t).join('');
@@ -1368,7 +1327,7 @@ function insertDesc(t) {
   }
   S.hub.laudo.fora = (S.hub.laudo.fora || []).filter(x => x !== t.id);
   S.hub.laudo.editadoEm = new Date().toISOString();
-  lTarget = { kind: 'seg', id: t.id }; lShow = t.fotoIds[0] || null; lsOpenSide = true;
+  lTarget = { kind: 'seg', id: t.id }; lShow = t.fotoIds[0] || null;
   changed(); caretInSeg(t.id);
 }
 // Depois de um vínculo (que redesenha o editor), o cursor volta para o fim do texto do trecho.
@@ -1396,21 +1355,21 @@ function renderLaudo() {
 }
 function renderLaudoStatus() {
   const dm = docMode(), L = S.hub.laudo || {};
-  $('lState').textContent = dm ? 'Texto do laudo, salvo no Drive' + (L.editadoEm ? ' (editado em ' + new Date(L.editadoEm).toLocaleString('pt-BR') + ')' : '') + '. Trechos ligados a fotos sincronizam com a aba Fotos.' : 'Montado das descrições e atualizado sozinho até você editar. Escreva à vontade.';
+  $('lState').textContent = dm ? 'Salvo no Drive' + (L.editadoEm ? ' · editado em ' + new Date(L.editadoEm).toLocaleString('pt-BR') : '') + '.' : 'Montado das descrições; muda sozinho até a primeira edição.';
+  $('lPara').disabled = dm; $('lPara').title = dm ? 'Só vale para o texto montado; depois de editar, os parágrafos são seus.' : '';
   $('lRedo').hidden = !dm;
   const box = $('lMissing'); box.textContent = '';
   const inDoc = new Set(currentDoc().flat().filter(r => r.id).map(r => r.id)), fora = new Set(L.fora || []);
   const miss = dm ? S.view.texts.filter(t => !inDoc.has(t.id) && !fora.has(t.id) && String(t.texto || '').trim()) : [];
   box.hidden = !miss.length;
   if (miss.length) {
-    box.append(h('span', { class: 'hint' }, miss.length + (miss.length === 1 ? ' descrição não está' : ' descrições não estão') + ' no texto (ditadas depois). Clique para inserir onde está o cursor:'));
+    box.append(h('span', { class: 'hint' }, miss.length + (miss.length === 1 ? ' descrição não está' : ' descrições não estão') + ' no texto. Clique para inserir no cursor:'));
     for (const d of miss.sort((a, b) => secIdx(a.secao) - secIdx(b.secao) || String(a.capturadaEm).localeCompare(String(b.capturadaEm)))) {
       const s = sentence(d.texto);
       box.append(h('button', { class: 'chip', 'data-text': d.id, title: secName(d.secao), onmousedown: e => e.preventDefault(), onclick: () => insertDesc(d) }, s.length > 70 ? s.slice(0, 68) + '…' : s));
     }
   }
-  const txt = laudoText(), loose = S.view.texts.filter(t => !t.fotoIds.length && inDoc.has(t.id)).length;
-  $('laudoInfo').textContent = wordCount(txt) + ' palavras. Clique num trecho para ver as fotos dele; selecione um texto (ou ponha o cursor numa frase) para vincular a uma foto.' + (fora.size ? ' ' + fora.size + ' descrição(ões) fora do laudo.' : '');
+  $('laudoInfo').textContent = wordCount(laudoText()) + ' palavras' + (fora.size ? ' · ' + fora.size + (fora.size === 1 ? ' descrição fora do laudo' : ' descrições fora do laudo') : '') + '.';
 }
 function renderLaudoSide() {
   // o painel fica sempre aberto; sem trecho no cursor, mostra como usar
@@ -1678,7 +1637,7 @@ async function openEditor() {
   $('editor').hidden = false; $('edHint').textContent = 'Carregando o original…';
   try { ed.bmp = await createImageBitmap(await getBlob(p.driveId)); }
   catch (e) { $('editor').hidden = true; if (e instanceof NeedLogin) return needLogin(); banner('ed', 'err', 'Não foi possível abrir a foto: ' + e.message); return; }
-  Object.assign(ed, { p, shapes: base ? JSON.parse(JSON.stringify(base.formas || [])).filter(s => s.tipo !== 'marca-recorte') : [], crop: base && base.recorte ? Object.assign({}, base.recorte) : null, drag: null, hist: [], hover: null });
+  Object.assign(ed, { p, shapes: base ? JSON.parse(JSON.stringify(base.formas || [])) : [], crop: base && base.recorte ? Object.assign({}, base.recorte) : null, drag: null, hist: [], hover: null });
   edSelect(-1); $('edCanvas').style.cursor = ED_CURSOR;
   setTool('arrow'); drawEditor();
 }
@@ -1719,7 +1678,7 @@ function drawEditor() {
   drawShapes(ctx, live, k);
   // marcação selecionada ou sob o ponteiro: contorno tracejado (só na tela, não vai para a cópia)
   for (const [i, col] of [[ed.sel, '#00c9a7'], [ed.hover && ed.hover.i !== ed.sel ? ed.hover.i : -1, 'rgba(255,255,255,.75)']]) {
-    const s = ed.shapes[i]; if (!s || s.tipo === 'marca-recorte') continue;
+    const s = ed.shapes[i]; if (!s) continue;
     const b = shapeBox(s), m = 6 / (k / dpr) ;
     ctx.save(); ctx.lineWidth = 1.5 * dpr; ctx.setLineDash([6 * dpr, 4 * dpr]); ctx.strokeStyle = '#000'; ctx.strokeRect((b.x - m) * k, (b.y - m) * k, (b.w + 2 * m) * k, (b.h + 2 * m) * k);
     ctx.strokeStyle = col; ctx.lineDashOffset = 5 * dpr; ctx.strokeRect((b.x - m) * k, (b.y - m) * k, (b.w + 2 * m) * k, (b.h + 2 * m) * k); ctx.restore();
@@ -1827,7 +1786,7 @@ function editSummary(shapes, crop) {
   return parts.join(', ') || 'sem marcações';
 }
 async function saveEdit() {
-  const p = ed.p, shapes = ed.shapes.filter(s => s.tipo !== 'marca-recorte');
+  const p = ed.p, shapes = ed.shapes;
   if (!shapes.length && !ed.crop) { banner('ed', 'warn', 'Nada para salvar: desenhe uma marcação ou um recorte.', [], 4000); return; }
   if (!S.editadas) { banner('ed', 'err', 'A pasta Editadas/ do caso não foi encontrada no Drive.'); return; }
   $('edSave').disabled = true; $('edHint').textContent = 'Gerando a cópia em resolução plena…';
@@ -2135,9 +2094,9 @@ async function closeCase() {
     for (const f of loose) { await take(f, (/^laudo_pericial_anterior_/.test(f.name) ? 'anteriores/' : '') + f.name); line.textContent = 'Baixando e conferindo os arquivos do Drive… ' + (++n) + ' de ' + total; }
     for (const p of S.view.photos) { const f = files.find(x => x.path === p.arquivo); if (!f) throw new Error(p.arquivo + ' não está no Drive'); if (f.sha !== p.sha256) throw new Error(p.arquivo + ': hash diferente do registrado no celular'); }
     line.textContent = total + ' arquivos baixados; hashes conferidos com o Drive e com o registro do celular.'; line.className = 'ok';
-    // 2. Laudo final (original, completo) e protótipo do laudo entram no pacote.
+    // 2. Laudo final (original, completo) e o texto da aba Laudo entram no pacote.
     files.push({ path: san.file.name, bytes: new Uint8Array(await san.file.arrayBuffer()) });
-    files.push({ path: 'laudo_prototipo.txt', bytes: new TextEncoder().encode(laudoText() + '\n') });
+    files.push({ path: 'laudo_texto.txt', bytes: new TextEncoder().encode(laudoText() + '\n') });
     for (const f of files) if (!f.sha) f.sha = await sha256Bytes(f.bytes);
     files.push({ path: 'SHA256SUMS.txt', bytes: new TextEncoder().encode(files.map(f => f.sha + '  ' + f.path).join('\n') + '\n') });
     files[files.length - 1].sha = await sha256Bytes(files[files.length - 1].bytes);
@@ -2249,13 +2208,14 @@ function bind() {
   dropTarget($('stage'), (id, from) => S.sel && linkText(id, S.sel, from));
   dropTarget($('descs'), (id, from) => S.sel && linkText(id, S.sel, from));
   for (const id of ['lRefs', 'lPara']) $(id).addEventListener('change', () => { ls.set('forensis_hub_laudo', JSON.stringify(laudoOpts())); buildEditor(); renderLaudoStatus(); });
+  $('hubVer').title = 'forenSIS hub v' + HUB_VERSION;
   try { const o = JSON.parse(ls.get('forensis_hub_laudo', 'null')); if (o) { $('lRefs').checked = o.refs !== false; $('lPara').value = o.para || 'secao'; } } catch (e) {}
   $('btnCopy').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(laudoText()); banner('copy', 'ok', 'Texto copiado. Cole no laudo.', [], 3000); }
     catch (e) { banner('copy', 'warn', 'O navegador não deixou copiar. Use "Baixar .txt".', [], 5000); }
   });
   $('btnTxt').addEventListener('click', () => {
-    const a = h('a', { href: URL.createObjectURL(new Blob([laudoText() + '\n'], { type: 'text/plain;charset=utf-8' })), download: 'laudo_prototipo_' + S.name.replace(' ', '-') + '.txt' });
+    const a = h('a', { href: URL.createObjectURL(new Blob([laudoText() + '\n'], { type: 'text/plain;charset=utf-8' })), download: 'laudo_texto_' + S.name.replace(' ', '-') + '.txt' });
     document.body.append(a); a.click(); a.remove();
   });
   document.addEventListener('keydown', e => {

@@ -46,7 +46,7 @@ self.addEventListener('fetch', e => {
       try { const res = await fetch(req); if (res.ok) await cache.put(BASE, res.clone()); return res; }
       catch (err) { return new Response('<meta charset="utf-8"><p style="font:16px sans-serif;padding:24px">forenSIS: sem conexão e sem cópia guardada neste aparelho. Abra o app uma vez com internet.</p>', { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }); }
     }
-    // Demais arquivos do app (ícones, manifesto, diagnóstico): rede primeiro, cópia se estiver sem sinal.
+    // Demais arquivos do app (ícones, manifesto, hub, 7-Zip): rede primeiro, cópia se estiver sem sinal.
     try { const res = await fetch(req); if (res.ok && CORE.includes(rel)) await cache.put(req, res.clone()); return res; }
     catch (err) { const c = await cache.match(req, { ignoreSearch: true }); if (c) return c; throw err; }
   })());

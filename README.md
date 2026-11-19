@@ -1,14 +1,14 @@
 # forenSIS (beta)
 
-App para o exame pericial: fotografias e ditado no mesmo registro, enviados direto do celular de serviço para o Google Drive, com conferência de integridade (SHA-256), e um hub no computador para revisar e editar.
+App para o exame pericial: fotos e ditado no mesmo registro, enviados direto do celular de serviço para o Google Drive com conferência de integridade (SHA-256), e um hub no computador para revisar, escrever o laudo e fechar o caso.
 
-**Estado:** fase 4 — fechamento e sanitizador no hub (v0.3). App do celular v0.4.3.
+**Estado:** app do celular v0.4.5 · hub v0.6.2. Fases 0 a 3 feitas; fase 4 sem a selagem; fase 5 por fazer.
 
 ## Isolamento do beta
 
 - Endereço próprio; o app de ditado atual (`transcricao-forense`) não é alterado.
-- Permissão restrita do Drive (`drive.file`): o app só enxerga as pastas e arquivos que ele mesmo criou. Ele cria `DPT_BETA/Morto/2026/` e não consegue ver nem alterar `DPT/`.
-- Casos fictícios numerados de `2026 9000` a `2026 9999`.
+- Permissão restrita do Drive (`drive.file`): o app só enxerga o que ele mesmo criou (`DPT_BETA/Morto/2026/…`) e não consegue ver nem alterar `DPT/`.
+- Só casos fictícios, de `2026 9000` a `2026 9999`.
 
 ## Configuração do Google Cloud (uma vez)
 
@@ -18,60 +18,57 @@ App para o exame pericial: fotografias e ditado no mesmo registro, enviados dire
    - **Branding:** nome do app `forenSIS` e seu e-mail de suporte.
    - **Público:** tipo **Externo**, status **Em teste**; em **Usuários de teste**, adicione o seu e-mail.
    - **Acesso a dados:** adicione o escopo `.../auth/drive.file`.
-4. Em **Clientes**, crie um cliente do tipo **Aplicativo da Web**:
-   - **Origens JavaScript autorizadas:** `https://gabrielzlisboa-gif.github.io`
-   - Não é preciso URI de redirecionamento.
-5. Copie o **ID do cliente** (termina em `.apps.googleusercontent.com`) e cole no passo 1 do app. O ID não é secreto; não crie nem use "chave secreta do cliente".
+4. Em **Clientes**, crie um cliente do tipo **Aplicativo da Web**, com a origem `https://gabrielzlisboa-gif.github.io` (sem URI de redirecionamento).
+5. Cole o **ID do cliente** (termina em `.apps.googleusercontent.com`) nas configurações do app. O ID não é secreto; não use "chave secreta do cliente".
+
+## Celular (`index.html`)
+
+- Câmera no próprio app (resolução máxima do sensor), foto congelada para conferir antes de enviar, tela cheia com zoom.
+- Segurar para ditar; o ditado (Groq Whisper) fica ligado à foto ou solto na seção. Texto solto se arrasta até uma foto.
+- Fila sem sinal: tudo fica no aparelho até subir e ter o hash conferido no Drive. Hash divergente avisa e oferece "Reenviar".
+- Exclusão de foto já enviada: vai para a lixeira do Drive e fica registrada no `caso.json`.
+- Instalável (service worker): abre sem internet; versão nova entra na próxima abertura. Login renovado num toque em Câmera ou ao abrir caso, nunca durante a captura.
+- Caso fechado no computador: o celular para de enviar e avisa; caso reaberto: volta a enviar. Pasta do caso apagada no Drive: o que falta enviar vai para uma pasta nova (nada já enviado é reenviado).
+- Cópia local em .zip desligada por padrão.
+
+## Hub no computador (`hub.html`)
+
+- Mesmo endereço, mesma conta e mesmo ID de cliente; lê os casos de `DPT_BETA`.
+- **Sem conflito com o celular:** o celular grava `caso.json`; o hub grava só `hub.json` por cima (correções, vínculos, seções, legendas, anotações, laudo). O texto ditado continua no `caso.json` e pode ser restaurado.
+- **Fotos:** por seção, numeradas na ordem do anexo; filtros; hash conferido; corrigir descrições, arrastar texto até a foto, legenda, troca de seção.
+- **Anotações:** seta, círculo, texto e recorte, móveis e editáveis; a cópia vai para `Editadas/` com hash conferido e o original não muda.
+- **Laudo (editor):** começa montado das descrições e vira o texto final do caso. Trechos ligados a descrições (editar no laudo edita a descrição); texto livre que pode ser vinculado a uma ou mais fotos; "(foto N)" é marca que se renumera com o anexo e pode ser escondida; trecho apagado fica "fora do laudo" na aba Fotos; ditado novo aparece na faixa "não estão no texto". Painel de fotos sempre aberto ao lado.
+- **Anexo para o Word:** páginas-imagem JPEG a 300 dpi (padrão 16 × 24,7 cm), 6, 4, 2 ou 1 foto com legenda; só as fotos escolhidas; copiar, baixar .jpg/.zip ou imprimir.
+- **Sanitizador de .docx:** mesma regra do script (de "QUESITOS" em diante, sem preâmbulo e descrição do fato, nome do periciando por [VÍTIMA]), mais cabeçalho, rodapé, notas, comentários, metadados, imagens e "Outros termos" por [OCULTO]. Só `.docx`.
+
+## Fechar, reabrir
+
+- **Fechar e trancar:** confere o hash de cada arquivo; monta `laudo_pericial.7z` (7-Zip, AES-256, nomes cifrados) com `Originais/`, `Editadas/`, `caso.json`, `hub.json`, `transcricao.txt`, o laudo final, `laudo_texto.txt` e `SHA256SUMS.txt`; testa, extrai e confere; envia e confere o hash no Drive; marca a pasta como fechada e só então manda para a lixeira o que está no pacote. Ficam o `.7z` e o `_sanitizado.docx`. Se algo falhar antes do fim, nada é apagado.
+- A senha é digitada duas vezes e não é gravada em lugar nenhum.
+- Foto com hash divergente ou sem hash bloqueia o fechamento. Arquivo posto à mão na pasta é invisível ao app (`drive.file`): fica, com aviso; "Concluir limpeza" termina depois, com a senha.
+- **Reabrir** (com a senha): confere cada arquivo com o `SHA256SUMS.txt` e devolve fotos, anotadas, `caso.json`, `hub.json` e transcrição; o pacote vira `laudo_pericial_anterior_*.7z` e entra em `anteriores/` no próximo fechamento.
+- 7-Zip no navegador: `vendor/7z-wasm-1.2.0` (7-Zip 24.09, GNU LGPL + restrição unRAR, ver `License.txt`), servido pelo próprio site.
 
 ## Fases
 
 | Fase | Conteúdo | Situação |
 |---|---|---|
-| 0 | Login, pastas de teste, envio com SHA-256, diagnóstico da câmera | feita |
+| 0 | Login, pastas de teste, envio com SHA-256 | feita |
 | 1 | Câmera no app, fila sem sinal | feita |
-| 2 | Ditado ligado à foto, seções, foto congelada, tela cheia, exclusão com lixeira do Drive | feita |
-| 2.1 | **Uso em campo** (ver abaixo) | feita |
-| 3 | **Hub no computador** (ver abaixo) | v1 publicada |
-| 4 | **Fechamento e selagem** (ver abaixo) | fechamento e sanitizador feitos; falta a selagem |
-| 5 | **Lançamento** (ver abaixo) | |
-
-### 2.1 — Uso em campo
-- ~~*Service worker* e instalação como aplicativo~~ — feito na v0.4.0: o app abre da cópia guardada no aparelho, mesmo sem internet; versão nova é baixada em segundo plano e só entra na próxima abertura (com aviso).
-- ~~Renovação do login~~ — feito na v0.4.0: quando faltam menos de 20 min, ou ao reabrir o app, o toque em Câmera ou em abrir caso renova com a conta guardada. Nunca durante a captura.
-- Teste de campo no Moto G100 (13/11, 15 min): luvas, segurar para ditar e pinça funcionam; câmera abre em 0,5 s em média (máx. 0,7 s); bateria cerca de 16 pontos por hora. Falta um exame completo. Medições em Configurações › Teste de campo.
-- ~~Recarga acidental derrubava o login~~ — feito na v0.4.1: "puxar para atualizar" desativado e sessão mantida na recarga da mesma aba (até vencer).
-- ~~Vincular texto avulso a uma foto~~ — feito na v0.4.1: na página da seção, arrastar a alça do texto até o cartão da foto (a lista rola sozinha nas bordas); "desvincular" e "Desfazer" para reverter.
-- Se o login falhar no app instalado (janela do Google em modo aplicativo), usar o app pela aba do Chrome e avaliar o login por redirecionamento.
-- ~~Cópia local (.zip em Downloads, sem senha) desligada por padrão~~ — feito na v0.3.2.
-
-### 3 — Hub no computador (`hub.html`)
-- Abre no Chrome do computador, com a mesma conta e o mesmo ID de cliente do celular; lê os casos de `DPT_BETA` direto do Drive.
-- **Sem conflito com o celular:** o celular grava `caso.json`; o hub grava só `hub.json` (correções de texto, vínculos, seção, legendas, edições). A tela mostra `caso.json` com `hub.json` por cima. O texto original do celular continua no `caso.json` e pode ser restaurado ("voltar ao do celular").
-- Fotos por seção (numeração do anexo: ordem das seções, depois ordem do exame), filtros, hash conferido com o do Drive.
-- Corrigir descrições; arrastar e soltar texto sem foto até a miniatura (ou para "sem foto"); legenda por foto; trocar seção (as descrições acompanham).
-- **Protótipo do laudo:** concatenador que junta as descrições em texto único, na ordem das seções e do exame, com maiúscula inicial, ponto final e "(foto N)"; copiar ou baixar .txt.
-- **Anotações:** seta, círculo, texto e recorte; a cópia vai para `Editadas/` com hash conferido; o original nunca muda; as marcações ficam guardadas para editar de novo. Cursor em cruz com contorno (visível sobre qualquer cor). Marcações já feitas podem ser arrastadas (na seta, pegar a ponta ou o início ajusta só aquele lado); clicar seleciona (Delete ou "Apagar marcação" apaga); com a ferramenta Texto, clicar num texto o corrige; o recorte se move por dentro e se ajusta pelas bordas e cantos. Desfazer volta qualquer passo, inclusive movimentos; Esc pede confirmação antes de sair sem salvar (hub v0.6.1).
-- **Laudo como editor de texto (hub v0.6):** a aba Laudo é onde o texto final é escrito. Começa montado das descrições (atualizado sozinho até a primeira edição) e depois fica salvo no `hub.json` como parágrafos com texto livre e **trechos ligados a descrições**. Editar um trecho edita a descrição (aparece igual na aba Fotos); escrever fora dos trechos é texto livre (Enter ou digitar depois do ponto final de um trecho também). Selecionar um texto livre (ou pôr o cursor numa frase) e escolher uma foto ao lado cria uma descrição daquela foto, marcada "escrita no laudo" na aba Fotos. Vínculos de muitos para muitos: um trecho pode ter várias fotos ("(fotos 2 e 3)") e uma foto várias descrições; "+ Vincular outra foto" e "Desvincular esta" no painel ao lado. O "(foto N)" é marca, não texto: some e volta com "Referência às fotos" e se renumera sozinho quando o anexo muda (foto fora do anexo fica sem marca). Apagar um trecho tira só do laudo: a descrição continua na aba Fotos com "fora do laudo" (clicar devolve à faixa). Ditado novo do celular e trechos devolvidos aparecem na faixa "não estão no texto", para inserir no cursor. A ordem montada no texto vale só para o texto; a aba Fotos segue a ordem do exame. O painel de fotos fica sempre aberto ao lado (1/3 ou metade); cursor num trecho com foto mostra a foto; fora de um trecho, mostra como usar; trecho sem foto, o painel indica "Sem foto" e oferece as fotos ainda sem descrição. "Refazer a partir das descrições" com Desfazer; o painel da esquerda é retrátil. O texto da aba Laudo é o que vai para "Copiar", ".txt" e para o `laudo_prototipo.txt` do pacote. O texto livre da v0.5 é convertido na primeira abertura (frases iguais a uma descrição viram trechos).
-- **Anexo para o Word:** cada página vira uma imagem JPEG a 300 dpi do tamanho da área útil (padrão 16 × 24,7 cm), com 6, 4, 2 ou 1 foto e espaço fixo para legenda de até duas linhas; copiar e colar no Word, baixar .jpg ou todas em .zip, ou imprimir/PDF. A última página termina na última linha usada. Só entram as fotos escolhidas (na janela do anexo ou na caixa "Vai para o anexo do laudo" da foto); a numeração e o "(foto N)" do laudo seguem só as escolhidas, e a escolha fica salva no `hub.json`.
-- Próximos: ditado pelo microfone do computador, anexo em formato de documento, escala métrica.
-
-### 4 — Fechamento e selagem (hub, "Fechar caso")
-- ~~Fechar e trancar o caso no hub~~ — feito no hub v0.3: baixa todos os arquivos do caso do Drive e confere cada hash; monta `laudo_pericial.7z` (7-Zip, AES-256, nomes cifrados) com `Originais/`, `Editadas/`, `caso.json`, `hub.json`, `transcricao.txt`, o laudo final completo, `laudo_prototipo.txt` e `SHA256SUMS.txt`; testa com a senha, extrai e confere cada arquivo; envia (envio retomável) e confere o hash no Drive; marca a pasta como fechada e só então manda os soltos para a lixeira do Drive. Na pasta ficam só o `.7z` e o `_sanitizado.docx`. Se algo falhar antes do fim, nada é apagado e o que a tentativa enviou vai para a lixeira.
-- A senha é digitada duas vezes na hora e não é gravada em lugar nenhum (nem no código).
-- Limpeza arquivo por arquivo: só vai para a lixeira o que está no pacote (conferido pelo hash). No beta (`drive.file`), arquivo posto à mão nas pastas do caso é invisível para o forenSIS: não entra no pacote e a pasta que o contém fica, com aviso. Caso fechado com sobras: "Concluir limpeza" (pede a senha, lê o `SHA256SUMS.txt` de dentro do pacote e só então limpa).
-- Foto com hash divergente ou sem hash bloqueia o fechamento.
-- O celular (v0.4.3) para de enviar para um caso fechado e avisa; o que for feito nele fica só no aparelho.
-- ~~Sanitizador~~ — no hub ("Sanitizar laudo" e dentro do fechamento), com prévia: mesma regra do script (de "QUESITOS" em diante, sem preâmbulo e descrição do fato, sem tabelas pequenas e imagens, nome do periciando por [VÍTIMA]); além disso, tabelas dentro das partes removidas saem junto, as imagens saem de dentro do arquivo, o nome é trocado também em cabeçalho, rodapé, notas e comentários (sem diferenciar maiúsculas), o título/assunto do arquivo ficam em branco, e há "Outros termos" trocados por [OCULTO]. Só `.docx` (o `.doc` antigo precisa ser salvo como `.docx` no Word).
-- **Reabrir caso** (hub v0.4, com a senha): abre o pacote, confere cada arquivo com o `SHA256SUMS.txt`, devolve à pasta fotos, cópias anotadas, `caso.json` (com os novos ids do Drive), `hub.json` (com histórico da reabertura) e transcrição, com hash conferido no Drive. O pacote vira `laudo_pericial_anterior_AAAAMMDD-HHMM.7z` e entra em `anteriores/` no próximo fechamento; o sanitizado vai para a lixeira. O laudo completo não volta ao Drive (pode ser baixado na hora). Se falhar, o caso continua fechado. O celular (v0.4.4) percebe a reabertura e volta a enviar.
-- Pendente: selagem (lista de hashes ao e-mail institucional e/ou carimbo de tempo RFC 3161); melhoria da sanitização (outros nomes, CPF, endereços).
-- 7-Zip no navegador: `vendor/7z-wasm-1.2.0` (7-Zip 24.09, licença GNU LGPL + restrição unRAR, ver `License.txt`), servido pelo próprio site.
+| 2 | Ditado ligado à foto, seções, tela cheia, exclusão | feita |
+| 2.1 | Uso em campo: instalação, renovação do login, arrastar texto | feita |
+| 3 | Hub: fotos, anotações, laudo, anexo | feita (ajustes contínuos) |
+| 4 | Fechamento, reabertura, sanitizador | feita; falta a **selagem** (hashes ao e-mail institucional e/ou carimbo de tempo RFC 3161) |
+| 5 | Lançamento | por fazer |
 
 ### 5 — Lançamento
-- Endereço próprio para o app (domínio próprio), separado de `gabrielzlisboa-gif.github.io`, que é compartilhado com os outros projetos e dá acesso ao armazenamento local.
+- Domínio próprio, separado de `gabrielzlisboa-gif.github.io` (compartilhado com os outros projetos, inclusive o armazenamento local).
 - Verificação em duas etapas obrigatória na conta Google usada.
 - Validar com o DPT o uso de conta Google pessoal para as fotos e o envio do áudio do ditado ao Groq.
-- Troca do escopo para a pasta real (`DPT`) e fim do limite de casos fictícios.
+- Troca para a pasta real (`DPT`) e fim do limite de casos fictícios.
 
-### Adiados (versão posterior)
+### Adiados
 - Escala métrica nas fotos e calibração no hub.
-- Melhoria da sanitização e reescrita completa do script de fechamento.
+- Sanitização de outros nomes, CPF e endereços.
+- Ditado pelo microfone do computador; anexo em formato de documento.
+- Se o login falhar no app instalado, avaliar login por redirecionamento.
