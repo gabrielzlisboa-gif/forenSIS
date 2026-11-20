@@ -2,7 +2,7 @@
 
 App para o exame pericial: fotos e ditado no mesmo registro, enviados direto do celular de serviço para o Google Drive com conferência de integridade (SHA-256), e um hub no computador para revisar, escrever o laudo e fechar o caso.
 
-**Estado:** app do celular v0.4.6 · hub v0.6.5. Fases 0 a 4 feitas; fase 5 por fazer.
+**Estado:** app do celular v0.4.6 · hub v0.6.6. Fases 0 a 4 feitas; fase 5 por fazer.
 
 ## Isolamento do beta
 

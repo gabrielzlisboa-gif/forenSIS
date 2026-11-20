@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; script-src 'self' 'sha256-ZM8jRYU696HXrywAS7Kbut9eMLXjzQhXALILH4l3ppU=' 'wasm-unsafe-eval' https://accounts.google.com/gsi/; connect-src 'self' https://www.googleapis.com https://accounts.google.com/gsi/">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; script-src 'self' 'sha256-vtFe/mh1IyA8Q5s2nkf64ZQvW0cQwHyQmEQfytpZbcE=' 'wasm-unsafe-eval' https://accounts.google.com/gsi/; connect-src 'self' https://www.googleapis.com https://accounts.google.com/gsi/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>forenSIS · Hub</title>
@@ -52,13 +52,17 @@ label.f { display:flex; flex-direction:column; gap:4px; font-size:12px; color:va
 .dot { width:8px; height:8px; border-radius:4px; background:var(--text-muted); display:inline-block; }
 .dot.on { background:var(--accent); }
 
-.banners { display:flex; flex-direction:column; gap:6px; padding:0 16px; }
-.banners:not(:empty) { padding-top:8px; }
-.banner { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; font-size:13px; border:1px solid var(--border-strong); background:var(--surface2); }
+/* avisos flutuam no canto de baixo, à esquerda (não empurram a tela nem o texto do laudo, e não cobrem o painel de fotos) */
+.banners { position:fixed; left:16px; bottom:16px; z-index:1000; display:flex; flex-direction:column; gap:8px; width:min(440px, calc(100vw - 32px)); pointer-events:none; }
+.banner { pointer-events:auto; display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13px; border:1px solid var(--border-strong); background:var(--surface2); box-shadow:0 8px 28px rgba(0,0,0,.5); animation:bIn .15s ease-out; }
+/* com uma janela aberta (fechar caso, anexo, sanitizador), sobem para o topo e não cobrem os botões dela */
+body:has(.modal:not([hidden])) .banners { top:12px; bottom:auto; left:50%; transform:translateX(-50%); }
+@keyframes bIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion: reduce) { .banner { animation:none; } }
 .banner .msg { flex:1; }
-.banner.warn { border-color:var(--amber-border); background:var(--amber-dim); }
-.banner.err { border-color:var(--red-border); background:var(--red-dim); }
-.banner.ok { border-color:var(--accent-border); background:var(--accent-dim); }
+.banner.warn { border-color:var(--amber-border); background:linear-gradient(var(--amber-dim), var(--amber-dim)), var(--surface2); } /* cor sobre fundo opaco: o texto de baixo não aparece */
+.banner.err { border-color:var(--red-border); background:linear-gradient(var(--red-dim), var(--red-dim)), var(--surface2); } /* cor sobre fundo opaco: o texto de baixo não aparece */
+.banner.ok { border-color:var(--accent-border); background:linear-gradient(var(--accent-dim), var(--accent-dim)), var(--surface2); } /* cor sobre fundo opaco: o texto de baixo não aparece */
 
 /* Layout */
 .shell { height:100vh; display:flex; flex-direction:column; }
@@ -129,7 +133,8 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 .lwrap { display:grid; grid-template-columns:minmax(0, 1fr); gap:16px; align-items:start; }
 .lwrap.side { grid-template-columns:minmax(0, 2fr) minmax(0, 1fr); }
 .lwrap.half { grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); }
-.lmode { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--text-sec); margin-bottom:8px; }
+#lState { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.lmode { display:flex; align-items:center; gap:8px; flex-wrap:nowrap; white-space:nowrap; font-size:12px; color:var(--text-sec); margin-bottom:8px; }
 .ledit { border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); padding:16px 20px; font:14px/1.75 var(--sans); min-height:360px; outline:none; white-space:pre-wrap; overflow-wrap:break-word; caret-color:var(--accent); }
 .ledit:focus { border-color:var(--accent-border); }
 .ledit p { margin:0; min-height:1.75em; }
@@ -146,7 +151,9 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 .lsth.on { border-color:var(--accent); }
 .lsth .n { position:absolute; left:2px; top:2px; font-size:10px; font-weight:600; padding:0 4px; border-radius:3px; background:rgba(7,8,11,.8); }
 .ltext.fora { opacity:.7; }
-.lmissing { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px; padding:8px 10px; border:1px solid var(--amber-border); background:var(--amber-dim); border-radius:8px; }
+.lmissing { display:flex; flex-wrap:nowrap; gap:6px; align-items:center; height:42px; overflow-x:auto; overflow-y:hidden; white-space:nowrap; margin-bottom:10px; padding:0 10px; border:1px solid var(--amber-border); background:var(--amber-dim); border-radius:8px; }
+.lmissing > * { flex:none; }
+.lmissing.none { border-color:var(--border); background:transparent; }  /* altura fixa e sempre presente: o editor não pula */
 .lside { position:sticky; top:0; border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); display:flex; flex-direction:column; height:calc(100vh - 190px); min-height:320px; overflow:hidden; }
 .lside .lsh { display:flex; align-items:center; gap:6px; padding:8px 10px; border-bottom:1px solid var(--border); font-size:13px; }
 .lside .lsh b { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -287,7 +294,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
           <button class="btn sm ghost" id="lUndo" disabled title="Desfazer (Ctrl+Z)">↶ Desfazer</button>
           <button class="btn sm ghost" id="lRedoH" disabled title="Refazer (Ctrl+Y ou Ctrl+Shift+Z)">↷ Refazer</button>
           <button class="btn sm ghost" id="lRedo" hidden>Remontar das descrições</button></div>
-        <div class="lmissing" id="lMissing" hidden></div>
+        <div class="lmissing none" id="lMissing"></div>
         <div class="lwrap" id="lwrap">
           <div>
             <div class="ledit" id="ledit" contenteditable="true" spellcheck="true" lang="pt-BR" role="textbox" aria-multiline="true" aria-label="Texto do laudo"></div>
@@ -395,7 +402,7 @@ dt { color:var(--text-muted); } dd { margin:0; word-break:break-all; }
 <script>
 'use strict';
 /*PURE-START*/
-const HUB_VERSION = '0.6.5';
+const HUB_VERSION = '0.6.6';
 // Mesmas seções do app do celular (o teste confere que continuam iguais).
 const SECTIONS = [
   { id: 'ext', name: 'Exame externo' },
@@ -1433,7 +1440,8 @@ function renderLaudoStatus() {
   const box = $('lMissing'); box.textContent = '';
   const inDoc = new Set(currentDoc().flat().filter(r => r.id).map(r => r.id)), fora = new Set(L.fora || []);
   const miss = dm ? S.view.texts.filter(t => !inDoc.has(t.id) && !fora.has(t.id) && String(t.texto || '').trim()) : [];
-  box.hidden = !miss.length;
+  box.classList.toggle('none', !miss.length);
+  if (!miss.length) box.append(h('span', { class: 'hint' }, dm ? 'Todas as descrições estão no texto ou marcadas como fora do laudo.' : 'O texto é montado com todas as descrições.'));
   if (miss.length) {
     box.append(h('span', { class: 'hint' }, miss.length + (miss.length === 1 ? ' descrição não está' : ' descrições não estão') + ' no texto. Clique para inserir no cursor:'));
     for (const d of miss.sort((a, b) => secIdx(a.secao) - secIdx(b.secao) || String(a.capturadaEm).localeCompare(String(b.capturadaEm)))) {
