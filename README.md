@@ -2,7 +2,7 @@
 
 App para o exame pericial: fotos e ditado no mesmo registro, enviados direto do celular de serviço para o Google Drive com conferência de integridade (SHA-256), e um hub no computador para revisar, escrever o laudo e fechar o caso.
 
-**Estado:** app do celular v0.4.6 · hub v0.6.4. Fases 0 a 4 feitas; fase 5 por fazer.
+**Estado:** app do celular v0.4.6 · hub v0.6.5. Fases 0 a 4 feitas; fase 5 por fazer.
 
 ## Isolamento do beta
 
@@ -47,7 +47,7 @@ App para o exame pericial: fotos e ditado no mesmo registro, enviados direto do 
 - **Sem conflito com o celular:** o celular grava `caso.json`; o hub grava só `hub.json` por cima (correções, vínculos, seções, legendas, anotações, laudo). O texto ditado continua no `caso.json` e pode ser restaurado.
 - **Fotos:** por seção, numeradas na ordem do anexo; filtros; hash conferido; corrigir descrições, arrastar texto até a foto, legenda, troca de seção.
 - **Anotações:** seta, círculo, texto e recorte, móveis e editáveis; a cópia vai para `Editadas/` com hash conferido e o original não muda.
-- **Laudo (editor):** começa montado das descrições e vira o texto final do caso. Trechos ligados a descrições (editar no laudo edita a descrição); texto livre que pode ser vinculado a uma ou mais fotos; "(foto N)" é marca que se renumera com o anexo e pode ser escondida; trecho apagado fica "fora do laudo" na aba Fotos; ditado novo aparece na faixa "não estão no texto". Painel de fotos sempre aberto ao lado.
+- **Laudo (editor):** começa montado das descrições e vira o texto final do caso. Trechos ligados a descrições (editar no laudo edita a descrição); texto livre que pode ser vinculado a uma ou mais fotos; "(foto N)" é marca que se renumera com o anexo e pode ser escondida; trecho apagado fica "fora do laudo" na aba Fotos; ditado novo aparece na faixa "não estão no texto". Painel de fotos sempre aberto ao lado. Desfazer e refazer próprios (Ctrl+Z, Ctrl+Y ou botões) para texto e vínculos, que sobrevivem a vincular e desvincular fotos; se o caso mudar fora da aba Laudo, o histórico recomeça dali. "Remontar das descrições" refaz o texto a partir dos ditados.
 - **Anexo para o Word:** páginas-imagem JPEG a 300 dpi (padrão 16 × 24,7 cm), 6, 4, 2 ou 1 foto com legenda; só as fotos escolhidas; copiar, baixar .jpg/.zip ou imprimir.
 - **Sanitizador de .docx:** mesma regra do script (de "QUESITOS" em diante, sem preâmbulo e descrição do fato, nome do periciando por [VÍTIMA]), mais cabeçalho, rodapé, notas, comentários, metadados, imagens e "Outros termos" por [OCULTO]. Só `.docx`.
 
@@ -68,12 +68,9 @@ App para o exame pericial: fotos e ditado no mesmo registro, enviados direto do 
 | 1 | Câmera no app, fila sem sinal | feita |
 | 2 | Ditado ligado à foto, seções, tela cheia, exclusão | feita |
 | 2.1 | Uso em campo: instalação, renovação do login, arrastar texto | feita |
-| 3 | Hub: fotos, anotações, laudo, anexo | feita (ajustes contínuos, ver abaixo) |
+| 3 | Hub: fotos, anotações, laudo, anexo | feita (ajustes contínuos) |
 | 4 | Fechamento, reabertura, sanitizador, teste com caso grande | feita |
 | 5 | Lançamento | por fazer |
-
-### 3 — Ajustes do hub
-- Histórico próprio de desfazer/refazer no editor do laudo (hoje o Ctrl+Z do navegador perde o histórico quando o editor é redesenhado, por exemplo depois de vincular uma foto).
 
 ### 5 — Lançamento
 - Dividir o `hub.html` (mais de 2.200 linhas) em arquivos por função — laudo, anotações, anexo, sanitizador, fechamento — para facilitar manutenção e auditoria de segurança. Sem mudança para o usuário. Com o código em arquivos, a CSP passa a valer sem o hash (e sem o `tools/csp.py`).
