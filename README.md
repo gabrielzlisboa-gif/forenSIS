@@ -2,7 +2,7 @@
 
 App para o exame pericial: fotos e ditado no mesmo registro, enviados direto do celular de serviço para o Google Drive com conferência de integridade (SHA-256), e um hub no computador para revisar, escrever o laudo e fechar o caso.
 
-**Estado:** app do celular v0.4.6 · hub v0.6.6. Fases 0 a 4 feitas; fase 5 por fazer.
+**Estado:** app do celular v0.4.6 · hub v0.7.0. Fases 0 a 4 feitas; fase 5 por fazer.
 
 ## Isolamento do beta
 
@@ -47,13 +47,17 @@ App para o exame pericial: fotos e ditado no mesmo registro, enviados direto do 
 - **Sem conflito com o celular:** o celular grava `caso.json`; o hub grava só `hub.json` por cima (correções, vínculos, seções, legendas, anotações, laudo). O texto ditado continua no `caso.json` e pode ser restaurado.
 - **Fotos:** por seção, numeradas na ordem do anexo; filtros; hash conferido; corrigir descrições, arrastar texto até a foto, legenda, troca de seção.
 - **Anotações:** seta, círculo, texto e recorte, móveis e editáveis; a cópia vai para `Editadas/` com hash conferido e o original não muda.
-- **Laudo (editor):** começa montado das descrições e vira o texto final do caso. Trechos ligados a descrições (editar no laudo edita a descrição); texto livre que pode ser vinculado a uma ou mais fotos; "(foto N)" é marca que se renumera com o anexo e pode ser escondida; trecho apagado fica "fora do laudo" na aba Fotos; ditado novo aparece na faixa "não estão no texto". Painel de fotos sempre aberto ao lado. Desfazer e refazer próprios (Ctrl+Z, Ctrl+Y ou botões) para texto e vínculos, que sobrevivem a vincular e desvincular fotos; se o caso mudar fora da aba Laudo, o histórico recomeça dali. "Remontar das descrições" refaz o texto a partir dos ditados.
+- **Laudo, em três etapas:**
+  1. **Rascunho:** montado uma vez a partir dos ditados (título da seção e um parágrafo por ditado) e depois independente: o ditado do celular nunca muda. É só texto e **marcadores de foto**; a frase onde está o marcador é a frase daquela foto. Clique numa foto da tira (embaixo, sempre à vista) para pôr o marcador no cursor, ou arraste-a para o texto; apagar o marcador desvincula; recortar e colar o leva junto. A foto da frase do cursor aparece ao lado. Ditados que chegam depois aparecem numa faixa para inserir. Ctrl+Z/Ctrl+Y próprios; "Remontar dos ditados".
+  2. **Enviar à IA (plano A):** "Copiar para o projeto" leva uma nota curta (manter os marcadores ⟦F1⟧… na Parte A) e o ditado, só texto, para colar no projeto "Laudos necropsia". A resposta inteira é colada de volta.
+  3. **Revisão → Word:** o forenSIS separa a Parte A (editável, com os marcadores de volta) da Parte B (avisos ao lado, não vai para o Word), confere quais fotos voltaram e mostra a foto do trecho. "Copiar Parte A para o Word" leva texto e negrito, **sem** "(foto N)" por padrão (opção para incluir).
+  - Na aba Fotos, cada foto mostra as frases do rascunho e da revisão em que é citada. No fechamento, entram `laudo_rascunho.txt`, `laudo_ia_resposta.txt` e `laudo_revisado.txt` (com "(foto N)"). O texto do editor da v0.6 é convertido no primeiro uso.
 - **Anexo para o Word:** páginas-imagem JPEG a 300 dpi (padrão 16 × 24,7 cm), 6, 4, 2 ou 1 foto com legenda; só as fotos escolhidas; copiar, baixar .jpg/.zip ou imprimir.
 - **Sanitizador de .docx:** mesma regra do script (de "QUESITOS" em diante, sem preâmbulo e descrição do fato, nome do periciando por [VÍTIMA]), mais cabeçalho, rodapé, notas, comentários, metadados, imagens e "Outros termos" por [OCULTO]. Só `.docx`.
 
 ## Fechar, reabrir
 
-- **Fechar e trancar:** confere o hash de cada arquivo; monta `laudo_pericial.7z` (7-Zip, AES-256, nomes cifrados, sem compressão — JPEG não encolhe) com `Originais/`, `Editadas/`, `caso.json`, `hub.json`, `transcricao.txt`, o laudo final, `laudo_texto.txt` e `SHA256SUMS.txt`; testa, extrai e confere; envia e confere o hash no Drive; marca a pasta como fechada e só então manda para a lixeira o que está no pacote. Ficam o `.7z` e o `_sanitizado.docx`. Se algo falhar antes do fim, nada é apagado.
+- **Fechar e trancar:** confere o hash de cada arquivo; monta `laudo_pericial.7z` (7-Zip, AES-256, nomes cifrados, sem compressão — JPEG não encolhe) com `Originais/`, `Editadas/`, `caso.json`, `hub.json`, `transcricao.txt`, o laudo final, os arquivos do laudo (rascunho, resposta da IA, revisado) e `SHA256SUMS.txt`; testa, extrai e confere; envia e confere o hash no Drive; marca a pasta como fechada e só então manda para a lixeira o que está no pacote. Ficam o `.7z` e o `_sanitizado.docx`. Se algo falhar antes do fim, nada é apagado.
 - A senha é digitada duas vezes e não é gravada em lugar nenhum.
 - Foto com hash divergente ou sem hash bloqueia o fechamento. Arquivo posto à mão na pasta é invisível ao app (`drive.file`): fica, com aviso; "Concluir limpeza" termina depois, com a senha.
 - **Reabrir** (com a senha): confere cada arquivo com o `SHA256SUMS.txt` e devolve fotos, anotadas, `caso.json`, `hub.json` e transcrição; o pacote vira `laudo_pericial_anterior_*.7z` e entra em `anteriores/` no próximo fechamento.
